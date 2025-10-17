@@ -5,6 +5,7 @@
 ### Fixed
 - README.md의 추진기 메시지 타입 수정: `cola2_msgs/Setpoints` → `std_msgs/Float64MultiArray`
 - 제어 예제 명령어 수정 (올바른 메시지 타입 및 필드명 적용)
+- 제어 방향 수정: 왼쪽/오른쪽, 위/아래 명령어 값 반전
 
 ## [1.0.0] - 2025-10-17
 

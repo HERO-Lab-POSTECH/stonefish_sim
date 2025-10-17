@@ -241,19 +241,19 @@ rostopic pub /girona500/controller/thruster_setpoints_sim std_msgs/Float64MultiA
 
 # 왼쪽 (port)
 rostopic pub /girona500/controller/thruster_setpoints_sim std_msgs/Float64MultiArray \
-  "data: [0.0, 0.0, 0.0, 0.0, 0.5]"
+  "data: [0.0, 0.0, 0.0, 0.0, -0.5]"
 
 # 오른쪽 (starboard)
 rostopic pub /girona500/controller/thruster_setpoints_sim std_msgs/Float64MultiArray \
-  "data: [0.0, 0.0, 0.0, 0.0, -0.5]"
+  "data: [0.0, 0.0, 0.0, 0.0, 0.5]"
 
 # 위로 (상승)
 rostopic pub /girona500/controller/thruster_setpoints_sim std_msgs/Float64MultiArray \
-  "data: [0.0, 0.0, -0.5, -0.5, 0.0]"
+  "data: [0.0, 0.0, 0.5, 0.5, 0.0]"
 
 # 아래로 (하강)
 rostopic pub /girona500/controller/thruster_setpoints_sim std_msgs/Float64MultiArray \
-  "data: [0.0, 0.0, 0.5, 0.5, 0.0]"
+  "data: [0.0, 0.0, -0.5, -0.5, 0.0]"
 
 # 정지
 rostopic pub /girona500/controller/thruster_setpoints_sim std_msgs/Float64MultiArray \
