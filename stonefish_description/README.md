@@ -183,6 +183,86 @@ roslaunch stonefish_description sparus2_tank_simulation.launch
 - stonefish_ros
 - ROS Noetic
 
+## ROS Topics
+
+### GIRONA500
+
+**Published Topics (Sensors):**
+- `/girona500/dynamics/odometry` (nav_msgs/Odometry) - Ground truth 절대 위치/속도
+- `/girona500/navigator/dvl_sim` (stonefish_msgs/DVL) - DVL 속도 측정
+- `/girona500/navigator/altitude` (sensor_msgs/Range) - DVL 고도
+- `/girona500/navigator/imu` (sensor_msgs/Imu) - IMU 데이터
+- `/girona500/navigator/pressure` (sensor_msgs/FluidPressure) - 압력 센서 (수심)
+- `/girona500/navigator/gps` (sensor_msgs/NavSatFix) - GPS (수면 위에서만)
+- `/girona500/camera_front/image_color` (sensor_msgs/Image) - 전방 카메라
+- `/girona500/fls/image` (sensor_msgs/Image) - Forward-Looking Sonar
+- `/girona500/controller/thruster_state` (stonefish_msgs/ThrusterState) - 추진기 상태
+
+**Subscribed Topics (Actuators):**
+- `/girona500/controller/thruster_setpoints_sim` (std_msgs/Float64MultiArray) - 추진기 명령
+
+**Thruster Order:**
+```
+[ThrusterSurgePort, ThrusterSurgeStarboard, ThrusterHeaveBow, ThrusterHeaveStern, ThrusterSway]
+```
+
+### SPARUS2
+
+**Published Topics:**
+- `/sparus2/dynamics/odometry` (nav_msgs/Odometry) - Ground truth 절대 위치/속도
+- `/sparus2/navigator/dvl_sim` (stonefish_msgs/DVL) - DVL 속도
+- `/sparus2/navigator/altitude` (sensor_msgs/Range) - 고도
+- `/sparus2/navigator/imu` (sensor_msgs/Imu) - IMU
+- `/sparus2/navigator/pressure` (sensor_msgs/FluidPressure) - 압력
+- `/sparus2/navigator/gps` (sensor_msgs/NavSatFix) - GPS
+- `/sparus2/controller/thruster_state` (stonefish_msgs/ThrusterState) - 추진기 상태
+
+**Subscribed Topics:**
+- `/sparus2/controller/thruster_setpoints_sim` (std_msgs/Float64MultiArray) - 추진기 명령
+
+**Thruster Order:**
+```
+[ThrusterHeave, ThrusterSurgeStarboard, ThrusterSurgePort]
+```
+
+### 예제: 로봇 제어
+
+```bash
+# GIRONA500 제어 (Thruster order: [SurgePort, SurgeStarboard, HeaveBow, HeaveStern, Sway])
+# 주의: inverted_setpoint="true" 설정으로 인해 양수=역방향, 음수=정방향
+
+# 전진
+rostopic pub /girona500/controller/thruster_setpoints_sim std_msgs/Float64MultiArray \
+  "data: [-0.5, -0.5, 0.0, 0.0, 0.0]"
+
+# 후진
+rostopic pub /girona500/controller/thruster_setpoints_sim std_msgs/Float64MultiArray \
+  "data: [0.5, 0.5, 0.0, 0.0, 0.0]"
+
+# 왼쪽 (port)
+rostopic pub /girona500/controller/thruster_setpoints_sim std_msgs/Float64MultiArray \
+  "data: [0.0, 0.0, 0.0, 0.0, 0.5]"
+
+# 오른쪽 (starboard)
+rostopic pub /girona500/controller/thruster_setpoints_sim std_msgs/Float64MultiArray \
+  "data: [0.0, 0.0, 0.0, 0.0, -0.5]"
+
+# 위로 (상승)
+rostopic pub /girona500/controller/thruster_setpoints_sim std_msgs/Float64MultiArray \
+  "data: [0.0, 0.0, -0.5, -0.5, 0.0]"
+
+# 아래로 (하강)
+rostopic pub /girona500/controller/thruster_setpoints_sim std_msgs/Float64MultiArray \
+  "data: [0.0, 0.0, 0.5, 0.5, 0.0]"
+
+# 정지
+rostopic pub /girona500/controller/thruster_setpoints_sim std_msgs/Float64MultiArray \
+  "data: [0.0, 0.0, 0.0, 0.0, 0.0]"
+
+# 위치 모니터링
+rostopic echo /girona500/dynamics/odometry/pose/pose/position
+```
+
 ## Version
 
-1.0.0 (2025-10-17)
+1.0.1 (2025-10-17)

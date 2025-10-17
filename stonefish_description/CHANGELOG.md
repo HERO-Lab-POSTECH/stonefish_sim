@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## [1.0.1] - 2025-10-17
+
+### Fixed
+- README.md의 추진기 메시지 타입 수정: `cola2_msgs/Setpoints` → `std_msgs/Float64MultiArray`
+- 제어 예제 명령어 수정 (올바른 메시지 타입 및 필드명 적용)
+
 ## [1.0.0] - 2025-10-17
 
 ### Added

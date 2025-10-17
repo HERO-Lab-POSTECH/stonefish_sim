@@ -1,0 +1,20 @@
+<launch>
+    <!-- Configurable arguments -->
+    <arg name="robot_name" default="rexrov2"/>
+    <arg name="enable_gui" default="true"/>
+    <arg name="simulation_rate" default="300.0"/>
+    <arg name="graphics_resolution" default="1200 800"/>
+    <arg name="graphics_quality" default="high"/>
+
+    <!-- Run Simulator -->
+    <include file="$(find stonefish_ros)/launch/simulator.launch">
+        <arg name="simulation_data" value="$(find stonefish_description)"/>
+        <arg name="scenario_description" value="$(find stonefish_description)/scenarios/rexrov2_seabed.scn"/>
+        <arg name="simulation_rate" value="$(arg simulation_rate)"/>
+        <arg name="graphics_resolution" value="$(arg graphics_resolution)"/>
+        <arg name="graphics_quality" value="$(arg graphics_quality)"/>
+    </include>
+
+    <!-- Transform publishers -->
+    <node name="world2ned" pkg="tf" type="static_transform_publisher" args="0 0 0 0 0 3.1415 world world_ned 100"/>
+</launch>
