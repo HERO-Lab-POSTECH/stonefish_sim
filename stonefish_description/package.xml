@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>stonefish_description</name>
+  <version>1.0.0</version>
+  <description>All Stonefish description resources (robots, worlds, scenarios, data)</description>
+
+  <maintainer email="user@todo.todo">TODO</maintainer>
+  <license>GPLv3</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <exec_depend>stonefish_ros</exec_depend>
+
+</package>

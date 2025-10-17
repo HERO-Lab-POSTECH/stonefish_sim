@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<scenario>
+	<!-- Common settings -->
+	<include file="worlds/common/environment.scn"/>
+	<include file="worlds/common/materials.scn"/>
+	<include file="worlds/common/visual.scn"/>
+
+	<!-- Tank -->
+	<include file="models/tank/tank.scn">
+		<arg name="rpy" value="0.0 0.0 0.0"/>
+		<arg name="xyz" value="0.0 0.0 0.0"/>
+	</include>
+
+	<!-- Valve panel -->
+	<include file="models/valve/valve_panel.scn">
+		<arg name="rpy" value="0.0 0.0 -1.57"/>
+		<arg name="xyz" value="0.0 3.9 2.5"/>
+	</include>
+</scenario>

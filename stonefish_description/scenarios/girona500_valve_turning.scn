@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<scenario>
+	<!-- World -->
+	<include file="worlds/valve_turning.scn"/>
+
+	<!-- Robot with manipulator -->
+	<include file="robots/manipulators/eca5emicro/girona500_eca5emicro.scn">
+		<arg name="rpy" value="0.0 0.0 0.0"/>
+		<arg name="xyz" value="0.0 0.0 1.0"/>
+	</include>
+</scenario>

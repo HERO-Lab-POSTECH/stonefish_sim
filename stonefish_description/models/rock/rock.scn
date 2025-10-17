@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<scenario>
+	<looks>
+		<look name="rock_object" gray="0.7" roughness="0.9"/>
+	</looks>
+
+	<static name="Rock1" type="model">
+		<physical>
+			<mesh filename="models/rock/meshes/sasso.obj" scale="2.0"/>
+			<origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 1.0"/>
+		</physical>
+		<material name="Rock"/>
+		<look name="rock_object"/>
+		<world_transform rpy="$(arg rpy)" xyz="$(arg xyz)"/>
+	</static>
+</scenario>
