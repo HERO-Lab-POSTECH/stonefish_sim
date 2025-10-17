@@ -1,0 +1,187 @@
+<?xml version="1.0"?>
+<scenario>
+    <robot name="rexrov2" fixed="false" self_collisions="false">
+		<base_link name="Vehicle" type="compound" physics="submerged">
+			<external_part name="Hull" type="model" physics="submerged" buoyant="true">
+				<physical>
+					<mesh filename="robots/rexrov2/meshes/box_simple.obj" scale="1.2"/>
+					<origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+				</physical>
+				<visual>
+					<mesh filename="robots/rexrov2/meshes/simplify_RexROV2_no_props.obj" scale="1.0"/>
+					<origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+				</visual>
+				<material name="Fiberglass"/>
+				<look name="white"/>
+				<compound_transform rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+			</external_part>
+
+			<!-- Main buoyancy cylinder -->
+			<internal_part name="Buoyancy" type="cylinder" physics="submerged" buoyant="true">
+				<dimensions radius="0.6" height="3.0"/>
+				<origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+				<material name="Neutral"/>
+				<mass value="1.0"/>
+				<look name="blue"/>
+				<compound_transform rpy="0.0 1.571 0.0" xyz="0.0 0.0 0.0"/>
+			</internal_part>
+
+			<!-- Battery mass -->
+			<internal_part name="Battery" type="cylinder" physics="submerged" buoyant="false">
+				<dimensions radius="0.15" height="0.5"/>
+				<origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+				<material name="Neutral"/>
+				<mass value="150.0"/>
+				<look name="red"/>
+				<compound_transform rpy="0.0 1.571 0.0" xyz="0.0 0.0 -0.3"/>
+			</internal_part>
+		</base_link>
+
+		<sensor name="fls" type="fls" rate="10.0">
+			<link name="Vehicle"/>
+			<origin rpy="2.0944 0.0 1.5708" xyz="0.0 0.0 -0.7"/>
+			<specs beams="512" bins="500" horizontal_fov="130.0" vertical_fov="20.0"/>
+			<settings range_min="0.5" range_max="20.0" gain="1.1"/>
+			<noise multiplicative="0.01" additive="0.02"/>
+			<display colormap="hot"/>
+			<ros_publisher topic="/girona500/fls"/>
+		</sensor>
+
+		<sensor name="dynamics" type="odometry" rate="30.0">
+			<link name="Vehicle"/>
+			<origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+		</sensor>
+		<ros_publisher topic="/rexrov2/dynamics/odometry"/>
+
+		<!-- Thruster 0: Front lateral thruster -->
+		<actuator name="Thruster0" type="thruster">
+			<link name="Vehicle"/>
+			<origin rpy="0.0 0.0 1.5708" xyz="0.4878 0.0 0.2373"/>
+			<specs max_setpoint="${1000.0/60.0*2.0*pi}" inverted_setpoint="true" normalized_setpoint="true"/>
+			<propeller diameter="0.18" right="true">
+				<mesh filename="robots/rexrov2/meshes/prop.obj" scale="1.0" />
+				<material name="Neutral" />
+				<look name="gray" />
+			</propeller>
+			<rotor_dynamics type="mechanical_pi">
+				<kp value="1.0"/>
+				<ki value="0.5"/>
+				<ilimit value="2.0"/>
+			</rotor_dynamics>
+			<thrust_model type="fluid_dynamics">
+				<thrust_coeff forward="0.48" reverse="0.48"/>
+				<torque_coeff value="0.05"/>
+			</thrust_model>
+		</actuator>
+
+		<!-- Thruster 1: Rear upper thruster -->
+		<actuator name="Thruster1" type="thruster">
+			<link name="Vehicle"/>
+			<origin rpy="0.0 -1.309 0.0" xyz="-0.8217 0.0 0.589"/>
+			<specs max_setpoint="${1000.0/60.0*2.0*pi}" inverted_setpoint="true" normalized_setpoint="true"/>
+			<propeller diameter="0.18" right="true">
+				<mesh filename="robots/rexrov2/meshes/prop.obj" scale="1.0" />
+				<material name="Neutral" />
+				<look name="gray" />
+			</propeller>
+			<rotor_dynamics type="mechanical_pi">
+				<kp value="1.0"/>
+				<ki value="0.5"/>
+				<ilimit value="2.0"/>
+			</rotor_dynamics>
+			<thrust_model type="fluid_dynamics">
+				<thrust_coeff forward="0.48" reverse="0.48"/>
+				<torque_coeff value="0.05"/>
+			</thrust_model>
+		</actuator>
+
+		<!-- Thruster 2: Front right thruster -->
+		<actuator name="Thruster2" type="thruster">
+			<link name="Vehicle"/>
+			<origin rpy="0.0 -1.1781 1.5708" xyz="0.8654 -0.5322 0.5332"/>
+			<specs max_setpoint="${1000.0/60.0*2.0*pi}" inverted_setpoint="true" normalized_setpoint="true"/>
+			<propeller diameter="0.18" right="true">
+				<mesh filename="robots/rexrov2/meshes/prop.obj" scale="1.0" />
+				<material name="Neutral" />
+				<look name="gray" />
+			</propeller>
+			<rotor_dynamics type="mechanical_pi">
+				<kp value="1.0"/>
+				<ki value="0.5"/>
+				<ilimit value="2.0"/>
+			</rotor_dynamics>
+			<thrust_model type="fluid_dynamics">
+				<thrust_coeff forward="0.48" reverse="0.48"/>
+				<torque_coeff value="0.05"/>
+			</thrust_model>
+		</actuator>
+
+		<!-- Thruster 3: Front left thruster -->
+		<actuator name="Thruster3" type="thruster">
+			<link name="Vehicle"/>
+			<origin rpy="0.0 1.1781 1.5708" xyz="0.8654 0.5322 0.5332"/>
+			<specs max_setpoint="${1000.0/60.0*2.0*pi}" inverted_setpoint="true" normalized_setpoint="true"/>
+			<propeller diameter="0.18" right="true">
+				<mesh filename="robots/rexrov2/meshes/prop.obj" scale="1.0" />
+				<material name="Neutral" />
+				<look name="gray" />
+			</propeller>
+			<rotor_dynamics type="mechanical_pi">
+				<kp value="1.0"/>
+				<ki value="0.5"/>
+				<ilimit value="2.0"/>
+			</rotor_dynamics>
+			<thrust_model type="fluid_dynamics">
+				<thrust_coeff forward="0.48" reverse="0.48"/>
+				<torque_coeff value="0.05"/>
+			</thrust_model>
+		</actuator>
+
+		<!-- Thruster 4: Rear right thruster -->
+		<actuator name="Thruster4" type="thruster">
+			<link name="Vehicle"/>
+			<origin rpy="0.0 0.0 0.4363" xyz="-0.7076 0.5129 0.2404"/>
+			<specs max_setpoint="${1000.0/60.0*2.0*pi}" inverted_setpoint="true" normalized_setpoint="true"/>
+			<propeller diameter="0.18" right="true">
+				<mesh filename="robots/rexrov2/meshes/prop.obj" scale="1.0" />
+				<material name="Neutral" />
+				<look name="gray" />
+			</propeller>
+			<rotor_dynamics type="mechanical_pi">
+				<kp value="1.0"/>
+				<ki value="0.5"/>
+				<ilimit value="2.0"/>
+			</rotor_dynamics>
+			<thrust_model type="fluid_dynamics">
+				<thrust_coeff forward="0.48" reverse="0.48"/>
+				<torque_coeff value="0.05"/>
+			</thrust_model>
+		</actuator>
+
+		<!-- Thruster 5: Rear left thruster -->
+		<actuator name="Thruster5" type="thruster">
+			<link name="Vehicle"/>
+			<origin rpy="0.0 0.0 -0.4363" xyz="-0.7076 -0.5129 0.2404"/>
+			<specs max_setpoint="${1000.0/60.0*2.0*pi}" inverted_setpoint="true" normalized_setpoint="true"/>
+			<propeller diameter="0.18" right="true">
+				<mesh filename="robots/rexrov2/meshes/prop.obj" scale="1.0" />
+				<material name="Neutral" />
+				<look name="gray" />
+			</propeller>
+			<rotor_dynamics type="mechanical_pi">
+				<kp value="1.0"/>
+				<ki value="0.5"/>
+				<ilimit value="2.0"/>
+			</rotor_dynamics>
+			<thrust_model type="fluid_dynamics">
+				<thrust_coeff forward="0.48" reverse="0.48"/>
+				<torque_coeff value="0.05"/>
+			</thrust_model>
+		</actuator>
+
+		<world_transform rpy="$(arg rpy)" xyz="$(arg xyz)"/>
+
+		<ros_subscriber thrusters="/rexrov2/thruster_manager/input"/>
+		<ros_publisher thrusters="/rexrov2/thrusters/state"/>
+    </robot>
+</scenario>

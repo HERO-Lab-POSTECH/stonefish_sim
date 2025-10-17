@@ -145,6 +145,7 @@ roslaunch stonefish_description sparus2_tank_simulation.launch
 - **girona500** - GIRONA500 AUV
 - **girona500_eca5emicro** - GIRONA500 + ECA 5E Micro 매니퓰레이터
 - **sparus2** - SPARUS2 AUV
+- **rexrov2** - RexROV2 ROV (6 thrusters)
 
 ## Available Worlds
 
@@ -225,6 +226,28 @@ roslaunch stonefish_description sparus2_tank_simulation.launch
 [ThrusterHeave, ThrusterSurgeStarboard, ThrusterSurgePort]
 ```
 
+### REXROV2
+
+**Published Topics:**
+- `/rexrov2/dynamics/odometry` (nav_msgs/Odometry) - Ground truth 절대 위치/속도
+- `/rexrov2/thrusters/state` (stonefish_msgs/ThrusterState) - 추진기 상태
+
+**Subscribed Topics:**
+- `/rexrov2/thruster_manager/input` (std_msgs/Float64MultiArray) - 추진기 명령
+
+**Thruster Order:**
+```
+[Thruster0, Thruster1, Thruster2, Thruster3, Thruster4, Thruster5]
+```
+
+**Thruster Configuration:**
+- Thruster0: 전방 측면 (yaw=90°) - 좌우 이동
+- Thruster1: 후방 상단 (pitch=-75°) - 전후 + 상하
+- Thruster2: 전방 우측 (pitch=-67.5°, yaw=90°) - 복합
+- Thruster3: 전방 좌측 (pitch=67.5°, yaw=90°) - 복합
+- Thruster4: 후방 우측 (yaw=25°) - 전후 + 회전
+- Thruster5: 후방 좌측 (yaw=-25°) - 전후 + 회전
+
 ### 예제: 로봇 제어
 
 ```bash
@@ -265,4 +288,4 @@ rostopic echo /girona500/dynamics/odometry/pose/pose/position
 
 ## Version
 
-1.0.1 (2025-10-17)
+1.0.2 (2025-10-18)
