@@ -10,11 +10,4 @@
 		<arg name="rpy" value="0.0 0.0 0.0"/>
 		<arg name="xyz" value="0.0 0.0 0.0"/>
 	</include>
-
-	<!-- Seabed -->
-	<static name="SeaBed" type="plane">
-		<material name="Sand"/>
-		<look name="sand"/>
-		<world_transform rpy="0.0 0.0 0.0" xyz="0.0 0.0 5.2"/>
-	</static>
 </scenario>

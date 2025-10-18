@@ -6,7 +6,7 @@
     <arg name="joystick_device" default="/dev/input/js0"/>
     <arg name="enable_gui" default="true"/>
     <arg name="enable_rviz" default="true"/>
-    <arg name="robot_xacro" default="$(find girona500_description)/urdf/payload.urdf.xacro"/>
+    <arg name="robot_xacro" default="$(find stonefish_description)/robots/urdf/payload.urdf.xacro"/>
 
     <!-- Namespace with robot name -->
     <group ns="$(arg robot_name)">

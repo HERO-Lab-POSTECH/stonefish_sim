@@ -314,17 +314,36 @@ rostopic echo /girona500/dynamics/odometry/pose/pose/position
 ```bash
 # 전진
 rostopic pub /bluerov2/thruster_manager/input std_msgs/Float64MultiArray \
-  "data: [0.5, 0.5, 0.5, 0.5, 0.0, 0.0]"
+  "data: [1.0, 1.0, 1.0, 1.0, 0.0, 0.0]"
+
+# 후진
+rostopic pub /bluerov2/thruster_manager/input std_msgs/Float64MultiArray \
+  "data: [-1.0, -1.0, -1.0, -1.0, 0.0, 0.0]"
 
 # 상승
 rostopic pub /bluerov2/thruster_manager/input std_msgs/Float64MultiArray \
-  "data: [0.0, 0.0, 0.0, 0.0, 0.5, 0.5]"
+  "data: [0.0, 0.0, 0.0, 0.0, -1.0, -1.0]"
+
+# 하강
+rostopic pub /bluerov2/thruster_manager/input std_msgs/Float64MultiArray \
+  "data: [0.0, 0.0, 0.0, 0.0, 1.0, 1.0]"
+
+# 왼쪽 회전 (반시계)
+rostopic pub /bluerov2/thruster_manager/input std_msgs/Float64MultiArray \
+  "data: [-1.0, 1.0, -1.0, 1.0, 0.0, 0.0]"
+
+# 오른쪽 회전 (시계)
+rostopic pub /bluerov2/thruster_manager/input std_msgs/Float64MultiArray \
+  "data: [1.0, -1.0, 1.0, -1.0, 0.0, 0.0]"
 
 # 정지
 rostopic pub /bluerov2/thruster_manager/input std_msgs/Float64MultiArray \
   "data: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]"
+
+# 위치 모니터링
+rostopic echo /bluerov2/dynamics/odometry/pose/pose/position
 ```
 
 ## Version
 
-1.0.3 (2025-10-18)
+1.0.4 (2025-10-19)

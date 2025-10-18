@@ -1,7 +1,7 @@
 <launch>
   <!-- Arguments -->
   <arg name="robot_name" default="girona500"/>
-  <arg name="robot_xacro" default="$(find girona500_description)/urdf/payload.urdf.xacro"/>
+  <arg name="robot_xacro" default="$(find stonefish_description)/robots/urdf/payload.urdf.xacro"/>
 
   <!-- Robot description -->
   <param name="robot_description" command="$(find xacro)/xacro --inorder '$(arg robot_xacro)' robot_namespace:=$(arg robot_name)"/>

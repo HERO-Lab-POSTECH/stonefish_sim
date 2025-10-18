@@ -4,7 +4,7 @@
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
 
   <!-- Load macros -->
-  <xacro:include filename="$(find cola2_lib_ros)/src/cola2_lib_ros/urdf_macros.xacro"/>
+  <xacro:include filename="$(find stonefish_description)/robots/urdf/urdf_macros.xacro"/>
 
   <!-- Base link -->
   <link name="$(arg robot_namespace)/base_link">
@@ -17,7 +17,7 @@
   </link>
 
   <!-- Robot mesh -->
-  <xacro:add_to_base_link element="base" mesh="package://girona500_description/meshes/girona500.dae">
+  <xacro:add_to_base_link element="base" mesh="package://stonefish_description/robots/girona500/meshes/girona500.dae">
     <origin rpy="-1.57 0 3.14" xyz="0.7 0 0.4"/>
   </xacro:add_to_base_link>
 

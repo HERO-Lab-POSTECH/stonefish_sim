@@ -1,5 +1,28 @@
 # CHANGELOG
 
+## [1.0.4] - 2025-10-19
+
+### Fixed
+- **BlueROV2 추진기 시스템 최적화**
+  - Thruster1 inverted 설정 수정 (true → false)
+  - Thruster0, Thruster2, Thruster3 inverted 설정 수정 (일부 조정)
+  - Propeller diameter: 0.076m → 0.18m (GIRONA500과 동일)
+  - Thrust coefficient: 0.96 → 0.48 (안정적인 추진력)
+  - Rotor inertia 추가: 0.05 (rpm 안정화)
+  - Rotor dynamics: kp=1.0, ki=0.5, ilimit=2.0 (PI controller 안정화)
+  - Odometry sensor의 ros_publisher를 sensor 태그 내부로 이동
+- **BlueROV2 제어 명령 문서화**
+  - README.md에 전 방향 이동 예제 추가 (전진/후진/상승/하강/회전)
+  - 실제 테스트를 통한 검증된 제어 명령
+
+### Technical Details
+- **추진기 파라미터 최종 설정:**
+  - Max RPM: 1000 (1000.0/60.0*2.0*pi rad/s)
+  - Propeller: diameter=0.18m, T200 메시 사용
+  - Thrust model: fluid_dynamics, coeff=0.48
+  - Rotor dynamics: mechanical_pi, rotor_inertia=0.05
+  - 안정적인 제어 응답, oscillation 제거
+
 ## [1.0.3] - 2025-10-18
 
 ### Added

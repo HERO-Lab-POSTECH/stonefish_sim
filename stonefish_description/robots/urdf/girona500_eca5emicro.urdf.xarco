@@ -1,10 +1,10 @@
 <?xml version="1.0"?>
 <robot name="girona500_eca5emicro" xmlns:xacro="http://www.ros.org/wiki/xacro">
   <!-- Load macros -->
-  <xacro:include filename="$(find cola2_lib_ros)/src/cola2_lib_ros/urdf_macros.xacro"/>
+  <xacro:include filename="$(find stonefish_description)/robots/urdf/urdf_macros.xacro"/>
   
   <!-- Load Girona500 with payload -->
-  <xacro:include filename="$(find girona500_description)/urdf/payload.urdf.xacro"/>
+  <xacro:include filename="$(find stonefish_description)/robots/urdf/payload.urdf.xacro"/>
   
   <!-- Load ECA 5E Micro manipulator without end-effector -->
   <xacro:include filename="$(find eca_5emicro_manipulator_description)/urdf/eca_5emicro_macro.urdf.xacro"/>
