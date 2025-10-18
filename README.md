@@ -60,34 +60,48 @@ Stonefish C++ 라이브러리와 ROS 간의 인터페이스 패키지입니다.
 
 ## Requirements
 
-### System Dependencies
-- Ubuntu 20.04 (ROS Noetic)
-- OpenGL 4.3+
-- C++20 compiler
+### Hardware Requirements
+- **CPU**: Modern multi-core processor (for realtime physics simulation)
+- **GPU**: Discrete graphics card with **OpenGL 4.3+** support (for graphical simulations)
 
-### ROS Dependencies
+### System Requirements
+- **OS**: Ubuntu 20.04 (ROS Noetic)
+- **Graphics Drivers**: Official manufacturer drivers for your GPU
+
+> **Warning**: Install official GPU drivers before using Stonefish! Generic drivers may not support OpenGL 4.3.
+
+### Software Dependencies
+
+**ROS Packages:**
 - ROS Noetic
 - sensor_msgs
 - geometry_msgs
 - nav_msgs
 - std_msgs
 
-### External Dependencies
+**External Libraries:**
 - Stonefish library >= 1.5.0
-- Bullet Physics (embedded)
-- SDL2
-- OpenGL Mathematics (GLM)
-- FreeType
+- OpenGL Mathematics (libglm-dev, >= 0.9.9.0)
+- SDL2 (libsdl2-dev)
+- FreeType (libfreetype6-dev)
 
 ## Installation
 
-### 1. Install Stonefish Library
+### 1. Install System Dependencies
+
+```bash
+sudo apt-get update
+sudo apt-get install -y libglm-dev libsdl2-dev libfreetype6-dev
+```
+
+> **Note**: SDL2 library may need a small fix to the CMake configuration file. Remove a space after `-lSDL2` in `/usr/lib/x86_64-linux-gnu/cmake/SDL2/sdl2-config.cmake`.
+
+### 2. Install Stonefish Library
 
 **IMPORTANT:** HERO Lab에서 유지관리하는 Stonefish 라이브러리를 먼저 설치해야 합니다.
 
 ```bash
 # Clone HERO Lab Stonefish repository
-cd /workspace
 git clone https://github.com/HERO-Lab-POSTECH/stonefish.git
 cd stonefish
 
@@ -98,11 +112,25 @@ make -j$(nproc)
 sudo make install
 ```
 
-### 2. Build ROS Workspace
+**Build Options:**
+- `BUILD_TESTS=ON` - Build test applications and examples
+- `EMBED_RESOURCES=ON` - Embed resources into binary (for redistribution)
+
+Example with tests:
+```bash
+cmake -DBUILD_TESTS=ON ..
+make -j$(nproc)
+# Tests will be in build/Tests/ directory
+```
+
+### 3. Clone and Build ROS Workspace
 
 ```bash
+# Clone the workspace
+git clone https://github.com/HERO-Lab-POSTECH/stonefish_sim.git
+cd stonefish_sim
+
 # Build all packages
-cd /workspace/catkin_ws
 catkin_make
 
 # Source workspace
