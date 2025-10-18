@@ -6,7 +6,7 @@
 		<material name="Fiberglass" density="1500.0" restitution="0.3"/>
 		<material name="Aluminium" density="2710.0" restitution="0.5"/>
 		<material name="Sand" density="1600.0" restitution="0.2"/>
-		<material name="Seabed" density="1800.0" restitution="0.3"/>
+		<material name="Seabed" density="1800.0" restitution="0.2"/>
 		<material name="Concrete" density="2400.0" restitution="0.6"/>
 		<friction_table>
 			<friction material1="Neutral" material2="Neutral" static="0.5" dynamic="0.2"/>

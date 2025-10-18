@@ -219,7 +219,7 @@
 
 		<sensor name="fls" type="fls" rate="10.0">
 			<link name="Vehicle"/>
-			<origin rpy="0.785398 0.0 -1.5708" xyz="0.0 0.0 0.5"/>
+			<origin rpy="1.0472 0.0 1.5708" xyz="0.0 0.0 0.5"/>
 			<specs beams="512" bins="500" horizontal_fov="130.0" vertical_fov="20.0"/>
 			<settings range_min="0.5" range_max="20.0" gain="1.1"/>
 			<noise multiplicative="0.01" additive="0.02"/>
