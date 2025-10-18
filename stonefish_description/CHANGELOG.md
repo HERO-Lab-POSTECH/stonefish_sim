@@ -5,7 +5,7 @@
 ### Added
 - **BlueROV2 로봇 지원 추가**
   - 6개 thruster 구성 (URDF 기반)
-  - Material별 메시 분리 및 최적화 (307,785 → 85,955 faces, 72% 감소)
+  - Material별 메시 분리 및 최적화 (307,785 → 46,164 faces, 85% 감소)
   - Physical mesh: 15개 부위별 분리 (bluerov2_material_*_simplified.obj)
   - Propeller mesh: bluerov2_propcw.obj, bluerov2_propccw.obj
   - ROS topics: `/bluerov2/thruster_manager/input`, `/bluerov2/dynamics/odometry`, `/bluerov2/thrusters/state`
@@ -26,12 +26,14 @@
   - Thruster3: 후방 좌측 (xyz: -0.1475, 0.1, -0.0725, yaw: -135°)
   - Thruster4: 중앙 우측 수직 (xyz: 0.0025, -0.1105, -0.005, pitch: -90°)
   - Thruster5: 중앙 좌측 수직 (xyz: 0.0025, 0.1105, -0.005, pitch: -90°)
-- **메시 최적화 (부위별 차등 적용):**
-  - material_10 (메인 프레임): 122,722 → 18,408 faces (15%)
-  - material_4 (전자장비 통): 99,948 → 24,987 faces (25%)
-  - material_5 (LED 마커): 16,801 → 8,401 faces (50%)
-  - material_15 (파란 부품): 13,368 → 6,684 faces (50%)
-  - 기타 11개 부위: 50% 단순화
+- **메시 최적화 (전체 15% 단순화):**
+  - material_10 (메인 프레임): 122,722 → 18,408 faces
+  - material_4 (전자장비 통): 99,948 → 14,992 faces
+  - material_5 (LED 마커): 16,801 → 2,520 faces
+  - material_15 (파란 부품): 13,368 → 2,004 faces
+  - material_3: 10,512 → 1,577 faces
+  - 기타 10개 부위: 356~975 faces
+  - **총 46,164 faces (원본 대비 85% 감소)**
 - **부위별 색상 (multipart 버전):**
   - 메인 프레임: 어두운 회색 (RGB: 0.098)
   - 전자장비 통: 베이지색 (RGB: 0.662, 0.645, 0.629)
