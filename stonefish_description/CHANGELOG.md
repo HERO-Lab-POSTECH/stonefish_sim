@@ -1,5 +1,44 @@
 # CHANGELOG
 
+## [1.0.3] - 2025-10-18
+
+### Added
+- **BlueROV2 로봇 지원 추가**
+  - 6개 thruster 구성 (URDF 기반)
+  - Material별 메시 분리 및 최적화 (307,785 → 85,955 faces, 72% 감소)
+  - Physical mesh: 15개 부위별 분리 (bluerov2_material_*_simplified.obj)
+  - Propeller mesh: bluerov2_propcw.obj, bluerov2_propccw.obj
+  - ROS topics: `/bluerov2/thruster_manager/input`, `/bluerov2/dynamics/odometry`, `/bluerov2/thrusters/state`
+  - 두 가지 시나리오 제공:
+    - `bluerov2_tank.scn` - 기본 단색 버전
+    - `bluerov2_tank_multipart.scn` - 부위별 색상 버전 (15개 material)
+  - Launch 파일: `bluerov2_tank_simulation.launch`, `bluerov2_tank_multipart_simulation.launch`
+- **메시 처리 도구**
+  - `split_and_simplify.py` - OBJ material 분리 및 단순화 자동화
+  - Fast-Quadric-Mesh-Simplification 통합
+- README.md에 BlueROV2 설정 및 사용법 추가
+
+### Technical Details
+- **Thruster 구성 (원본 bluerov2 thrusters.xacro 기반):**
+  - Thruster0: 전방 우측 (xyz: 0.1355, -0.1, -0.0725, yaw: 45°)
+  - Thruster1: 전방 좌측 (xyz: 0.1355, 0.1, -0.0725, yaw: -45°)
+  - Thruster2: 후방 우측 (xyz: -0.1475, -0.1, -0.0725, yaw: 135°)
+  - Thruster3: 후방 좌측 (xyz: -0.1475, 0.1, -0.0725, yaw: -135°)
+  - Thruster4: 중앙 우측 수직 (xyz: 0.0025, -0.1105, -0.005, pitch: -90°)
+  - Thruster5: 중앙 좌측 수직 (xyz: 0.0025, 0.1105, -0.005, pitch: -90°)
+- **메시 최적화 (부위별 차등 적용):**
+  - material_10 (메인 프레임): 122,722 → 18,408 faces (15%)
+  - material_4 (전자장비 통): 99,948 → 24,987 faces (25%)
+  - material_5 (LED 마커): 16,801 → 8,401 faces (50%)
+  - material_15 (파란 부품): 13,368 → 6,684 faces (50%)
+  - 기타 11개 부위: 50% 단순화
+- **부위별 색상 (multipart 버전):**
+  - 메인 프레임: 어두운 회색 (RGB: 0.098)
+  - 전자장비 통: 베이지색 (RGB: 0.662, 0.645, 0.629)
+  - LED 마커: 빨간색 (RGB: 1.0, 0.0, 0.0)
+  - 파란 부품: 청록색 (RGB: 0.149, 0.6, 0.816)
+  - 기타 부위: 회색/파란색 톤
+
 ## [1.0.2] - 2025-10-18
 
 ### Added

@@ -1,0 +1,332 @@
+<?xml version="1.0"?>
+<scenario>
+	<looks>
+		<!-- Material 기반 색상 (MTL 파일의 Kd 값 참고) -->
+		<look name="frame_dark" rgb="0.059 0.059 0.059" roughness="0.4" metalness="0.6"/>
+		<look name="frame_main" rgb="0.098 0.098 0.098" roughness="0.4" metalness="0.6"/>
+		<look name="electronics" rgb="0.662 0.645 0.629" roughness="0.3" metalness="0.2"/>
+		<look name="led_red" rgb="1.0 0.0 0.0" roughness="0.2" metalness="0.1"/>
+		<look name="blue_part1" rgb="0.149 0.6 0.816" roughness="0.3" metalness="0.4"/>
+		<look name="blue_part2" rgb="0.153 0.659 1.0" roughness="0.3" metalness="0.4"/>
+		<look name="light_blue" rgb="0.792 0.820 0.933" roughness="0.3" metalness="0.3"/>
+		<look name="tan_color" rgb="0.647 0.620 0.588" roughness="0.3" metalness="0.2"/>
+		<look name="light_gray" rgb="0.846 0.833 0.859" roughness="0.3" metalness="0.5"/>
+		<look name="white" rgb="0.957 0.957 0.957" roughness="0.2" metalness="0.3"/>
+		<look name="gray1" rgb="0.189 0.197 0.189" roughness="0.4" metalness="0.5"/>
+		<look name="gray2" rgb="0.251 0.251 0.251" roughness="0.4" metalness="0.5"/>
+		<look name="gray3" rgb="0.294 0.294 0.294" roughness="0.4" metalness="0.5"/>
+		<look name="gray4" rgb="0.753 0.753 0.753" roughness="0.3" metalness="0.4"/>
+		<look name="cream" rgb="1.0 0.949 0.910" roughness="0.2" metalness="0.2"/>
+		<look name="propeller" gray="0.1" roughness="0.3" metalness="0.6"/>
+	</looks>
+
+	<robot name="bluerov2" fixed="false" self_collisions="false">
+		<base_link name="Vehicle" type="compound" physics="submerged">
+			<!-- Main Frame (material_10 - 가장 큰 부분, 어두운 회색 프레임) -->
+			<external_part name="Frame_Main" type="model" physics="submerged" buoyant="false">
+				<physical>
+					<mesh filename="robots/bluerov2/meshes/bluerov2_material_10_simplified.obj" scale="1.0"/>
+					<origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+				</physical>
+				<material name="Aluminium"/>
+				<look name="frame_main"/>
+				<compound_transform rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+			</external_part>
+
+			<!-- Electronics Housing (material_4 - 베이지색 전자장비 통) -->
+			<external_part name="Electronics" type="model" physics="submerged" buoyant="true">
+				<physical>
+					<mesh filename="robots/bluerov2/meshes/bluerov2_material_4_simplified.obj" scale="1.0"/>
+					<origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+				</physical>
+				<material name="Neutral"/>
+				<look name="electronics"/>
+				<compound_transform rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+			</external_part>
+
+			<!-- Red LED/Marker (material_5) -->
+			<external_part name="LED_Red" type="model" physics="submerged" buoyant="false">
+				<physical>
+					<mesh filename="robots/bluerov2/meshes/bluerov2_material_5_simplified.obj" scale="1.0"/>
+					<origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+				</physical>
+				<material name="Neutral"/>
+				<look name="led_red"/>
+				<compound_transform rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+			</external_part>
+
+			<!-- Blue Parts -->
+			<external_part name="Blue_Part1" type="model" physics="submerged" buoyant="false">
+				<physical>
+					<mesh filename="robots/bluerov2/meshes/bluerov2_material_15_simplified.obj" scale="1.0"/>
+					<origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+				</physical>
+				<material name="Fiberglass"/>
+				<look name="blue_part1"/>
+				<compound_transform rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+			</external_part>
+
+			<!-- Dark Frame Parts (material_3) -->
+			<external_part name="Frame_Dark" type="model" physics="submerged" buoyant="false">
+				<physical>
+					<mesh filename="robots/bluerov2/meshes/bluerov2_material_3_simplified.obj" scale="1.0"/>
+					<origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+				</physical>
+				<material name="Aluminium"/>
+				<look name="frame_dark"/>
+				<compound_transform rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+			</external_part>
+
+			<!-- Other Parts -->
+			<external_part name="Part_Mat1" type="model" physics="submerged" buoyant="false">
+				<physical>
+					<mesh filename="robots/bluerov2/meshes/bluerov2_material_1_simplified.obj" scale="1.0"/>
+					<origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+				</physical>
+				<material name="Neutral"/>
+				<look name="light_gray"/>
+				<compound_transform rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+			</external_part>
+
+			<external_part name="Part_Mat2" type="model" physics="submerged" buoyant="false">
+				<physical>
+					<mesh filename="robots/bluerov2/meshes/bluerov2_material_2_simplified.obj" scale="1.0"/>
+					<origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+				</physical>
+				<material name="Neutral"/>
+				<look name="gray1"/>
+				<compound_transform rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+			</external_part>
+
+			<external_part name="Part_Mat6" type="model" physics="submerged" buoyant="false">
+				<physical>
+					<mesh filename="robots/bluerov2/meshes/bluerov2_material_6_simplified.obj" scale="1.0"/>
+					<origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+				</physical>
+				<material name="Neutral"/>
+				<look name="gray3"/>
+				<compound_transform rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+			</external_part>
+
+			<external_part name="Part_Mat7" type="model" physics="submerged" buoyant="false">
+				<physical>
+					<mesh filename="robots/bluerov2/meshes/bluerov2_material_7_simplified.obj" scale="1.0"/>
+					<origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+				</physical>
+				<material name="Neutral"/>
+				<look name="light_blue"/>
+				<compound_transform rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+			</external_part>
+
+			<external_part name="Part_Mat8" type="model" physics="submerged" buoyant="false">
+				<physical>
+					<mesh filename="robots/bluerov2/meshes/bluerov2_material_8_simplified.obj" scale="1.0"/>
+					<origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+				</physical>
+				<material name="Neutral"/>
+				<look name="white"/>
+				<compound_transform rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+			</external_part>
+
+			<external_part name="Part_Mat9" type="model" physics="submerged" buoyant="false">
+				<physical>
+					<mesh filename="robots/bluerov2/meshes/bluerov2_material_9_simplified.obj" scale="1.0"/>
+					<origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+				</physical>
+				<material name="Neutral"/>
+				<look name="gray4"/>
+				<compound_transform rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+			</external_part>
+
+			<external_part name="Part_Mat11" type="model" physics="submerged" buoyant="false">
+				<physical>
+					<mesh filename="robots/bluerov2/meshes/bluerov2_material_11_simplified.obj" scale="1.0"/>
+					<origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+				</physical>
+				<material name="Neutral"/>
+				<look name="cream"/>
+				<compound_transform rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+			</external_part>
+
+			<external_part name="Part_Mat12" type="model" physics="submerged" buoyant="false">
+				<physical>
+					<mesh filename="robots/bluerov2/meshes/bluerov2_material_12_simplified.obj" scale="1.0"/>
+					<origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+				</physical>
+				<material name="Neutral"/>
+				<look name="blue_part2"/>
+				<compound_transform rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+			</external_part>
+
+			<external_part name="Part_Mat13" type="model" physics="submerged" buoyant="false">
+				<physical>
+					<mesh filename="robots/bluerov2/meshes/bluerov2_material_13_simplified.obj" scale="1.0"/>
+					<origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+				</physical>
+				<material name="Neutral"/>
+				<look name="tan_color"/>
+				<compound_transform rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+			</external_part>
+
+			<external_part name="Part_Mat14" type="model" physics="submerged" buoyant="false">
+				<physical>
+					<mesh filename="robots/bluerov2/meshes/bluerov2_material_14_simplified.obj" scale="1.0"/>
+					<origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+				</physical>
+				<material name="Neutral"/>
+				<look name="gray2"/>
+				<compound_transform rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+			</external_part>
+
+			<!-- Internal mass for ballast -->
+			<internal_part name="Ballast" type="cylinder" physics="submerged" buoyant="false">
+				<dimensions radius="0.08" height="0.3"/>
+				<origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+				<material name="Aluminium"/>
+				<mass value="8.0"/>
+				<look name="frame_main"/>
+				<compound_transform rpy="0.0 1.571 0.0" xyz="0.0 0.0 -0.05"/>
+			</internal_part>
+		</base_link>
+
+		<!-- Odometry sensor (ground truth) -->
+		<sensor name="dynamics" type="odometry" rate="30.0">
+			<link name="Vehicle"/>
+			<origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+		</sensor>
+		<ros_publisher topic="/bluerov2/dynamics/odometry"/>
+
+		<!-- 6 Thrusters (T200) -->
+		<actuator name="Thruster0" type="thruster">
+			<link name="Vehicle"/>
+			<origin rpy="0.0 0.0 0.7853981634" xyz="0.1355 -0.1 -0.0725"/>
+			<specs max_setpoint="${1000.0/60.0*2.0*pi}" inverted_setpoint="false" normalized_setpoint="true"/>
+			<propeller diameter="0.1" right="true">
+				<mesh filename="robots/bluerov2/meshes/bluerov2_propcw.obj" scale="1.0"/>
+				<material name="Neutral"/>
+				<look name="propeller"/>
+			</propeller>
+			<rotor_dynamics type="mechanical_pi">
+				<kp value="1.0"/>
+				<ki value="0.5"/>
+				<ilimit value="2.0"/>
+			</rotor_dynamics>
+			<thrust_model type="fluid_dynamics">
+				<thrust_coeff forward="0.4" reverse="0.4"/>
+				<torque_coeff value="0.05"/>
+			</thrust_model>
+		</actuator>
+
+		<actuator name="Thruster1" type="thruster">
+			<link name="Vehicle"/>
+			<origin rpy="0.0 0.0 -0.7853981634" xyz="0.1355 0.1 -0.0725"/>
+			<specs max_setpoint="${1000.0/60.0*2.0*pi}" inverted_setpoint="false" normalized_setpoint="true"/>
+			<propeller diameter="0.1" right="true">
+				<mesh filename="robots/bluerov2/meshes/bluerov2_propcw.obj" scale="1.0"/>
+				<material name="Neutral"/>
+				<look name="propeller"/>
+			</propeller>
+			<rotor_dynamics type="mechanical_pi">
+				<kp value="1.0"/>
+				<ki value="0.5"/>
+				<ilimit value="2.0"/>
+			</rotor_dynamics>
+			<thrust_model type="fluid_dynamics">
+				<thrust_coeff forward="0.4" reverse="0.4"/>
+				<torque_coeff value="0.05"/>
+			</thrust_model>
+		</actuator>
+
+		<actuator name="Thruster2" type="thruster">
+			<link name="Vehicle"/>
+			<origin rpy="0.0 0.0 2.3561944902" xyz="-0.1475 -0.1 -0.0725"/>
+			<specs max_setpoint="${1000.0/60.0*2.0*pi}" inverted_setpoint="false" normalized_setpoint="true"/>
+			<propeller diameter="0.1" right="false">
+				<mesh filename="robots/bluerov2/meshes/bluerov2_propccw.obj" scale="1.0"/>
+				<material name="Neutral"/>
+				<look name="propeller"/>
+			</propeller>
+			<rotor_dynamics type="mechanical_pi">
+				<kp value="1.0"/>
+				<ki value="0.5"/>
+				<ilimit value="2.0"/>
+			</rotor_dynamics>
+			<thrust_model type="fluid_dynamics">
+				<thrust_coeff forward="0.4" reverse="0.4"/>
+				<torque_coeff value="0.05"/>
+			</thrust_model>
+		</actuator>
+
+		<actuator name="Thruster3" type="thruster">
+			<link name="Vehicle"/>
+			<origin rpy="0.0 0.0 -2.3561944902" xyz="-0.1475 0.1 -0.0725"/>
+			<specs max_setpoint="${1000.0/60.0*2.0*pi}" inverted_setpoint="false" normalized_setpoint="true"/>
+			<propeller diameter="0.1" right="false">
+				<mesh filename="robots/bluerov2/meshes/bluerov2_propccw.obj" scale="1.0"/>
+				<material name="Neutral"/>
+				<look name="propeller"/>
+			</propeller>
+			<rotor_dynamics type="mechanical_pi">
+				<kp value="1.0"/>
+				<ki value="0.5"/>
+				<ilimit value="2.0"/>
+			</rotor_dynamics>
+			<thrust_model type="fluid_dynamics">
+				<thrust_coeff forward="0.4" reverse="0.4"/>
+				<torque_coeff value="0.05"/>
+			</thrust_model>
+		</actuator>
+
+		<actuator name="Thruster4" type="thruster">
+			<link name="Vehicle"/>
+			<origin rpy="0.0 -1.5707963268 0.0" xyz="0.0025 -0.1105 -0.005"/>
+			<specs max_setpoint="${1000.0/60.0*2.0*pi}" inverted_setpoint="false" normalized_setpoint="true"/>
+			<propeller diameter="0.1" right="true">
+				<mesh filename="robots/bluerov2/meshes/bluerov2_propcw.obj" scale="1.0"/>
+				<material name="Neutral"/>
+				<look name="propeller"/>
+			</propeller>
+			<rotor_dynamics type="mechanical_pi">
+				<kp value="1.0"/>
+				<ki value="0.5"/>
+				<ilimit value="2.0"/>
+			</rotor_dynamics>
+			<thrust_model type="fluid_dynamics">
+				<thrust_coeff forward="0.4" reverse="0.4"/>
+				<torque_coeff value="0.05"/>
+			</thrust_model>
+		</actuator>
+
+		<actuator name="Thruster5" type="thruster">
+			<link name="Vehicle"/>
+			<origin rpy="0.0 -1.5707963268 0.0" xyz="0.0025 0.1105 -0.005"/>
+			<specs max_setpoint="${1000.0/60.0*2.0*pi}" inverted_setpoint="false" normalized_setpoint="true"/>
+			<propeller diameter="0.1" right="true">
+				<mesh filename="robots/bluerov2/meshes/bluerov2_propcw.obj" scale="1.0"/>
+				<material name="Neutral"/>
+				<look name="propeller"/>
+			</propeller>
+			<rotor_dynamics type="mechanical_pi">
+				<kp value="1.0"/>
+				<ki value="0.5"/>
+				<ilimit value="2.0"/>
+			</rotor_dynamics>
+			<thrust_model type="fluid_dynamics">
+				<thrust_coeff forward="0.4" reverse="0.4"/>
+				<torque_coeff value="0.05"/>
+			</thrust_model>
+		</actuator>
+
+		<!-- ROS topics -->
+		<ros_subscriber topic="/bluerov2/thruster_manager/input"
+			thrusters="Thruster0,Thruster1,Thruster2,Thruster3,Thruster4,Thruster5"/>
+
+		<actuator name="ThrusterState" type="thruster_state">
+			<thrusters>Thruster0,Thruster1,Thruster2,Thruster3,Thruster4,Thruster5</thrusters>
+		</actuator>
+		<ros_publisher topic="/bluerov2/thrusters/state"/>
+
+		<!-- World transform with arguments -->
+		<world_transform rpy="$(arg rpy)" xyz="$(arg xyz)"/>
+	</robot>
+</scenario>

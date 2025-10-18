@@ -59,6 +59,8 @@ roslaunch stonefish_ros simulator.launch
 roslaunch stonefish_description girona500_tank_simulation.launch
 roslaunch stonefish_description girona500_valve_turning_simulation.launch
 roslaunch stonefish_description sparus2_tank_simulation.launch
+roslaunch stonefish_description bluerov2_tank_simulation.launch
+roslaunch stonefish_description bluerov2_tank_multipart_simulation.launch  # 부위별 색상
 ```
 
 ### Scenario File Structure
@@ -146,6 +148,7 @@ roslaunch stonefish_description sparus2_tank_simulation.launch
 - **girona500_eca5emicro** - GIRONA500 + ECA 5E Micro 매니퓰레이터
 - **sparus2** - SPARUS2 AUV
 - **rexrov2** - RexROV2 ROV (6 thrusters)
+- **bluerov2** - BlueROV2 ROV (6 thrusters)
 
 ## Available Worlds
 
@@ -286,6 +289,43 @@ rostopic pub /girona500/controller/thruster_setpoints_sim std_msgs/Float64MultiA
 rostopic echo /girona500/dynamics/odometry/pose/pose/position
 ```
 
+### BLUEROV2
+
+**Published Topics:**
+- `/bluerov2/dynamics/odometry` (nav_msgs/Odometry) - Ground truth 절대 위치/속도
+- `/bluerov2/thrusters/state` (stonefish_msgs/ThrusterState) - 추진기 상태
+
+**Subscribed Topics:**
+- `/bluerov2/thruster_manager/input` (std_msgs/Float64MultiArray) - 추진기 명령
+
+**Thruster Order:**
+```
+[Thruster0, Thruster1, Thruster2, Thruster3, Thruster4, Thruster5]
+```
+
+**Thruster Configuration:**
+- Thruster0: 전방 우측 (yaw=45°) - 전후 + 회전
+- Thruster1: 전방 좌측 (yaw=-45°) - 전후 + 회전
+- Thruster2: 후방 우측 (yaw=135°) - 전후 + 회전
+- Thruster3: 후방 좌측 (yaw=-135°) - 전후 + 회전
+- Thruster4: 중앙 우측 수직 (pitch=-90°) - 상하 이동
+- Thruster5: 중앙 좌측 수직 (pitch=-90°) - 상하 이동
+
+**제어 예제:**
+```bash
+# 전진
+rostopic pub /bluerov2/thruster_manager/input std_msgs/Float64MultiArray \
+  "data: [0.5, 0.5, 0.5, 0.5, 0.0, 0.0]"
+
+# 상승
+rostopic pub /bluerov2/thruster_manager/input std_msgs/Float64MultiArray \
+  "data: [0.0, 0.0, 0.0, 0.0, 0.5, 0.5]"
+
+# 정지
+rostopic pub /bluerov2/thruster_manager/input std_msgs/Float64MultiArray \
+  "data: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]"
+```
+
 ## Version
 
-1.0.2 (2025-10-18)
+1.0.3 (2025-10-18)
