@@ -83,10 +83,12 @@ Stonefish C++ 라이브러리와 ROS 간의 인터페이스 패키지입니다.
 
 ### 1. Install Stonefish Library
 
+**IMPORTANT:** HERO Lab에서 유지관리하는 Stonefish 라이브러리를 먼저 설치해야 합니다.
+
 ```bash
-# Clone Stonefish repository
+# Clone HERO Lab Stonefish repository
 cd /workspace
-git clone https://github.com/patrykcieslak/stonefish.git
+git clone https://github.com/HERO-Lab-POSTECH/stonefish.git
 cd stonefish
 
 # Build and install
