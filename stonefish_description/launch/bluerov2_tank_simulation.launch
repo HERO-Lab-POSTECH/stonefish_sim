@@ -1,5 +1,5 @@
 <launch>
-    <!-- Configurable arguments -->
+    <!-- BlueROV2 Tank Simulation -->
     <arg name="robot_name" default="bluerov2"/>
     <arg name="enable_gui" default="true"/>
 

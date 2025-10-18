@@ -60,7 +60,6 @@ roslaunch stonefish_description girona500_tank_simulation.launch
 roslaunch stonefish_description girona500_valve_turning_simulation.launch
 roslaunch stonefish_description sparus2_tank_simulation.launch
 roslaunch stonefish_description bluerov2_tank_simulation.launch
-roslaunch stonefish_description bluerov2_tank_multipart_simulation.launch  # 부위별 색상
 ```
 
 ### Scenario File Structure

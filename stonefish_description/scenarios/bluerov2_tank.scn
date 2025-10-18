@@ -3,7 +3,7 @@
 	<!-- Include tank world -->
 	<include file="worlds/tank.scn"/>
 
-	<!-- Include BlueROV2 robot -->
+	<!-- Include BlueROV2 -->
 	<include file="robots/bluerov2/bluerov2.scn">
 		<arg name="rpy" value="0.0 0.0 0.0"/>
 		<arg name="xyz" value="0.0 0.0 -2.0"/>
