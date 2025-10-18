@@ -162,14 +162,9 @@
 			</thrust_model>
 		</actuator>
 
-		<!-- Thruster state publisher -->
-		<ros_subscriber topic="/bluerov2/thruster_manager/input"
-			thrusters="Thruster0,Thruster1,Thruster2,Thruster3,Thruster4,Thruster5"/>
-
-		<actuator name="ThrusterState" type="thruster_state">
-			<thrusters>Thruster0,Thruster1,Thruster2,Thruster3,Thruster4,Thruster5</thrusters>
-		</actuator>
-		<ros_publisher topic="/bluerov2/thrusters/state"/>
+		<!-- ROS topics -->
+		<ros_subscriber thrusters="/bluerov2/thruster_manager/input"/>
+		<ros_publisher thrusters="/bluerov2/thrusters/state"/>
 
 		<!-- World transform with arguments -->
 		<world_transform rpy="$(arg rpy)" xyz="$(arg xyz)"/>
