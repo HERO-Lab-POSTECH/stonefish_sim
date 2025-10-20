@@ -139,13 +139,9 @@
 			<!-- Buoy Covers (4개) -->
 			<external_part name="BuoyCover1" type="model" physics="submerged" buoyant="false">
 				<physical>
-					<mesh filename="robots/bluerov2/meshes/bluerov2_buoy_cover_1_phy.obj" scale="1.0"/>
-					<origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
-				</physical>
-				<visual>
 					<mesh filename="robots/bluerov2/meshes/bluerov2_buoy_cover_1.obj" scale="1.0"/>
 					<origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
-				</visual>
+				</physical>
 				<material name="Neutral"/>
 				<mass value="0.0001"/>
 				<look name="blue"/>
@@ -154,13 +150,9 @@
 
 			<external_part name="BuoyCover2" type="model" physics="submerged" buoyant="false">
 				<physical>
-					<mesh filename="robots/bluerov2/meshes/bluerov2_buoy_cover_2_phy.obj" scale="1.0"/>
-					<origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
-				</physical>
-				<visual>
 					<mesh filename="robots/bluerov2/meshes/bluerov2_buoy_cover_2.obj" scale="1.0"/>
 					<origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
-				</visual>
+				</physical>
 				<material name="Neutral"/>
 				<mass value="0.0001"/>
 				<look name="blue"/>
@@ -169,13 +161,9 @@
 
 			<external_part name="BuoyCover3" type="model" physics="submerged" buoyant="false">
 				<physical>
-					<mesh filename="robots/bluerov2/meshes/bluerov2_buoy_cover_3_phy.obj" scale="1.0"/>
-					<origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
-				</physical>
-				<visual>
 					<mesh filename="robots/bluerov2/meshes/bluerov2_buoy_cover_3.obj" scale="1.0"/>
 					<origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
-				</visual>
+				</physical>
 				<material name="Neutral"/>
 				<mass value="0.0001"/>
 				<look name="blue"/>
@@ -184,13 +172,9 @@
 
 			<external_part name="BuoyCover4" type="model" physics="submerged" buoyant="false">
 				<physical>
-					<mesh filename="robots/bluerov2/meshes/bluerov2_buoy_cover_4_phy.obj" scale="1.0"/>
-					<origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
-				</physical>
-				<visual>
 					<mesh filename="robots/bluerov2/meshes/bluerov2_buoy_cover_4.obj" scale="1.0"/>
 					<origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
-				</visual>
+				</physical>
 				<material name="Neutral"/>
 				<mass value="0.0001"/>
 				<look name="blue"/>
@@ -200,13 +184,9 @@
 			<!-- Buoy Plates (4개) -->
 			<external_part name="BuoyPlate1" type="model" physics="submerged" buoyant="false">
 				<physical>
-					<mesh filename="robots/bluerov2/meshes/bluerov2_buoy_plate_1_phy.obj" scale="1.0"/>
-					<origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
-				</physical>
-				<visual>
 					<mesh filename="robots/bluerov2/meshes/bluerov2_buoy_plate_1.obj" scale="1.0"/>
 					<origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
-				</visual>
+				</physical>
 				<material name="Neutral"/>
 				<mass value="0.0001"/>
 				<look name="very_dark_gray"/>
@@ -215,13 +195,9 @@
 
 			<external_part name="BuoyPlate2" type="model" physics="submerged" buoyant="false">
 				<physical>
-					<mesh filename="robots/bluerov2/meshes/bluerov2_buoy_plate_2_phy.obj" scale="1.0"/>
-					<origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
-				</physical>
-				<visual>
 					<mesh filename="robots/bluerov2/meshes/bluerov2_buoy_plate_2.obj" scale="1.0"/>
 					<origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
-				</visual>
+				</physical>
 				<material name="Neutral"/>
 				<mass value="0.0001"/>
 				<look name="very_dark_gray"/>
@@ -230,13 +206,9 @@
 
 			<external_part name="BuoyPlate3" type="model" physics="submerged" buoyant="false">
 				<physical>
-					<mesh filename="robots/bluerov2/meshes/bluerov2_buoy_plate_3_phy.obj" scale="1.0"/>
-					<origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
-				</physical>
-				<visual>
 					<mesh filename="robots/bluerov2/meshes/bluerov2_buoy_plate_3.obj" scale="1.0"/>
 					<origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
-				</visual>
+				</physical>
 				<material name="Neutral"/>
 				<mass value="0.0001"/>
 				<look name="very_dark_gray"/>
@@ -245,13 +217,9 @@
 
 			<external_part name="BuoyPlate4" type="model" physics="submerged" buoyant="false">
 				<physical>
-					<mesh filename="robots/bluerov2/meshes/bluerov2_buoy_plate_4_phy.obj" scale="1.0"/>
-					<origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
-				</physical>
-				<visual>
 					<mesh filename="robots/bluerov2/meshes/bluerov2_buoy_plate_4.obj" scale="1.0"/>
 					<origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
-				</visual>
+				</physical>
 				<material name="Neutral"/>
 				<mass value="0.0001"/>
 				<look name="very_dark_gray"/>
@@ -272,8 +240,8 @@
 
 			<external_part name="Plate2" type="model" physics="submerged" buoyant="false">
 				<physical>
-					<mesh filename="robots/bluerov2/meshes/bluerov2_plate_2.obj" scale="1.0"/>
-					<origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+					<mesh filename="robots/bluerov2/meshes/bluerov2_plate_1.obj" scale="1.0"/>
+					<origin rpy="0.0 3.14 0.0" xyz="0.0 0.0 0.0"/>
 				</physical>
 				<material name="Neutral"/>
 				<mass value="0.0001"/>
@@ -382,13 +350,13 @@
 			<link name="Vehicle"/>
 			<origin rpy="0.0 0.0 0.7853981634" xyz="0.1355 -0.1 0.0725"/>
 			<specs max_setpoint="${1000.0/60.0*2.0*pi}" inverted_setpoint="false" normalized_setpoint="true"/>
-			<propeller diameter="0.18" right="true">
+			<propeller diameter="0.114" right="true">
 				<mesh filename="robots/bluerov2/meshes/bluerov2_propeller.obj" scale="0.43"/>
 				<material name="Neutral" />
 				<look name="propeller" />
 			</propeller>
 			<rotor_dynamics type="mechanical_pi">
-			<rotor_inertia value="0.05"/>
+			<rotor_inertia value="0.3"/>
 				<kp value="1.0"/>
 				<ki value="0.5"/>
 				<ilimit value="2.0"/>
@@ -403,13 +371,13 @@
 			<link name="Vehicle"/>
 			<origin rpy="0.0 0.0 -0.7853981634" xyz="0.1355 0.1 0.0725"/>
 			<specs max_setpoint="${1000.0/60.0*2.0*pi}" inverted_setpoint="false" normalized_setpoint="true"/>
-			<propeller diameter="0.18" right="true">
+			<propeller diameter="0.114" right="true">
 				<mesh filename="robots/bluerov2/meshes/bluerov2_propeller.obj" scale="0.43"/>
 				<material name="Neutral"/>
 				<look name="propeller"/>
 			</propeller>
 			<rotor_dynamics type="mechanical_pi">
-			<rotor_inertia value="0.05"/>
+			<rotor_inertia value="0.3"/>
 				<kp value="1.0"/>
 				<ki value="0.5"/>
 				<ilimit value="2.0"/>
@@ -424,13 +392,13 @@
 			<link name="Vehicle"/>
 			<origin rpy="0.0 0.0 2.3561944902" xyz="-0.1475 -0.1 0.0725"/>
 			<specs max_setpoint="${1000.0/60.0*2.0*pi}" inverted_setpoint="true" normalized_setpoint="true"/>
-			<propeller diameter="0.18" right="true">
+			<propeller diameter="0.114" right="true">
 				<mesh filename="robots/bluerov2/meshes/bluerov2_propeller.obj" scale="0.43"/>
 				<material name="Neutral"/>
 				<look name="propeller"/>
 			</propeller>
 			<rotor_dynamics type="mechanical_pi">
-			<rotor_inertia value="0.05"/>
+			<rotor_inertia value="0.3"/>
 				<kp value="1.0"/>
 				<ki value="0.5"/>
 				<ilimit value="2.0"/>
@@ -445,13 +413,13 @@
 			<link name="Vehicle"/>
 			<origin rpy="0.0 0.0 -2.3561944902" xyz="-0.1475 0.1 0.0725"/>
 			<specs max_setpoint="${1000.0/60.0*2.0*pi}" inverted_setpoint="true" normalized_setpoint="true"/>
-			<propeller diameter="0.18" right="true">
+			<propeller diameter="0.114" right="true">
 				<mesh filename="robots/bluerov2/meshes/bluerov2_propeller.obj" scale="0.43"/>
 				<material name="Neutral"/>
 				<look name="propeller"/>
 			</propeller>
 			<rotor_dynamics type="mechanical_pi">
-			<rotor_inertia value="0.05"/>
+			<rotor_inertia value="0.3"/>
 				<kp value="1.0"/>
 				<ki value="0.5"/>
 				<ilimit value="2.0"/>
@@ -466,13 +434,13 @@
 			<link name="Vehicle"/>
 			<origin rpy="0.0 -1.5707963268 0.0" xyz="0.0025 -0.1105 0.005"/>
 			<specs max_setpoint="${1000.0/60.0*2.0*pi}" inverted_setpoint="false" normalized_setpoint="true"/>
-			<propeller diameter="0.18" right="true">
+			<propeller diameter="0.114" right="true">
 				<mesh filename="robots/bluerov2/meshes/bluerov2_propeller.obj" scale="0.43"/>
 				<material name="Fiberglass"/>
 				<look name="propeller"/>
 			</propeller>
 			<rotor_dynamics type="mechanical_pi">
-			<rotor_inertia value="0.05"/>
+			<rotor_inertia value="0.3"/>
 				<kp value="1.0"/>
 				<ki value="0.5"/>
 				<ilimit value="2.0"/>
@@ -486,14 +454,14 @@
 		<actuator name="Thruster5" type="thruster">
 			<link name="Vehicle"/>
 			<origin rpy="0.0 -1.5707963268 0.0" xyz="0.0025 0.1105 0.005"/>
-			<specs max_setpoint="${1000.0/60.0*2.0*pi}" inverted_setpoint="false" normalized_setpoint="true"/>
-			<propeller diameter="0.18" right="true">
+			<specs max_setpoint="${1000.0/60.0*2.0*pi}" inverted_setpoint="true" normalized_setpoint="true"/>
+			<propeller diameter="0.114" right="true">
 				<mesh filename="robots/bluerov2/meshes/bluerov2_propeller.obj" scale="0.43"/>
 				<material name="Fiberglass"/>
 				<look name="propeller"/>
 			</propeller>
 			<rotor_dynamics type="mechanical_pi">
-			<rotor_inertia value="0.05"/>
+			<rotor_inertia value="0.3"/>
 				<kp value="1.0"/>
 				<ki value="0.5"/>
 				<ilimit value="2.0"/>

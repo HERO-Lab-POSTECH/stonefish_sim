@@ -310,6 +310,17 @@ rostopic echo /girona500/dynamics/odometry/pose/pose/position
 - Thruster4: 중앙 우측 수직 (pitch=-90°) - 상하 이동
 - Thruster5: 중앙 좌측 수직 (pitch=-90°) - 상하 이동
 
+**추진기 파라미터:**
+- **Propeller diameter**: 0.18m (GIRONA500과 동일)
+- **Thrust coefficient**: 0.36 (안정적인 제어를 위해 조정)
+- **Rotor inertia**: 0.05 (rpm 변화를 부드럽게)
+- **Rotor dynamics**: kp=1.0, ki=0.5, ilimit=2.0 (PI controller)
+
+**파라미터 설명:**
+- **Thrust coefficient**: 추진력의 크기를 결정. 높으면 강력하지만 제어가 어려움. 낮으면 부드럽고 안정적.
+- **Rotor inertia**: 프로펠러의 회전 관성. rpm이 갑자기 변하는 것을 방지하여 진동 감소 (스무딩 효과).
+- **PI controller gains**: rpm 제어기의 응답 속도. 너무 높으면 oscillation 발생.
+
 **제어 예제:**
 ```bash
 # 전진
