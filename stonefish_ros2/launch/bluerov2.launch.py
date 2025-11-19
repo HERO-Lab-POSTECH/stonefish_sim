@@ -49,7 +49,7 @@ def generate_launch_description():
 
     simulation_rate_arg = DeclareLaunchArgument(
         'simulation_rate',
-        default_value='100.0',
+        default_value='50.0',
         description='Simulation update rate (Hz)'
     )
 

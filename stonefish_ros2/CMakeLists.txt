@@ -16,7 +16,6 @@ find_package(geometry_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
-find_package(rosidl_default_generators REQUIRED)
 find_package(PCL REQUIRED)
 find_package(pcl_conversions REQUIRED)
 find_package(image_transport REQUIRED)
@@ -24,23 +23,6 @@ find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(Stonefish REQUIRED 1.3.0)
 find_package(stonefish_msgs REQUIRED)
-
-# messages
-rosidl_generate_interfaces(${PROJECT_NAME}
-  "msg/Int32Stamped.msg"
-  "msg/BeaconInfo.msg"
-  "msg/NEDPose.msg"
-  "msg/INS.msg"
-  "msg/DVLBeam.msg"
-  "msg/DVL.msg"
-  "msg/ThrusterState.msg"
-  "srv/SonarSettings.srv"
-  "srv/SonarSettings2.srv"
-  DEPENDENCIES std_msgs std_srvs geometry_msgs
-)
-rosidl_get_typesupport_target(cpp_typesupport_target ${PROJECT_NAME} rosidl_typesupport_cpp)
-
-find_package(PCL REQUIRED) # Interferes with rosidl_generate_interfaces and thus has to be called after
 
 # define libraries
 add_library(stonefish_ros2_interface SHARED
@@ -50,7 +32,7 @@ add_library(stonefish_ros2_interface SHARED
   src/${PROJECT_NAME}/ROS2ScenarioParser.cpp
   src/${PROJECT_NAME}/ROS2Interface.cpp
 )
-target_link_libraries(stonefish_ros2_interface Stonefish::Stonefish "${cpp_typesupport_target}")
+target_link_libraries(stonefish_ros2_interface Stonefish::Stonefish)
 target_include_directories(stonefish_ros2_interface
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
