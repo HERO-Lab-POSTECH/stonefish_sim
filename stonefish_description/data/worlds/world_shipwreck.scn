@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<scenario>
+	<!-- Common settings -->
+	<include file="data/worlds/common/environment.scn"/>
+	<include file="data/worlds/common/materials.scn"/>
+	<include file="data/worlds/common/visual.scn"/>
+
+	<include file="data/models/shipwreck/shipwreck.scn">
+		<arg name="xyz" value="0.0 0.0 8.0"/>
+		<arg name="rpy" value="0.0 0.0 0.0"/>
+	</include>
+</scenario>

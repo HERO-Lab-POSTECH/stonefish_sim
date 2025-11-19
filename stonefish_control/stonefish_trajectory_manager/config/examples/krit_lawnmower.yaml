@@ -1,0 +1,75 @@
+# Test Waypoint File: Rectangular Path (4DOF)
+#
+# Simple rectangular path at constant depth for initial 4DOF ILOS testing.
+#
+# Coordinate Convention:
+#   World Frame: NED (North-East-Down)
+#     X: North, Y: East, Z: Down (underwater is positive)
+#
+# Heading Behavior:
+#   use_fixed_heading: false → ILOS automatically computes heading
+#
+# Purpose: Test 4DOF ILOS guidance with straight segments and 90° turns
+
+inertial_frame_id: 'world_ned'
+
+
+waypoints:
+  - position: [-10.0, 10.0, 5.0]
+    use_fixed_heading: false
+
+  - position: [10.0, 10.0, 5.0]
+    use_fixed_heading: false
+
+  - position: [10.0, 5.0, 5.0]
+    use_fixed_heading: false
+
+  - position: [-10.0, 5.0, 5.0]
+    use_fixed_heading: false
+
+  - position: [-10.0, 0.0, 5.0]
+    use_fixed_heading: false
+
+  - position: [10.0, 0.0, 5.0]
+    use_fixed_heading: false
+
+  - position: [10.0, -5.0, 5.0]
+    use_fixed_heading: false
+
+  - position: [-10.0, -5.0, 5.0]
+    use_fixed_heading: false
+
+  - position: [-10.0, -10.0, 5.0]
+    use_fixed_heading: false
+
+  - position: [10.0, -10.0, 5.0]
+    use_fixed_heading: false
+
+  - position: [10.0, 10.0, 5.0]
+    use_fixed_heading: false
+
+  - position: [5.0, 10.0, 5.0]
+    use_fixed_heading: false
+
+  - position: [5.0, -10.0, 5.0]
+    use_fixed_heading: false
+
+  - position: [0.0, -10.0, 5.0]
+    use_fixed_heading: false
+
+  - position: [0.0, 10.0, 5.0]
+    use_fixed_heading: false
+
+  - position: [-5.0, 10.0, 5.0]
+    use_fixed_heading: false
+
+  - position: [-5.0, -10.0, 5.0]
+    use_fixed_heading: false
+
+  - position: [-10.0, -10.0, 5.0]
+    use_fixed_heading: false
+
+  - position: [-10.0, 10.0, 5.0]
+    use_fixed_heading: false
+
+

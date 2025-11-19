@@ -1,0 +1,161 @@
+#!/usr/bin/env python3
+# Copyright 2025
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""
+Shared utilities for trajectory nodes.
+
+Reduces code duplication between trajectory_publisher and trajectory_follower.
+"""
+
+from typing import Dict, Optional
+import numpy as np
+
+
+def declare_trajectory_parameters(node, param_config: Optional[Dict] = None) -> Dict:
+    """Declare common trajectory parameters.
+
+    Args:
+        node: ROS2 Node instance
+        param_config: Optional dict with custom default values
+
+    Returns:
+        Dict with parameter values
+    """
+    defaults = param_config or {}
+
+    # Common parameters
+    node.declare_parameter('waypoint_file', defaults.get('waypoint_file', ''))
+    node.declare_parameter('vehicle_name', defaults.get('vehicle_name', 'bluerov2'))
+    node.declare_parameter('interpolation_method', defaults.get('interpolation_method', 'lipb'))
+    node.declare_parameter('update_rate', defaults.get('update_rate', 50.0))
+
+    # Return values
+    return {
+        'waypoint_file': node.get_parameter('waypoint_file').value,
+        'vehicle_name': node.get_parameter('vehicle_name').value,
+        'interpolation_method': node.get_parameter('interpolation_method').value,
+        'update_rate': node.get_parameter('update_rate').value
+    }
+
+
+def load_waypoints(logger, filename: str, use_clock=None):
+    """Load waypoints from YAML file with validation.
+
+    Args:
+        logger: ROS2 logger instance
+        filename: Path to waypoint YAML file
+        use_clock: Optional ROS2 clock for timestamps
+
+    Returns:
+        WaypointSet object
+
+    Raises:
+        RuntimeError: If file loading fails
+    """
+    from ..common import WaypointSet
+
+    wp_set = WaypointSet(clock=use_clock) if use_clock else WaypointSet()
+
+    if not wp_set.read_from_file(filename):
+        logger.error(f'Failed to load waypoint file: {filename}')
+        raise RuntimeError('Failed to load waypoint file')
+
+    # Calculate total distance
+    total_distance = 0.0
+    for i in range(wp_set.num_waypoints - 1):
+        wp1 = wp_set.get_waypoint(i)
+        wp2 = wp_set.get_waypoint(i + 1)
+        total_distance += np.linalg.norm(wp2.pos - wp1.pos)
+
+    logger.info(f'✓ Loaded {wp_set.num_waypoints} waypoints ({total_distance:.2f}m)')
+    return wp_set
+
+
+def create_trajectory_generator(logger, waypoints, interp_method: str = 'lipb',
+                               velocity_profiler_params: Optional[Dict] = None):
+    """Create and initialize WPTrajectoryGenerator.
+
+    Args:
+        logger: ROS2 logger instance
+        waypoints: WaypointSet object
+        interp_method: Interpolation method ('linear', 'lipb', 'cubic')
+        velocity_profiler_params: Optional dict with velocity profiler settings:
+            - use_velocity_profiler (bool): Enable curvature-based velocity profiling
+            - max_lateral_accel (float): Max lateral acceleration (m/s²), default: 0.3
+            - speed_reduction_factor (float): Speed reduction factor (0-1), default: 0.5
+            - transition_distance (float): Transition distance (m), default: 2.0
+            - min_speed_factor (float): Min speed factor (0-1), default: 0.2
+
+    Returns:
+        Initialized WPTrajectoryGenerator
+
+    Raises:
+        RuntimeError: If initialization fails
+    """
+    from ..common import WPTrajectoryGenerator
+
+    # Validate interpolation method
+    # Supported: linear (sharp corners), lipb (smooth corners, recommended), cubic (fully smooth)
+    valid_methods = ['linear', 'lipb', 'cubic']
+    if interp_method not in valid_methods:
+        logger.warn(f'Unknown interpolation method "{interp_method}", defaulting to "lipb"')
+        logger.warn(f'Valid methods: {valid_methods}')
+        interp_method = 'lipb'
+
+    # Create trajectory generator (uses default parameters)
+    traj_gen = WPTrajectoryGenerator(
+        stamped_pose_only=False
+    )
+
+    # Set interpolation method
+    traj_gen.set_interpolation_method(interp_method)
+
+    # Prepare all interpolator parameters
+    interp_params = {}
+
+    # Method-specific parameters (e.g., LIPB radius for corner blending)
+    if interp_method == 'lipb' and velocity_profiler_params:
+        interp_params['radius'] = velocity_profiler_params.get('radius', 3.0)
+        logger.info(f'✓ LIPB corner radius: {interp_params["radius"]} m')
+
+    # Velocity profiler parameters (if enabled)
+    if velocity_profiler_params and velocity_profiler_params.get('use_velocity_profiler', False):
+        # Velocity profiler uses curvature calculated from the path segments
+        # generated by interpolator (it doesn't need radius directly)
+        interp_params.update({
+            'use_velocity_profiler': True,
+            'max_lateral_accel': velocity_profiler_params.get('max_lateral_accel', 0.2),
+            'speed_reduction_factor': velocity_profiler_params.get('speed_reduction_factor', 0.3),
+            'min_speed_factor': velocity_profiler_params.get('min_speed_factor', 0.2)
+        })
+
+        logger.info(f'✓ Velocity profiler enabled:')
+        logger.info(f'  max_lateral_accel: {interp_params["max_lateral_accel"]} m/s²')
+        logger.info(f'  speed_reduction_factor: {interp_params["speed_reduction_factor"]}')
+        logger.info(f'  (Speed transitions follow interpolator radius)')
+
+    # Set all parameters at once
+    if interp_params:
+        traj_gen.set_interpolator_parameters(interp_method, interp_params)
+
+    # Initialize waypoints
+    init_rot = (0, 0, 0, 1)
+
+    if not traj_gen.init_waypoints(waypoints, init_rot):
+        logger.error('Failed to initialize trajectory generator')
+        raise RuntimeError('Failed to initialize trajectory generator')
+
+    logger.info(f'✓ Trajectory generator ready ({interp_method})')
+    return traj_gen

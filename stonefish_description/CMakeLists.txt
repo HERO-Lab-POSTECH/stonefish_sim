@@ -1,12 +1,24 @@
-cmake_minimum_required(VERSION 3.0.2)
+cmake_minimum_required(VERSION 3.8)
 project(stonefish_description)
 
-find_package(catkin REQUIRED)
+if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  add_compile_options(-Wall -Wextra -Wpedantic)
+endif()
 
-catkin_package()
+# find dependencies
+find_package(ament_cmake REQUIRED)
 
-# Install all resources
-install(DIRECTORY data robots worlds scenarios launch
-  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
-  PATTERN ".git" EXCLUDE
+# Install resource directories
+install(DIRECTORY
+  data
+  scenarios
+  launch
+  DESTINATION share/${PROJECT_NAME}
 )
+
+if(BUILD_TESTING)
+  find_package(ament_lint_auto REQUIRED)
+  ament_lint_auto_find_test_dependencies()
+endif()
+
+ament_package()

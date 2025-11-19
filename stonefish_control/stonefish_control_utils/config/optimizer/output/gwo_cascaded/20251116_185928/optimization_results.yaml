@@ -1,0 +1,179 @@
+Kd:
+- 1.0
+- 3.0
+- 7.1
+- 1.5
+- 0.9
+- 1.9
+Ki:
+- 2.57
+- 0.976
+- 1.443
+- 0.487
+- 0.108
+- 2.602
+Kp:
+- 14.1
+- 9.6
+- 0.2
+- 3.1
+- 8.9
+- 14.7
+best_cost: 424.1486591577855
+config:
+  optimizer:
+    bounds:
+      position:
+        pitch:
+          kd:
+          - 0.0
+          - 5.0
+          ki:
+          - 0.0
+          - 2.0
+          kp:
+          - 0.0
+          - 10.0
+        roll:
+          kd:
+          - 0.0
+          - 5.0
+          ki:
+          - 0.0
+          - 2.0
+          kp:
+          - 0.0
+          - 10.0
+        x:
+          kd:
+          - 0.0
+          - 5.0
+          ki:
+          - 0.0
+          - 3.0
+          kp:
+          - 0.0
+          - 15.0
+        y:
+          kd:
+          - 0.0
+          - 5.0
+          ki:
+          - 0.0
+          - 3.0
+          kp:
+          - 0.0
+          - 15.0
+        yaw:
+          kd:
+          - 0.0
+          - 5.0
+          ki:
+          - 0.0
+          - 3.0
+          kp:
+          - 0.0
+          - 15.0
+        z:
+          kd:
+          - 0.0
+          - 8.0
+          ki:
+          - 0.0
+          - 5.0
+          kp:
+          - 0.0
+          - 20.0
+      velocity:
+        pitch:
+          kd:
+          - 0.0
+          - 2.0
+          ki:
+          - 0.0
+          - 1.0
+          kp:
+          - 0.0
+          - 10.0
+        roll:
+          kd:
+          - 0.0
+          - 2.0
+          ki:
+          - 0.0
+          - 1.0
+          kp:
+          - 0.0
+          - 10.0
+        x:
+          kd:
+          - 0.0
+          - 2.0
+          ki:
+          - 0.0
+          - 1.0
+          kp:
+          - 0.0
+          - 10.0
+        y:
+          kd:
+          - 0.0
+          - 2.0
+          ki:
+          - 0.0
+          - 1.0
+          kp:
+          - 0.0
+          - 10.0
+        yaw:
+          kd:
+          - 0.0
+          - 3.0
+          ki:
+          - 0.0
+          - 2.0
+          kp:
+          - 0.0
+          - 15.0
+        z:
+          kd:
+          - 0.0
+          - 3.0
+          ki:
+          - 0.0
+          - 2.0
+          kp:
+          - 0.0
+          - 15.0
+    checkpoint_dir: /workspace/colcon_ws/src/stonefish_control/stonefish_control_utils/config/optimizer/output/gwo_cascaded
+    checkpoint_file: ''
+    checkpoint_interval: 1
+    controller_type: cascaded
+    cost_function: itae
+    lambda_gain: 0.0
+    lambda_smoothness: 0.1
+    max_iterations: 30
+    method: gwo
+    n_wolves: 30
+    results_dir: /workspace/colcon_ws/src/stonefish_control/stonefish_control_utils/config/optimizer/output/gwo_cascaded
+    scenarios:
+    - name: trajectory_test
+      type: trajectory
+      waypoint_file: /workspace/colcon_ws/src/stonefish_control/stonefish_trajectory_manager/config/example_square_path.yaml
+    test_duration: 10.0
+    use_wandb: true
+    vehicle_name: bluerov2
+    wandb_dir: /workspace/colcon_ws/src/stonefish_control/stonefish_control_utils/config/optimizer/output
+    wandb_project: pid-tuning
+    wandb_run_name_prefix: gwo_cascaded_itae
+    warm_start_file: ''
+    weights:
+      pitch: 1.0
+      roll: 1.0
+      x: 1.0
+      y: 1.0
+      yaw: 1.0
+      z: 1.0
+cost_function: itae
+optimizer: gwo
+timestamp: '2025-11-16T19:01:04.597828'

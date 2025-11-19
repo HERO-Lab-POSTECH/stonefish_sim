@@ -1,0 +1,106 @@
+# GWO (Grey Wolf Optimizer) PID Tuning Configuration for Cascaded Controller
+# Optimizes both Position and Velocity PIDs simultaneously
+
+optimizer:
+  method: "gwo"
+  controller_type: "cascaded"  # 'single' or 'cascaded'
+
+  # GWO-specific parameters
+  n_wolves: 100                    # Number of wolves in the pack
+  max_iterations: 50              # Maximum optimization iterations
+
+  # Common parameters
+  test_duration: 10.0             # Duration of each evaluation test (seconds, for step response)
+  cost_function: "itae"           # Cost function: "itse" or "itae"
+  vehicle_name: "bluerov2"        # Vehicle namespace
+  interpolation_method: "lipb"   # Path interpolation: linear, cubic, lipb, cs
+  warm_start_file: ""             # Path to previous optimization result (empty = random init)
+
+  # Results
+  results_dir: "/workspace/colcon_ws/src/stonefish_control/stonefish_control_utils/config/optimizer/output/gwo_cascaded"
+  wandb_dir: "/workspace/colcon_ws/src/stonefish_control/stonefish_control_utils/config/optimizer/output"
+
+  # WandB logging
+  use_wandb: true
+  wandb_project: "pid-tuning"
+  wandb_run_name_prefix: "gwo_cascaded_itae"
+
+  # Cost function weights (per DOF)
+  weights:
+    x: 1.0
+    y: 1.0
+    z: 1.0
+    roll: 1.0
+    pitch: 1.0
+    yaw: 1.0
+  lambda_smoothness: 0.1          # Smoothness penalty weight
+  lambda_gain: 0.0                # Gain penalty weight
+
+  # PID gain search bounds [min, max]
+  # Cascaded: Position (first 18) + Velocity (next 18) = 36 total
+  # Position controller: Outer loop, slow response, lower gains
+  # Velocity controller: Inner loop, fast response, higher gains
+  bounds:
+    position:
+      x:
+        kp: [0.0, 10000.0]   # Position Kp (outer loop, slow)
+        kd: [0.0, 10000.0]    # Position Kd (often 0 in cascaded)
+        ki: [0.0, 10000.0]    # Position Ki (very small)
+      y:
+        kp: [0.0, 10000.0]
+        kd: [0.0, 10000.0]
+        ki: [0.0, 10000.0]
+      z:
+        kp: [0.0, 10000.0]   # Z typically needs more gain
+        kd: [0.0, 10000.0]
+        ki: [0.0, 10000.0]
+      roll:
+        kp: [0.0, 10000.0]
+        kd: [0.0, 10000.0]
+        ki: [0.0, 10000.0]
+      pitch:
+        kp: [0.0, 10000.0]
+        kd: [0.0, 10000.0]
+        ki: [0.0, 10000.0]
+      yaw:
+        kp: [0.0, 10000.0]
+        kd: [0.0, 10000.0]
+        ki: [0.0, 10000.0]
+
+    velocity:
+      x:
+        kp: [0.0, 10000.0]   # Velocity Kp (inner loop, fast)
+        kd: [0.0, 10000.0]    # Velocity Kd (damping)
+        ki: [0.0, 10000.0]    # Velocity Ki (small)
+      y:
+        kp: [0.0, 10000.0]
+        kd: [0.0, 10000.0]
+        ki: [0.0, 10000.0]
+      z:
+        kp: [0.0, 10000.0]
+        kd: [0.0, 10000.0]
+        ki: [0.0, 10000.0]
+      roll:
+        kp: [0.0, 10000.0]
+        kd: [0.0, 10000.0]
+        ki: [0.0, 10000.0]
+      pitch:
+        kp: [0.0, 10000.0]
+        kd: [0.0, 10000.0]
+        ki: [0.0, 10000.0]
+      yaw:
+        kp: [0.0, 10000.0]
+        kd: [0.0, 10000.0]
+        ki: [0.0, 10000.0]
+
+  # Checkpoint/Resume (optional)
+  checkpoint_file: ""
+  checkpoint_interval: 1
+  checkpoint_dir: "/workspace/colcon_ws/src/stonefish_control/stonefish_control_utils/config/optimizer/output/gwo_cascaded"
+
+  # Test scenarios
+  scenarios:
+    # Trajectory following scenario
+    - name: "trajectory_test"
+      type: "trajectory"
+      waypoint_file: "/workspace/colcon_ws/src/stonefish_control/stonefish_trajectory_manager/config/example_square_path.yaml"

@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<scenario>
+	<looks>
+		<look name="gas_tank" gray="0.8" roughness="0.4" texture="data/models/gas_tank/meshes/gas_tank.png"/>
+	</looks>
+
+	<static name="GasTank" type="model">
+		<physical>
+			<mesh filename="data/models/gas_tank/meshes/gas_tank.obj" scale="1.0"/>
+			<origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+		</physical>
+		<material name="Rock"/>
+		<look name="gas_tank"/>
+		<world_transform rpy="$(arg rpy)" xyz="$(arg xyz)"/>
+	</static>
+</scenario>

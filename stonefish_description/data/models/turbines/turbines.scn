@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<scenario>
+	<looks>
+		<look name="turbine_metal" rgb="0.7 0.7 0.7" roughness="0.3" metalness="0.8"/>
+	</looks>
+
+	<static name="Turbine" type="model">
+		<physical>
+			<mesh filename="data/models/turbines/meshes/Turbine.obj" scale="1.0"/>
+			<origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+		</physical>
+		<material name="Neutral"/>
+		<look name="turbine_metal"/>
+		<world_transform rpy="$(arg rpy)" xyz="$(arg xyz)"/>
+	</static>
+</scenario>

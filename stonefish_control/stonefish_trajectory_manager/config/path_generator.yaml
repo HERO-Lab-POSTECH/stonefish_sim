@@ -1,0 +1,30 @@
+# Path Generator Configuration - LIPB Interpolation
+#
+# For use with 4DOF ILOS Path Following
+#
+# LIPB (Linear Interpolator with Polynomial Blends):
+# - Straight line segments between waypoints
+# - 5th-order Bezier curves for smooth corners
+# - Configurable corner radius
+
+/**:
+  ros__parameters:
+    # Interpolation method
+    # Options: 'linear', 'cubic', 'lipb'
+    interpolation_method: 'lipb'
+
+    # Sampling step for path discretization
+    # Smaller step = denser path points = more accurate but more computation
+    # Recommended: 0.01-0.05
+    sample_step: 0.01
+
+    # Path publishing rate (Hz)
+    # Path is static once generated, so low rate is sufficient
+    publish_rate: 1.0
+
+    # Vehicle name (for odometry topic)
+    vehicle_name: 'bluerov2'
+
+    # Initial waypoint distance threshold
+    # If robot is farther than this from first waypoint, add WP0 at robot position
+    initial_waypoint_distance_threshold: 0.5  # meters

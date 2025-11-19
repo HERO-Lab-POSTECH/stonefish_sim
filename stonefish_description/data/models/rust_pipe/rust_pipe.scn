@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<scenario>
+	<looks>
+		<look name="rust_pipe" gray="0.5" roughness="0.9" texture="models/rust_pipe/meshes/rust_pipe.png"/>
+	</looks>
+
+	<static name="RustPipe" type="model">
+		<physical>
+			<mesh filename="data/models/rust_pipe/meshes/rust_pipe.obj" scale="1.0"/>
+			<origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+		</physical>
+		<material name="Aluminium"/>
+		<look name="rust_pipe"/>
+		<world_transform rpy="$(arg rpy)" xyz="$(arg xyz)"/>
+	</static>
+</scenario>

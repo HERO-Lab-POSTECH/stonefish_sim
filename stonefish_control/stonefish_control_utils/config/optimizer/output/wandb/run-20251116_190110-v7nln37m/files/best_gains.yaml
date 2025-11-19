@@ -1,0 +1,10 @@
+# Best PID Gains from GWO Optimization
+# Cost (ITAE): 300.448
+# Iteration: 1
+# Wolf: 3
+#
+/**:
+  ros__parameters:
+    Kp: [0.2, 36.2, 49.6, 21.5, 19.1, 31.4]
+    Kd: [48.3, 35.8, 30.4, 13.8, 12.2, 11.4]
+    Ki: [44.754, 17.402, 23.112, 3.984, 23.038, 19.340]

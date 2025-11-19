@@ -1,0 +1,2 @@
+/workspace/colcon_ws/install/stonefish_control_utils/lib/python3.10/site-packages/stonefish_control_utils/pid_optimizer/gwo.py:650: RuntimeWarning: invalid value encountered in scalar divide
+  relative_improvement = improvement / abs(prev_alpha_score)

@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<scenario>
+	<looks>
+		<look name="oil_drum" gray="0.6" roughness="0.8" texture="models/oil_drum/meshes/oil_drum.png"/>
+	</looks>
+
+	<static name="OilDrum" type="model">
+		<physical>
+			<mesh filename="data/models/oil_drum/meshes/oil_drum.obj" scale="1.0"/>
+			<origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+		</physical>
+		<material name="Aluminium"/>
+		<look name="oil_drum"/>
+		<world_transform rpy="$(arg rpy)" xyz="$(arg xyz)"/>
+	</static>
+</scenario>

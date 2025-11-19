@@ -1,0 +1,9 @@
+{"time":"2025-11-16T01:31:13.627653008+09:00","level":"INFO","msg":"stream: starting","core version":"0.22.3"}
+{"time":"2025-11-16T01:31:13.963522467+09:00","level":"INFO","msg":"stream: created new stream","id":"q1d65j6g"}
+{"time":"2025-11-16T01:31:13.963628379+09:00","level":"INFO","msg":"handler: started","stream_id":"q1d65j6g"}
+{"time":"2025-11-16T01:31:13.963766403+09:00","level":"INFO","msg":"stream: started","id":"q1d65j6g"}
+{"time":"2025-11-16T01:31:13.963800464+09:00","level":"INFO","msg":"sender: started","stream_id":"q1d65j6g"}
+{"time":"2025-11-16T01:31:13.963803632+09:00","level":"INFO","msg":"writer: started","stream_id":"q1d65j6g"}
+{"time":"2025-11-16T01:36:07.418684139+09:00","level":"INFO","msg":"stream: closing","id":"q1d65j6g"}
+{"time":"2025-11-16T01:36:07.47662343+09:00","level":"ERROR","msg":"sender: sendSummary called after exit"}
+{"time":"2025-11-16T01:36:07.477626755+09:00","level":"WARN","msg":"sender: received Exit record more than once, ignoring"}

@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<scenario>
+	<looks>
+		<!-- Texture disabled to avoid loading 145MB model.obj which causes crash -->
+		<look name="shipwreck" gray="0.8" roughness="0.4"/>
+	</looks>
+
+	<static name="Shipwreck" type="model">
+		<!-- Simplified collision box mesh (prevents crash from 145MB model) -->
+		<physical>
+			<mesh filename="data/models/shipwreck/meshes/model.obj" scale="0.1"/>
+			<origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+		</physical>
+		<material name="Rock"/>
+		<look name="shipwreck"/>
+		<world_transform rpy="$(arg rpy)" xyz="$(arg xyz)"/>
+	</static>
+</scenario>

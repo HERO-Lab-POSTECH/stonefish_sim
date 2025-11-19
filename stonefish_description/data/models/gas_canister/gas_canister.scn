@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<scenario>
+	<looks>
+		<!-- <look name="gas_canister" gray="0.8" roughness="0.4" texture="models/gas_canister/meshes/gas_canister.png"/> -->
+		<look name="gas_canister" gray="0.8" roughness="0.4"/>
+	</looks>
+
+	<static name="GasCanister" type="model">
+		<physical>
+			<mesh filename="data/models/gas_canister/meshes/gas_canister.obj" scale="1.0"/>
+			<origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+		</physical>
+		<material name="Aluminium"/>
+		<look name="gas_canister"/>
+		<world_transform rpy="$(arg rpy)" xyz="$(arg xyz)"/>
+	</static>
+</scenario>

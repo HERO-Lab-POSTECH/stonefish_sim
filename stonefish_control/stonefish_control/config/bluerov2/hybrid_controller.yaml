@@ -1,0 +1,75 @@
+# Hybrid Controller Parameters for BlueROV2
+# Combines velocity-based and position-based control
+#
+# Control Modes:
+#   - Velocity mode: Fast path following (responsive, accepts drift)
+#   - Position mode: Precise position hold (stable, zero drift)
+#
+# Mode switching: Controlled by path_following_4dof_node
+#   - Path following → velocity mode
+#   - Last waypoint → position mode
+
+hybrid_controller_4dof:
+  ros__parameters:
+    # General
+    vehicle_name: 'bluerov2'
+    control_rate: 50.0  # Hz
+    initial_mode: 'velocity'  # 'velocity' or 'position'
+
+    # ============================================
+    # Velocity Mode (Path Following)
+    # ============================================
+    # Fast, responsive control for path tracking
+    # Lower precision, accepts some drift
+    velocity_mode:
+      # PID Gains (tuned for velocity tracking)
+      Kp: [200.0, 200.0, 250.0, 150.0]  # [surge, sway, heave, yaw]
+      Kd: [0.0, 100.0, 100.0, 80.0]     # Surge Kd=0 (no damping)
+      Ki: [50.0, 50.0, 60.0, 10.0]
+      Kb: [0.8, 0.8, 0.8, 0.8]          # Anti-windup back-calculation
+
+      # Saturation limits (higher for aggressive path following)
+      max_force: 800.0   # N
+      max_torque: 160.0  # Nm
+
+      # Integral safety factor (lower = less integral authority)
+      # Formula: integral_limit = (sat_limit / Ki) × safety_factor
+      integral_safety_factor: 0.5
+
+    # ============================================
+    # Position Mode (Position Hold)
+    # ============================================
+    # Precise, stable control for waypoint arrival
+    # High precision, zero drift
+    position_mode:
+      # PID Gains (tuned for position holding)
+      Kp: [300.0, 300.0, 400.0, 200.0]  # [surge, sway, heave, yaw]
+      Kd: [150.0, 150.0, 200.0, 100.0]
+      Ki: [10.0, 10.0, 20.0, 5.0]
+      Kb: [0.8, 0.8, 0.8, 0.8]
+
+      # Saturation limits (conservative for stable positioning)
+      max_force: 800.0   # N
+      max_torque: 160.0   # Nm
+
+      # Integral safety factor (higher = more integral authority)
+      integral_safety_factor: 2.0
+
+# Design Notes:
+#
+# Velocity Mode:
+#   - Higher Kp, Ki for aggressive tracking
+#   - Kd[0]=0 to avoid surge damping
+#   - High saturation limits for fast response
+#   - Low integral_safety_factor to prevent windup
+#
+# Position Mode:
+#   - Moderate Kp, low Ki for stability
+#   - Non-zero Kd for damping
+#   - Lower saturation limits for smooth motion
+#   - High integral_safety_factor for steady-state accuracy
+#
+# Switching Logic:
+#   - Handled by path_following_4dof_node
+#   - Publishes control_mode ('velocity' or 'position')
+#   - Hybrid controller resets integral on mode switch

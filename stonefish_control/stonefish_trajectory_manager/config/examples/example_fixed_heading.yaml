@@ -1,0 +1,47 @@
+# Example Waypoint File: Fixed Heading Path
+#
+# This demonstrates manual heading control using degrees.
+# Speed is controlled globally via robot_max_speed parameter.
+
+inertial_frame_id: 'world_ned'
+
+waypoints:
+  # Start facing North (0°)
+  - position: [0.0, 0.0, 1.0]
+    heading_deg: 0
+    use_fixed_heading: true
+
+  # Move forward while facing North
+  - position: [2.0, 0.0, 1.0]
+    heading_deg: 0
+    use_fixed_heading: true
+
+  # Turn to face East (90°) at this point
+  - position: [2.0, 0.0, 1.0]
+    heading_deg: 90
+    use_fixed_heading: true
+
+  # Move East while facing East
+  - position: [2.0, 2.0, 1.5]
+    heading_deg: 90
+    use_fixed_heading: true
+
+  # Turn to face South (180°)
+  - position: [2.0, 2.0, 1.5]
+    heading_deg: 180
+    use_fixed_heading: true
+
+  # Move South
+  - position: [0.0, 2.0, 1.5]
+    heading_deg: 180
+    use_fixed_heading: true
+
+  # Turn West (270° = -90°)
+  - position: [0.0, 2.0, 1.5]
+    heading_deg: -90
+    use_fixed_heading: true
+
+  # Return to start
+  - position: [0.0, 0.0, 1.0]
+    heading_deg: -90
+    use_fixed_heading: true

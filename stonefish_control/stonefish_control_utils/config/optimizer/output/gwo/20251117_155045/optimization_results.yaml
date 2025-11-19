@@ -1,0 +1,117 @@
+Kd:
+- 90.2
+- 6400.2
+- 8848.8
+- 2454.2
+- 7152.5
+- 9710.7
+Ki:
+- 6402.17
+- 3440.278
+- 8251.285
+- 8967.656
+- 6213.483
+- 6912.077
+Kp:
+- 8505.3
+- 8476.4
+- 6418.6
+- 1034.6
+- 9735.1
+- 9806.5
+best_cost: 414.5327417435444
+config:
+  optimizer:
+    bounds:
+      pitch:
+        kd:
+        - 0.0
+        - 10000.0
+        ki:
+        - 0.0
+        - 10000.0
+        kp:
+        - 0.0
+        - 10000.0
+      roll:
+        kd:
+        - 0.0
+        - 10000.0
+        ki:
+        - 0.0
+        - 10000.0
+        kp:
+        - 0.0
+        - 10000.0
+      x:
+        kd:
+        - 0.0
+        - 10000.0
+        ki:
+        - 0.0
+        - 10000.0
+        kp:
+        - 0.0
+        - 10000.0
+      y:
+        kd:
+        - 0.0
+        - 10000.0
+        ki:
+        - 0.0
+        - 10000.0
+        kp:
+        - 0.0
+        - 10000.0
+      yaw:
+        kd:
+        - 0.0
+        - 10000.0
+        ki:
+        - 0.0
+        - 10000.0
+        kp:
+        - 0.0
+        - 10000.0
+      z:
+        kd:
+        - 0.0
+        - 10000.0
+        ki:
+        - 0.0
+        - 10000.0
+        kp:
+        - 0.0
+        - 10000.0
+    checkpoint_dir: /workspace/colcon_ws/src/stonefish_control/stonefish_control_utils/config/optimizer/output/gwo
+    checkpoint_file: ''
+    checkpoint_interval: 1
+    cost_function: itae
+    interpolation_method: lipb
+    lambda_gain: 0.0
+    lambda_smoothness: 0.1
+    max_iterations: 50
+    method: gwo
+    n_wolves: 100
+    results_dir: /workspace/colcon_ws/src/stonefish_control/stonefish_control_utils/config/optimizer/output/gwo
+    scenarios:
+    - name: trajectory_test
+      type: trajectory
+      waypoint_file: /workspace/colcon_ws/src/stonefish_control/stonefish_trajectory_manager/config/example_square_path.yaml
+    test_duration: 10.0
+    use_wandb: true
+    vehicle_name: bluerov2
+    wandb_dir: /workspace/colcon_ws/src/stonefish_control/stonefish_control_utils/config/optimizer/output
+    wandb_project: pid-tuning
+    wandb_run_name_prefix: gwo_itae
+    warm_start_file: ''
+    weights:
+      pitch: 1.0
+      roll: 1.0
+      x: 1.0
+      y: 1.0
+      yaw: 1.0
+      z: 1.0
+cost_function: itae
+optimizer: gwo
+timestamp: '2025-11-17T16:47:44.439734'

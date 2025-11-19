@@ -1,0 +1,6 @@
+# Large model source files (>50MB)
+data/models/florida/source/*.zip
+data/models/vasa-the-hold/source/*.obj
+data/models/vasa-the-hold/source/*.zip
+data/models/infrustructure/meshes/*.zip
+data/models/seabed_2/source/*.zip

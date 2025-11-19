@@ -1,0 +1,44 @@
+newmtl Solid
+Ka 1.0 1.0 1.0
+Kd 1.0 1.0 1.0
+Ks 0.0 0.0 0.0
+d 1.0
+Ns 0.0
+illum 0
+
+newmtl HS_1-27_2MF_4x8KT
+Ka 1.0 1.0 1.0
+Kd 1.0 1.0 1.0
+Ks 0.0 0.0 0.0
+d 1.0
+Ns 0.0
+illum 0
+map_Kd HS_1-27_2MF_4x8KT.jpg
+
+newmtl HS_1-27_2MF_4x8KT1
+Ka 1.0 1.0 1.0
+Kd 1.0 1.0 1.0
+Ks 0.0 0.0 0.0
+d 1.0
+Ns 0.0
+illum 0
+map_Kd HS_1-27_2MF_4x8KT1.jpg
+
+newmtl HS_1-27_2MF_4x8KT2
+Ka 1.0 1.0 1.0
+Kd 1.0 1.0 1.0
+Ks 0.0 0.0 0.0
+d 1.0
+Ns 0.0
+illum 0
+map_Kd HS_1-27_2MF_4x8KT2.jpg
+
+newmtl HS_1-27_2MF_4x8KT3
+Ka 1.0 1.0 1.0
+Kd 1.0 1.0 1.0
+Ks 0.0 0.0 0.0
+d 1.0
+Ns 0.0
+illum 0
+map_Kd HS_1-27_2MF_4x8KT3.jpg
+

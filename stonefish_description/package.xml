@@ -1,14 +1,21 @@
 <?xml version="1.0"?>
-<package format="2">
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
   <name>stonefish_description</name>
-  <version>1.0.0</version>
-  <description>All Stonefish description resources (robots, worlds, scenarios, data)</description>
+  <version>1.3.0</version>
+  <description>
+    Resource package containing robot models, world definitions, and scenarios for the Stonefish simulator.
+    Includes meshes, textures, and scenario files for various underwater vehicles and environments.
+  </description>
+  <maintainer email="patryk.cieslak@udg.edu">Patryk Cieslak</maintainer>
+  <license>GPL-3.0</license>
 
-  <maintainer email="user@todo.todo">TODO</maintainer>
-  <license>GPLv3</license>
+  <buildtool_depend>ament_cmake</buildtool_depend>
 
-  <buildtool_depend>catkin</buildtool_depend>
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
 
-  <exec_depend>stonefish_ros</exec_depend>
-
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
 </package>

@@ -1,0 +1,5 @@
+2025-11-16 01:23:28,159 INFO    Thread-2 (run):2131040 [wandb_init.py:setup_run_log_directory():706] Logging user logs to /workspace/colcon_ws/src/stonefish_control/stonefish_control_utils/config/optimizer/output/wandb/run-20251116_012328-q1d65j6g/logs/debug.log
+2025-11-16 01:23:28,159 INFO    Thread-2 (run):2131040 [wandb_init.py:setup_run_log_directory():707] Logging internal logs to /workspace/colcon_ws/src/stonefish_control/stonefish_control_utils/config/optimizer/output/wandb/run-20251116_012328-q1d65j6g/logs/debug-internal.log
+2025-11-16 01:23:28,159 INFO    Thread-2 (run):2131040 [wandb_init.py:init():833] calling init triggers
+2025-11-16 01:23:28,159 INFO    Thread-2 (run):2131040 [wandb_init.py:init():838] wandb.init called with sweep_config: {}
+config: {'optimizer': 'GWO', 'test_duration': 10.0, 'vehicle': 'bluerov2', 'cost_function': 'itae', 'weights': [1.0, 1.0, 1.0, 1.0, 1.0, 1.0], 'lambda_smoothness': 0.1, 'n_scenarios': 1, '_wandb': {}}

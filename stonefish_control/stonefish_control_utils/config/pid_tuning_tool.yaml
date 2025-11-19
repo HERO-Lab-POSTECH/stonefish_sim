@@ -1,0 +1,13 @@
+# PID Tuning Tool Configuration
+
+pid_tuning_tool:
+  ros__parameters:
+    # Output file path
+    output_file: "/workspace/colcon_ws/results/pid_tuning/data.csv"
+
+    # Logging duration (seconds)
+    log_duration: 10.0
+
+    # Automatic post-processing
+    auto_plot: true      # Generate plots automatically
+    auto_analyze: true   # Print analysis report automatically

@@ -1,0 +1,126 @@
+# GWO (Grey Wolf Optimizer) PID Tuning Configuration
+
+optimizer:
+  method: "gwo"
+
+  # GWO-specific parameters
+  n_wolves: 100                    # Number of wolves in the pack (paper uses 30)
+  max_iterations: 50              # Maximum optimization iterations (paper converges at 30)
+
+  # Common parameters
+  test_duration: 10.0             # Duration of each evaluation test (seconds)
+  cost_function: "itae"           # Cost function: "itse" or "itae"
+  vehicle_name: "bluerov2"        # Vehicle namespace
+  interpolation_method: "lipb"    # Path interpolation: linear, cubic, lipb, cs
+  warm_start_file: ""             # Path to previous optimization result (empty = random init)
+
+  # Results
+  results_dir: "/workspace/colcon_ws/src/stonefish_control/stonefish_control_utils/config/optimizer/output/gwo"
+  wandb_dir: "/workspace/colcon_ws/src/stonefish_control/stonefish_control_utils/config/optimizer/output"
+
+  # WandB logging
+  use_wandb: true
+  wandb_project: "pid-tuning"
+  wandb_run_name_prefix: "gwo_itae"       # Prefix for run name (e.g., "gwo_itae" -> "gwo_itae_20250107_143022")
+                                  # Empty string -> "{method}_{timestamp}" (e.g., "gwo_20250107_143022")
+
+  # Cost function weights (per DOF)
+  # Recommended: scale orientation errors to match position units
+  # Position: meters, Orientation: radians (1 rad ≈ 57°)
+  # Use smaller weights for orientation to balance with position errors
+  weights:
+    x: 1.0                        # Position weight (meters)
+    y: 1.0
+    z: 1.0
+    roll: 1.0                     # Orientation weight (radians, scaled down)
+    pitch: 1.0
+    yaw: 1.0
+  lambda_smoothness: 0.1          # Smoothness penalty weight (RMS-normalized, typical range: 0.1-10.0)
+  lambda_gain: 0.0                 # Gain penalty weight (L2 regularization, 0=disabled, start with 0.0, if needed try 0.00001)
+
+  # PID gain search bounds [min, max]
+  bounds:
+    x:
+      kp: [0.0, 10000.0]
+      kd: [0.0, 10000.0]
+      ki: [0.0, 10000.0]
+    y:
+      kp: [0.0, 10000.0]
+      kd: [0.0, 10000.0]
+      ki: [0.0, 10000.0]
+    z:
+      kp: [0.0, 10000.0]
+      kd: [0.0, 10000.0]
+      ki: [0.0, 10000.0]
+    roll:
+      kp: [0.0, 10000.0]
+      kd: [0.0, 10000.0]
+      ki: [0.0, 10000.0]
+    pitch:
+      kp: [0.0, 10000.0]
+      kd: [0.0, 10000.0]
+      ki: [0.0, 10000.0]
+    yaw:
+      kp: [0.0, 10000.0]
+      kd: [0.0, 10000.0]
+      ki: [0.0, 10000.0]
+
+  # Warm start (optional)
+  warm_start_file: ""             # Path to previous optimization result (empty = random init)
+
+  # Checkpoint/Resume (optional)
+  checkpoint_file: ""             # Path to checkpoint file to resume from (empty = start fresh)
+  checkpoint_interval: 1          # Save checkpoint every N iterations (default: 1)
+  checkpoint_dir: "/workspace/colcon_ws/src/stonefish_control/stonefish_control_utils/config/optimizer/output/gwo"              # Directory for checkpoints (empty = auto: results_dir/checkpoints)
+
+  # Test scenarios
+  scenarios:
+    # Initialization (return to origin)
+    # - name: "init_origin"
+    #   type: "step"
+    #   target:
+    #     x: 0.0
+    #     y: 0.0
+    #     z: 0.0
+    #     roll: 0.0
+    #     pitch: 0.0
+    #     yaw: 0.0
+
+    # # Small step (linear region)
+    # - name: "small_mixed"
+    #   type: "step"
+    #   target:
+    #     x: 0.1
+    #     y: 0.1
+    #     z: 0.15
+    #     roll: 0.1
+    #     pitch: 0.1
+    #     yaw: 0.1
+
+    # # Medium step (transition)
+    # - name: "medium_mixed"
+    #   type: "step"
+    #   target:
+    #     x: 0.25
+    #     y: 0.2
+    #     z: 0.3
+    #     roll: 0.15
+    #     pitch: 0.15
+    #     yaw: 0.2
+
+    # # Large step (disturbance)
+    # - name: "large_disturbance"
+    #   type: "step"
+    #   target:
+    #     x: 0.5
+    #     y: 0.5
+    #     z: 0.5
+    #     roll: 0.3
+    #     pitch: -0.3
+    #     yaw: 0.35
+
+    # Trajectory following scenario (new)
+    # Uncomment to use trajectory-based optimization
+    - name: "trajectory_test"
+      type: "trajectory"
+      waypoint_file: "/workspace/colcon_ws/src/stonefish_control/stonefish_trajectory_manager/config/example_square_path.yaml"
