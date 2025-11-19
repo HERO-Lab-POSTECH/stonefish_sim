@@ -32,12 +32,6 @@ find_package(rclpy REQUIRED)
 # Install Python modules
 ament_python_install_package(${PROJECT_NAME})
 
-# Install Python executables
-install(PROGRAMS
-  scripts/ardusim_patch.py
-  DESTINATION lib/${PROJECT_NAME}
-)
-
 # Install launch files
 install(DIRECTORY
   launch
@@ -45,15 +39,15 @@ install(DIRECTORY
 )
 
 # Install scenario files
-install(DIRECTORY
-  scenarios
-  DESTINATION share/${PROJECT_NAME}/
-)
+# install(DIRECTORY
+#   scenarios
+#   DESTINATION share/${PROJECT_NAME}/
+# )
 
 # Install data files
-install(DIRECTORY
-  data
-  DESTINATION share/${PROJECT_NAME}/
-)
+# install(DIRECTORY
+#   data
+#   DESTINATION share/${PROJECT_NAME}/
+# )
 
 ament_package()
