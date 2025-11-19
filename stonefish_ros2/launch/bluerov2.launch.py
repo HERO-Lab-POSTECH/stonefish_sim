@@ -61,7 +61,7 @@ def generate_launch_description():
     simulator = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([
             FindPackageShare('stonefish_ros2'),
-            '/launch/simulator_nogpu.launch.py'
+            '/launch/simulator_gpu.launch.py'
         ]),
         launch_arguments={
             'simulation_data': PathJoinSubstitution([

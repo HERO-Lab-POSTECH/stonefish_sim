@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(stonefish_bluerov2)
+project(stonefish_ros2)
 
 # Default to C++14
 if(NOT CMAKE_CXX_STANDARD)
