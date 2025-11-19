@@ -21,7 +21,6 @@ setup(
     maintainer_email='your_email@example.com',
     description='Thruster allocation manager for Stonefish simulator',
     license='Apache-2.0',
-    tests_require=['pytest'],
     entry_points={
         'console_scripts': [
             'thruster_allocator = stonefish_thruster_manager.thruster_allocator:main',
