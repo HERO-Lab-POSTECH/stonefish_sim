@@ -455,10 +455,18 @@ def main(args=None):
         print(f'Error: {e}')
         traceback.print_exc()
     finally:
-        # Stop trajectory recording immediately on shutdown
+        # Clear actual trajectory on shutdown
         if node is not None:
+            # Publish empty trajectory to clear RViz visualization
+            empty_traj = Path()
+            empty_traj.header.stamp = node.get_clock().now().to_msg()
+            empty_traj.header.frame_id = 'world_ned'
+            node.actual_trajectory_pub.publish(empty_traj)
+
+            # Stop recording
             node._recording_active = False
-            node.get_logger().info('[ILOS 4DOF] Shutdown - trajectory recording stopped')
+            node.get_logger().info('[ILOS 4DOF] Shutdown - trajectory cleared')
+
             node.destroy_node()
         if rclpy.ok():
             rclpy.shutdown()

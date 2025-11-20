@@ -416,7 +416,10 @@ class ILOSGuidance:
         return self._desired_pos, self._desired_yaw, self._desired_velocity
 
     def _find_lookahead_point(self, start_idx, lookahead_distance):
-        """Find point on path that is lookahead_distance ahead.
+        """Find point on path that is lookahead_distance ahead with hysteresis.
+
+        Hysteresis prevents oscillation when closest point fluctuates.
+        If previous lookahead is within ±0.5m zone, keep it for stability.
 
         Args:
             start_idx: Starting index
@@ -429,6 +432,24 @@ class ILOSGuidance:
             return 0
 
         total_points = len(self._path_poses)
+
+        # Hysteresis: Check if previous lookahead is still valid
+        if hasattr(self, '_prev_lookahead_idx') and hasattr(self, '_prev_lookahead_dist'):
+            prev_idx = self._prev_lookahead_idx
+
+            # Recalculate distance to previous lookahead point
+            prev_dist = 0.0
+            for i in range(start_idx, min(prev_idx, total_points - 1)):
+                prev_dist += np.linalg.norm(self._path_poses[i+1] - self._path_poses[i])
+
+            # Hysteresis zone: ±0.5m
+            hysteresis = 0.5
+            if abs(prev_dist - lookahead_distance) < hysteresis:
+                # Previous lookahead still valid, keep it
+                self._prev_lookahead_dist = prev_dist
+                return prev_idx
+
+        # Find new lookahead point (existing logic)
         accumulated_dist = 0.0
         lookahead_idx = start_idx
 
@@ -442,6 +463,10 @@ class ILOSGuidance:
         else:
             # Reached end of path
             lookahead_idx = total_points - 1
+
+        # Store for hysteresis
+        self._prev_lookahead_idx = lookahead_idx
+        self._prev_lookahead_dist = accumulated_dist
 
         return lookahead_idx
 
@@ -545,3 +570,9 @@ class ILOSGuidance:
         self._desired_pos = np.zeros(3)
         self._desired_yaw = 0.0
         self._desired_velocity = np.zeros(4)
+
+        # Reset hysteresis state
+        if hasattr(self, '_prev_lookahead_idx'):
+            delattr(self, '_prev_lookahead_idx')
+        if hasattr(self, '_prev_lookahead_dist'):
+            delattr(self, '_prev_lookahead_dist')
