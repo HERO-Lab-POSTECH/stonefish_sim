@@ -27,14 +27,15 @@
     # - Smaller (1-2m): More aggressive, tighter tracking, may oscillate
     # - Larger (3-5m): Smoother, gentler tracking, more stable
     # Typical range for ROV: 2-5m
-    lookahead_distance: 1.0
+    lookahead_distance: 0.5
 
     # ILOS integral gain κ_ILOS (dimensionless)
     # Physical meaning: Strength of integral action for sideslip/current compensation
-    # - Smaller (0.01-0.03): Gentle compensation, slower convergence
-    # - Larger (0.05-0.1): Aggressive compensation, faster convergence
-    # Start conservative, tune up if cross-track error persists
-    integral_gain: 0.03
+    # - For underactuated vehicles: 0.01-0.1 (heading-only control)
+    # - For fully-actuated vehicles: 0.0 (disabled, sway velocity handles CTE directly)
+    # NOTE: Integral + sway velocity causes overcompensation and outward overshoot in curves
+    # Set to 0.0 to avoid ILOS integral windup with direct lateral control
+    integral_gain: 0.0
 
     # Integral limit (meters)
     # Anti-windup: prevents integral term from growing unbounded
