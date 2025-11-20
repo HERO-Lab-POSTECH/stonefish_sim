@@ -273,7 +273,7 @@
 			<settings range_min="0.5" range_max="20.0" gain="1.1"/>
 			<noise multiplicative="0.01" additive="0.02"/>
 			<display colormap="hot"/>
-			<origin xyz="0.0 0.0 0.3" rpy="1.39626 0.0 1.571"/>
+			<origin xyz="0.0 0.0 0.0" rpy="1.39626 0.0 1.571"/>
 			<link name="base_link"/>
 			<ros_publisher topic="/$(arg vehicle_name)/fls"/>
 		</sensor>
