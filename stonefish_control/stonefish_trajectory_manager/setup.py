@@ -1,4 +1,4 @@
-from setuptools import setup, find_packages
+from setuptools import find_packages, setup
 import os
 from glob import glob
 
@@ -7,13 +7,7 @@ package_name = 'stonefish_trajectory_manager'
 setup(
     name=package_name,
     version='0.3.0',
-    packages=[
-        package_name,
-        package_name + '.common',
-        package_name + '.nodes',
-        package_name + '.path_generator',
-        package_name + '.path_following',
-    ],
+    packages=find_packages(exclude=['test']),
     data_files=[
         ('share/ament_index/resource_index/packages', ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),

@@ -2,17 +2,17 @@
 <scenario>
 	<looks>
 		<!-- Texture disabled to avoid loading 145MB model.obj which causes crash -->
-		<look name="infrustructure" gray="0.8" roughness="0.4"/>
+		<look name="infrastructure" gray="0.8" roughness="0.4"/>
 	</looks>
 
-	<static name="Infrustructure" type="model">
+	<static name="infrastructure" type="model">
 		<!-- Simplified collision box mesh (prevents crash from 145MB model) -->
 		<physical>
-			<mesh filename="data/models/infrustructure/meshes/model.obj" scale="1.0"/>
+			<mesh filename="data/models/infrastructure/meshes/model.obj" scale="1.0"/>
 			<origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
 		</physical>
 		<material name="Rock"/>
-		<look name="infrustructure"/>
+		<look name="infrastructure"/>
 		<world_transform rpy="$(arg rpy)" xyz="$(arg xyz)"/>
 	</static>
 </scenario>

@@ -27,7 +27,7 @@
     # - Smaller (1-2m): More aggressive, tighter tracking, may oscillate
     # - Larger (3-5m): Smoother, gentler tracking, more stable
     # Typical range for ROV: 2-5m
-    lookahead_distance: 0.5
+    lookahead_distance: 1.0
 
     # ILOS integral gain κ_ILOS (dimensionless)
     # Physical meaning: Strength of integral action for sideslip/current compensation
@@ -47,7 +47,7 @@
     # - Smaller (0.3-0.5): Gentle correction, smoother path following
     # - Larger (0.7-1.0): Aggressive correction, tighter tracking
     # Balance between tracking accuracy and smoothness
-    lateral_gain: 0.7
+    lateral_gain: 1.0
 
     # Depth correction gain (dimensionless)
     # Physical meaning: How aggressively to correct depth error via heave velocity
@@ -58,49 +58,23 @@
     depth_gain: 0.8
 
     # =========================================
-    # ALOS (Adaptive Line-of-Sight) Parameters
-    # =========================================
-    # Based on Lekkas & Fossen (2012) "A Time-Varying Lookahead Distance Guidance Law"
-    # CTE-only adaptive lookahead (NO curvature, NO velocity coupling)
-
-    # Enable ALOS (if false, uses fixed lookahead_distance)
-    use_alos: true
-
-    # Minimum lookahead distance (m)
-    # Conservative value to avoid singularities
-    # Recommended: 1.5-3.0m (Lekkas & Fossen 2012)
-    lookahead_min: 2.0
-
-    # Maximum lookahead distance (m)
-    # Prevents excessive lookahead at high CTE
-    # Recommended: 3.0-5.0m
-    lookahead_max: 4.0
-
-    # CTE sensitivity gain (dimensionless)
-    # Formula: Δ = Δ_min + k_cte * |e_y|
-    # Recommended: 0.3-0.8 (Lekkas & Fossen 2012)
-    # - Smaller (0.3-0.5): Conservative, smoother adaptation
-    # - Larger (0.6-0.8): Aggressive, faster convergence
-    k_lookahead_cte: 0.5
-
-    # =========================================
     # Velocity Profiling (Curvature-Based)
     # =========================================
     # Cruise speed (m/s) - target speed on straight segments
     # Typical for BlueROV2: 0.3-0.8 m/s
-    cruise_speed: 0.5
+    cruise_speed: 1.0
 
     # Minimum speed (m/s) - minimum speed in tight curves
     # Should be > 0 to ensure continuous progress
     # Typical: 20-40% of cruise speed
-    min_speed: 0.2
+    min_speed: 0.3
 
     # Curvature gain (dimensionless)
     # Controls how aggressively to slow down in curves
     # Formula: u_d = u_cruise / (1 + k_curve * |κ|)
     # - Smaller (1.0-1.5): Less slowdown, faster but less precise
     # - Larger (2.0-3.0): More slowdown, slower but more precise
-    curvature_gain: 2.0
+    curvature_gain: 3.0
 
     # =========================================
     # Control Loop

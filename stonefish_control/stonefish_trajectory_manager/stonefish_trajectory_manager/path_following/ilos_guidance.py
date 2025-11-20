@@ -32,7 +32,14 @@ Reference:
 """
 
 import numpy as np
+from enum import Enum
 from transforms3d.euler import quat2euler
+
+
+class PathFollowingMode(Enum):
+    """Path following mode state machine."""
+    ALIGN = "align"      # Initial heading alignment (stationary)
+    FOLLOW = "follow"    # Normal path following (full motion)
 
 
 def angle_wrap(angle):
@@ -65,7 +72,7 @@ class ILOSGuidance:
     def __init__(self, lookahead_distance=3.0, integral_gain=0.05,
                  integral_limit=5.0, cruise_speed=0.5,
                  min_speed=0.2, curvature_gain=2.0, lateral_gain=0.5,
-                 depth_gain=0.8):
+                 depth_gain=0.8, heading_align_threshold=np.deg2rad(10.0)):
         """Initialize ILOS guidance.
 
         Args:
@@ -77,6 +84,7 @@ class ILOSGuidance:
             curvature_gain: Curvature-based speed reduction gain
             lateral_gain: Lateral correction gain for cross-track error
             depth_gain: Depth error correction gain (for heave velocity)
+            heading_align_threshold: Heading error threshold for ALIGN→FOLLOW transition (rad)
         """
         # ILOS parameters
         self._lookahead_distance = lookahead_distance
@@ -89,6 +97,10 @@ class ILOSGuidance:
         self._curvature_gain = curvature_gain
         self._lateral_gain = lateral_gain
         self._depth_gain = depth_gain
+
+        # Heading alignment parameters
+        self._heading_align_threshold = heading_align_threshold
+        self._mode = PathFollowingMode.ALIGN  # Start in ALIGN mode
 
         # Vehicle state
         self._vehicle_pos = np.zeros(3)  # [x, y, z] NED world
@@ -349,20 +361,29 @@ class ILOSGuidance:
 
         chi_d = angle_wrap(chi_d)
 
-        # 6. Estimate curvature for velocity profiling
+        # 6. Check mode transition (ALIGN → FOLLOW)
+        heading_error = abs(angle_wrap(chi_d - self._vehicle_yaw))
+
+        if self._mode == PathFollowingMode.ALIGN:
+            # ALIGN mode: check if heading alignment is complete
+            if heading_error < self._heading_align_threshold:
+                # Transition to FOLLOW mode
+                self._mode = PathFollowingMode.FOLLOW
+
+        # 7. Estimate curvature for velocity profiling
         self._current_curvature = self._estimate_curvature(lookahead_idx)
 
-        # 7. Compute desired speed (velocity profiler)
+        # 8. Compute desired speed (velocity profiler)
         desired_speed = self._compute_speed(self._current_curvature)
 
         # Store for debugging/logging
         self._current_desired_speed = desired_speed
 
-        # 8. Desired position (lookahead point on path)
+        # 9. Desired position (lookahead point on path)
         self._desired_pos = p_lookahead
         self._desired_yaw = chi_d
 
-        # 9. Desired velocity (FRD body frame)
+        # 10. Desired velocity (FRD body frame)
         # Surge: desired speed
         # Sway: lateral correction for cross-track error (Lekkas & Fossen 2014)
         # Heave: from path slope
@@ -407,6 +428,14 @@ class ILOSGuidance:
         else:
             # Vertical path, no yaw rate
             r_d = 0.0
+
+        # 11. Override velocities in ALIGN mode (stationary heading alignment)
+        if self._mode == PathFollowingMode.ALIGN:
+            # ALIGN mode: Zero surge and sway (stationary), keep depth and yaw control
+            desired_speed = 0.0  # No surge
+            v_lateral = 0.0      # No sway
+            # w_d: Keep depth control (allow vertical alignment)
+            # r_d: Keep yaw rate (heading control)
 
         self._desired_velocity = np.array([desired_speed, v_lateral, w_d, r_d])
 
@@ -560,6 +589,14 @@ class ILOSGuidance:
         """
         return self._max_cte
 
+    def get_mode(self):
+        """Get current path following mode.
+
+        Returns:
+            PathFollowingMode: Current mode (ALIGN or FOLLOW)
+        """
+        return self._mode
+
     def reset(self):
         """Reset guidance state."""
         self._path_parameter = 0.0
@@ -570,6 +607,7 @@ class ILOSGuidance:
         self._desired_pos = np.zeros(3)
         self._desired_yaw = 0.0
         self._desired_velocity = np.zeros(4)
+        self._mode = PathFollowingMode.ALIGN  # Reset to ALIGN mode
 
         # Reset hysteresis state
         if hasattr(self, '_prev_lookahead_idx'):

@@ -64,6 +64,9 @@ class PathFollowing4DOFNode(Node):
         self.declare_parameter('min_speed', 0.2)        # m/s (tight curves)
         self.declare_parameter('curvature_gain', 2.0)   # Speed reduction sensitivity
 
+        # Initial heading alignment
+        self.declare_parameter('heading_align_threshold', 10.0)  # degrees
+
         # Get parameters
         self.vehicle_name = self.get_parameter('vehicle_name').value
         update_rate = self.get_parameter('update_rate').value
@@ -76,6 +79,8 @@ class PathFollowing4DOFNode(Node):
         cruise_speed = self.get_parameter('cruise_speed').value
         min_speed = self.get_parameter('min_speed').value
         curvature_gain = self.get_parameter('curvature_gain').value
+        heading_align_threshold_deg = self.get_parameter('heading_align_threshold').value
+        heading_align_threshold = np.deg2rad(heading_align_threshold_deg)
 
         # State
         self._path_received = False
@@ -83,6 +88,7 @@ class PathFollowing4DOFNode(Node):
         self._last_update_time = None
         self._path_complete_logged = False
         self._recording_active = False
+        self._prev_mode = None  # For mode transition logging
 
         # Actual trajectory recording
         self._actual_trajectory = Path()
@@ -101,7 +107,8 @@ class PathFollowing4DOFNode(Node):
             min_speed=min_speed,
             curvature_gain=curvature_gain,
             lateral_gain=lateral_gain,
-            depth_gain=depth_gain
+            depth_gain=depth_gain,
+            heading_align_threshold=heading_align_threshold
         )
 
         # Subscriber: path from path_generator_node
@@ -169,7 +176,7 @@ class PathFollowing4DOFNode(Node):
             f'[ILOS 4DOF] Initialized - lookahead: {lookahead_distance:.1f}m | '
             f'integral_gain: {integral_gain:.3f} | lateral_gain: {lateral_gain:.1f} | '
             f'depth_gain: {depth_gain:.1f} | cruise_speed: {cruise_speed:.1f}m/s | '
-            f'rate: {update_rate:.0f}Hz'
+            f'heading_align: {heading_align_threshold_deg:.1f}° | rate: {update_rate:.0f}Hz'
         )
 
         # Publish initial control mode
@@ -320,6 +327,16 @@ class PathFollowing4DOFNode(Node):
         # Get guidance command (hybrid architecture: position + heading + velocities)
         desired_position, desired_heading, desired_velocities = self.guidance.compute_guidance(dt)
 
+        # Check mode transition
+        current_mode = self.guidance.get_mode()
+        if self._prev_mode is None:
+            self._prev_mode = current_mode
+
+        if current_mode != self._prev_mode:
+            mode_name = current_mode.value
+            self.get_logger().info(f'[PATH FOLLOWING] Mode transition: {self._prev_mode.value} → {mode_name}')
+            self._prev_mode = current_mode
+
         # Publish lookahead point for visualization
         lookahead_msg = PointStamped()
         lookahead_msg.header.stamp = current_time.to_msg()
@@ -413,7 +430,7 @@ class PathFollowing4DOFNode(Node):
         # Publish cmd_pose
         self.guidance_pub.publish(msg)
 
-        # Log progress (throttled)
+        # Log progress (throttled) with mode indication
         cmd = self.guidance.get_guidance_command()
         goal_pos = self.guidance._path_poses[-1]
         distance_to_goal = np.linalg.norm(self.guidance._vehicle_pos - goal_pos)
@@ -421,10 +438,12 @@ class PathFollowing4DOFNode(Node):
         # Calculate actual lookahead distance
         lookahead_dist = np.linalg.norm(desired_position - self.guidance._vehicle_pos)
 
+        # Mode-based logging
+        mode_str = current_mode.value.upper()
         self.get_logger().info(
-            f"[ILOS 4DOF] Progress: {cmd['path_progress']*100:.0f}% | "
+            f"[{mode_str}] Progress: {cmd['path_progress']*100:.0f}% | "
             f"Lookahead: {lookahead_dist:.2f}m | CTE: {cmd['cross_track_error']:.2f}m | "
-            f"Speed: {cmd['desired_speed']:.2f}m/s | Curv: {cmd['current_curvature']:.3f}",
+            f"Speed: {cmd['desired_speed']:.2f}m/s",
             throttle_duration_sec=2.0
         )
 

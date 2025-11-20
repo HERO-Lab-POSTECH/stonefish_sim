@@ -67,14 +67,14 @@
     # Minimum speed (m/s) - minimum speed in tight curves
     # Should be > 0 to ensure continuous progress
     # Typical: 20-40% of cruise speed
-    min_speed: 0.5
+    min_speed: 0.3
 
     # Curvature gain (dimensionless)
     # Controls how aggressively to slow down in curves
     # Formula: u_d = u_cruise / (1 + k_curve * |κ|)
     # - Smaller (1.0-1.5): Less slowdown, faster but less precise
     # - Larger (2.0-3.0): More slowdown, slower but more precise
-    curvature_gain: 2.0
+    curvature_gain: 3.0
 
     # =========================================
     # Control Loop
