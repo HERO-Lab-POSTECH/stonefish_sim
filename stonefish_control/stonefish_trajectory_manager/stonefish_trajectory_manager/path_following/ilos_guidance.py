@@ -429,9 +429,10 @@ class ILOSGuidance:
             # Vertical path, no yaw rate
             r_d = 0.0
 
-        # 11. Override velocities in ALIGN mode (stationary heading alignment)
+        # 11. Override position and velocities in ALIGN mode (stationary heading alignment)
         if self._mode == PathFollowingMode.ALIGN:
-            # ALIGN mode: Zero surge and sway (stationary), keep depth and yaw control
+            # ALIGN mode: Stay at current position (prevent position controller from moving)
+            self._desired_pos = self._vehicle_pos.copy()  # Critical: current position!
             desired_speed = 0.0  # No surge
             v_lateral = 0.0      # No sway
             # w_d: Keep depth control (allow vertical alignment)
