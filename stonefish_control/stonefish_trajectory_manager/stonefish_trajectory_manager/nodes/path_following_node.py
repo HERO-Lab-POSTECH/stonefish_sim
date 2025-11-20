@@ -30,7 +30,7 @@ References:
 import rclpy
 from rclpy.node import Node
 from nav_msgs.msg import Odometry, Path
-from geometry_msgs.msg import Twist, TransformStamped
+from geometry_msgs.msg import Twist, TransformStamped, PointStamped
 from stonefish_control_msgs.msg import TrajectoryPoint
 from stonefish_control_msgs.srv import ResetTrajectory
 from std_msgs.msg import String
@@ -171,6 +171,13 @@ class PathFollowing4DOFNode(Node):
         self.actual_trajectory_pub = self.create_publisher(
             Path,
             f'/{self.vehicle_name}/actual_trajectory',
+            10
+        )
+
+        # Publisher: lookahead_point (for ALOS visualization)
+        self.lookahead_point_pub = self.create_publisher(
+            PointStamped,
+            f'/{self.vehicle_name}/lookahead_point',
             10
         )
 
@@ -431,17 +438,28 @@ class PathFollowing4DOFNode(Node):
         # Publish cmd_pose
         self.guidance_pub.publish(msg)
 
+        # Publish lookahead point (for ALOS visualization)
+        lookahead_msg = PointStamped()
+        lookahead_msg.header.stamp = current_time.to_msg()
+        lookahead_msg.header.frame_id = 'world_ned'
+        lookahead_msg.point.x = float(desired_position[0])
+        lookahead_msg.point.y = float(desired_position[1])
+        lookahead_msg.point.z = float(desired_position[2])
+        self.lookahead_point_pub.publish(lookahead_msg)
+
         # Log progress (throttled)
         cmd = self.guidance.get_guidance_command()
         goal_pos = self.guidance._path_poses[-1]
         distance_to_goal = np.linalg.norm(self.guidance._vehicle_pos - goal_pos)
 
+        # Calculate actual lookahead distance
+        lookahead_dist = np.linalg.norm(desired_position - self.guidance._vehicle_pos)
+
         self.get_logger().info(
-            f"[HYBRID 4DOF] Progress: {cmd['path_progress']*100:.0f}% | "
-            f"Goal: {distance_to_goal:.2f}m | CTE: {cmd['cross_track_error']:.2f}m | "
-            f"Pos: [{desired_position[0]:.1f}, {desired_position[1]:.1f}, {desired_position[2]:.1f}] | "
-            f"Vel: [u={desired_velocities[0]:.2f}, v={desired_velocities[1]:.2f}, w={desired_velocities[2]:.2f}] | "
-            f"Curv: {cmd['current_curvature']:.3f} | Int: {self.guidance._integral_ey:.2f}",
+            f"[ALOS 4DOF] Progress: {cmd['path_progress']*100:.0f}% | "
+            f"Lookahead: {lookahead_dist:.2f}m | CTE: {cmd['cross_track_error']:.2f}m | "
+            f"Speed: {cmd['desired_speed']:.2f}m/s | Curv: {cmd['current_curvature']:.3f} | "
+            f"Goal: {distance_to_goal:.2f}m",
             throttle_duration_sec=2.0
         )
 
