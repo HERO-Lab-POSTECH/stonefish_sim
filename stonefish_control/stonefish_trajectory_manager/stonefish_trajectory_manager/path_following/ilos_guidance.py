@@ -112,10 +112,10 @@ class ILOSGuidance:
         self._path_poses = None  # np.array, shape (N, 3)
         self._path_finished = False
 
-        # Path parameter tracking
-        self._path_parameter = 0.0  # s ∈ [0, 1]
+        # Path parameter tracking (arc-length based)
+        self._path_parameter_s = 0.0  # Arc-length parameter (m)
         self._total_path_length = 0.0
-        self._closest_point_idx = 0
+        self._arc_lengths = None  # Cumulative arc-length for each path point
 
         # ILOS integral state
         self._integral_ey = 0.0  # Cross-track error integral
@@ -133,25 +133,28 @@ class ILOSGuidance:
         self._max_cte = 0.0
 
     def set_path(self, path_poses):
-        """Set path from dense array of poses.
+        """Set path with arc-length parametrization.
 
         Args:
-            path_poses: List or array of [x, y, z] positions (NED world frame)
-                       Sequential single-direction path
+            path_poses: Array of [x, y, z] positions (NED world frame)
         """
         self._path_poses = np.array(path_poses)
         self._path_finished = False
-        self._path_parameter = 0.0
-        self._closest_point_idx = 0
-        self._integral_ey = 0.0  # Reset integral
+        self._integral_ey = 0.0
         self._max_cte = 0.0
 
-        # Compute total path length
-        self._total_path_length = 0.0
-        for i in range(1, len(self._path_poses)):
-            self._total_path_length += np.linalg.norm(
-                self._path_poses[i] - self._path_poses[i-1]
-            )
+        # Compute cumulative arc-length for each path point
+        n_points = len(self._path_poses)
+        self._arc_lengths = np.zeros(n_points)
+
+        for i in range(1, n_points):
+            segment_dist = np.linalg.norm(self._path_poses[i] - self._path_poses[i-1])
+            self._arc_lengths[i] = self._arc_lengths[i-1] + segment_dist
+
+        self._total_path_length = self._arc_lengths[-1]
+
+        # Initialize continuous path parameter (arc-length in meters)
+        self._path_parameter_s = 0.0
 
     def update_vehicle_state(self, position, orientation_quat, velocity_world):
         """Update vehicle state from odometry.
@@ -189,7 +192,7 @@ class ILOSGuidance:
         self._vehicle_velocity = velocity_body  # [u, v, w] in body frame
 
     def update(self, dt):
-        """Update guidance (find closest point on path).
+        """Update path parameter using continuous projection.
 
         Args:
             dt: Time step (s)
@@ -200,107 +203,172 @@ class ILOSGuidance:
         if self._path_poses is None or len(self._path_poses) == 0:
             return False
 
-        # Find closest point on path
-        self._find_closest_point()
+        # Step 1: Determine forward search window (self-crossing prevention)
+        robot_speed = np.linalg.norm(self._vehicle_velocity[:2])  # Horizontal speed
+        time_horizon = 2.0  # seconds (look ahead in time)
+        speed_based_window = robot_speed * time_horizon
+        lookahead_based_window = self._lookahead_distance * 3.0
+        search_window = max(speed_based_window, lookahead_based_window, 2.0)  # Min 2m
 
-        # Update path parameter based on closest point
+        # Step 2: Small backward tolerance for path crossings
+        backward_tolerance = 0.2  # meters
+        search_start_s = max(0.0, self._path_parameter_s - backward_tolerance)
+
+        # Step 3: Project robot onto path (continuous parameter)
+        projected_s = self._project_to_path(
+            self._vehicle_pos,
+            search_start_s,
+            search_window
+        )
+
+        # Step 4: Soft monotonicity constraint (prevent large backward jumps)
+        if projected_s < self._path_parameter_s - backward_tolerance:
+            projected_s = self._path_parameter_s  # Freeze at current position
+
+        # Step 5: Update path parameter
+        self._path_parameter_s = projected_s
+
+        # Step 6: Update progress
         if self._total_path_length > 0:
-            # Calculate accumulated distance to closest point
-            accumulated_dist = 0.0
-            for i in range(1, self._closest_point_idx + 1):
-                accumulated_dist += np.linalg.norm(
-                    self._path_poses[i] - self._path_poses[i-1]
-                )
-
-            self._path_parameter = accumulated_dist / self._total_path_length
+            self._path_progress = projected_s / self._total_path_length
         else:
-            self._path_parameter = 0.0
+            self._path_progress = 0.0
 
-        # Check if path is finished
-        total_points = len(self._path_poses)
-        near_end = self._closest_point_idx >= total_points - 2
-        traveled_enough = self._path_parameter > 0.95
+        # Step 7: Check path completion
+        distance_to_end = self._total_path_length - projected_s
+        near_end = distance_to_end < self._lookahead_distance
 
         goal_pos = self._path_poses[-1]
         distance_to_goal = np.linalg.norm(self._vehicle_pos - goal_pos)
         goal_reached = distance_to_goal < self._lookahead_distance
 
-        if near_end and traveled_enough and goal_reached:
+        if near_end and goal_reached and self._path_progress > 0.95:
             self._path_finished = True
-            self._path_parameter = 1.0
-
-        self._path_progress = self._path_parameter
+            self._path_progress = 1.0
 
         return True
 
-    def _find_closest_point(self):
-        """Find closest point using adaptive search window based on cross-track error.
-
-        Adaptive Strategy (Literature-based):
-        - Uses distance-based threshold (Fossen 2021, ROS2 Nav2)
-        - Converts to index-based window for computational efficiency
-        - Large CTE → wider search for recovery
-        - Small CTE → narrow search for precision
-
-        Reference:
-        - "Time-Varying Lookahead Distance Guidance Law" (IFAC 2016)
-        - ROS2 Nav2 Regulated Pure Pursuit Controller
-        """
-        if self._path_poses is None or len(self._path_poses) == 0:
-            return
-
-        total_points = len(self._path_poses)
-
-        # Step 1: Calculate preliminary CTE for adaptive window sizing
-        # (Same logic as compute_guidance, but simplified for performance)
-        if self._closest_point_idx < total_points:
-            p_closest_prelim = self._path_poses[self._closest_point_idx]
-            tangent_prelim = self._get_path_tangent(self._closest_point_idx)
-            chi_p_prelim = np.arctan2(tangent_prelim[1], tangent_prelim[0])
-
-            e_vec_prelim = self._vehicle_pos - p_closest_prelim
-            e_y_prelim = -e_vec_prelim[0] * np.sin(chi_p_prelim) + e_vec_prelim[1] * np.cos(chi_p_prelim)
-            cte_prelim = abs(e_y_prelim)
-        else:
-            cte_prelim = 0.0
-
-        # Step 2: Determine search distance based on CTE (distance-based threshold)
-        # Large deviation → wider search for path recovery
-        # Small deviation → narrow search for computational efficiency
-        if cte_prelim > 2.0:
-            search_distance = 2.5  # meters - large deviation recovery
-        elif cte_prelim > 1.0:
-            search_distance = 1.5  # meters - moderate deviation
-        else:
-            search_distance = 0.8  # meters - normal tracking
-
-        # Step 3: Convert distance to index window (assumes uniform path spacing)
-        # Estimated avg spacing from path generator config: 0.01m
-        avg_path_spacing = 0.01  # meters per index
-        window_indices = int(search_distance / avg_path_spacing)
-
-        # Step 4: Forward-only search within adaptive window
-        search_start = self._closest_point_idx
-        search_end = min(self._closest_point_idx + window_indices, total_points)
-
-        # Step 5: Find closest point in window
-        distances = np.linalg.norm(
-            self._path_poses[search_start:search_end] - self._vehicle_pos,
-            axis=1
-        )
-
-        closest_idx_relative = np.argmin(distances)
-        new_closest_idx = search_start + closest_idx_relative
-
-        # Step 6: Update (no max_increment constraint for immediate response)
-        self._closest_point_idx = new_closest_idx
-
-
-    def _estimate_curvature(self, idx):
-        """Estimate curvature at path point using 3-point method.
+    def _arc_length_to_index(self, s):
+        """Convert arc-length parameter to nearest path index.
 
         Args:
-            idx: Index of path point
+            s: Arc-length parameter (m)
+
+        Returns:
+            int: Nearest path index
+        """
+        if self._arc_lengths is None or len(self._arc_lengths) == 0:
+            return 0
+
+        # Binary search for efficient lookup
+        idx = np.searchsorted(self._arc_lengths, s, side='right') - 1
+        return np.clip(idx, 0, len(self._path_poses) - 1)
+
+    def _interpolate_from_parameter(self, s):
+        """Interpolate 3D point from arc-length parameter.
+
+        Uses linear interpolation between path points for continuous positioning.
+
+        Args:
+            s: Arc-length parameter (m)
+
+        Returns:
+            np.ndarray: Interpolated point [x, y, z]
+        """
+        if self._path_poses is None or len(self._path_poses) == 0:
+            return np.zeros(3)
+
+        # Clamp to valid range
+        s = np.clip(s, 0.0, self._total_path_length)
+
+        # Find segment containing s (binary search)
+        idx = np.searchsorted(self._arc_lengths, s, side='right') - 1
+        idx = np.clip(idx, 0, len(self._path_poses) - 2)
+
+        # Arc-lengths of segment endpoints
+        s1 = self._arc_lengths[idx]
+        s2 = self._arc_lengths[idx + 1]
+
+        # Handle degenerate segment
+        if abs(s2 - s1) < 1e-9:
+            return self._path_poses[idx].copy()
+
+        # Linear interpolation parameter alpha ∈ [0, 1]
+        alpha = (s - s1) / (s2 - s1)
+
+        # Interpolate position
+        p1 = self._path_poses[idx]
+        p2 = self._path_poses[idx + 1]
+
+        return p1 + alpha * (p2 - p1)
+
+    def _project_to_path(self, robot_pos, search_start_s, search_window):
+        """Project robot position onto path using forward search.
+
+        Finds continuous arc-length parameter by projecting robot onto path segments
+        within search window. Prevents self-crossing issues.
+
+        Args:
+            robot_pos: Robot position [x, y, z] (NED)
+            search_start_s: Start arc-length for search (m)
+            search_window: Forward search distance (m)
+
+        Returns:
+            float: Projected arc-length parameter s (m)
+        """
+        if self._path_poses is None or len(self._path_poses) == 0:
+            return 0.0
+
+        # Convert search range to indices
+        start_idx = self._arc_length_to_index(search_start_s)
+        end_s = min(search_start_s + search_window, self._total_path_length)
+        end_idx = self._arc_length_to_index(end_s)
+        end_idx = min(end_idx + 1, len(self._path_poses) - 1)  # Include end segment
+
+        # Project onto each segment in search window
+        min_dist = float('inf')
+        best_s = search_start_s
+
+        for i in range(start_idx, end_idx):
+            # Segment endpoints
+            p1 = self._path_poses[i]
+            p2 = self._path_poses[i + 1]
+
+            # Vector projection onto segment
+            v = p2 - p1  # Segment vector
+            w = robot_pos - p1  # Robot relative to segment start
+
+            c1 = np.dot(w, v)
+            c2 = np.dot(v, v)
+
+            # Handle degenerate segment
+            if c2 < 1e-9:
+                continue
+
+            # Projection parameter (clamped to [0, 1])
+            alpha = np.clip(c1 / c2, 0.0, 1.0)
+
+            # Projected point on segment
+            p_proj = p1 + alpha * v
+
+            # Distance from robot to projection
+            dist = np.linalg.norm(robot_pos - p_proj)
+
+            # Update best projection
+            if dist < min_dist:
+                min_dist = dist
+                # Arc-length of projection
+                segment_length = self._arc_lengths[i + 1] - self._arc_lengths[i]
+                best_s = self._arc_lengths[i] + alpha * segment_length
+
+        return best_s
+
+
+    def _estimate_curvature(self, s):
+        """Estimate curvature at arc-length parameter s using 3-point method.
+
+        Args:
+            s: Arc-length parameter (m)
 
         Returns:
             float: Curvature (1/m)
@@ -308,14 +376,16 @@ class ILOSGuidance:
         if self._path_poses is None or len(self._path_poses) < 3:
             return 0.0
 
-        # Get 3 consecutive points (handle boundaries)
-        idx_prev = max(0, idx - 1)
-        idx_curr = idx
-        idx_next = min(len(self._path_poses) - 1, idx + 1)
+        # Sample 3 points: s-0.1m, s, s+0.1m
+        ds = 0.1  # 10cm spacing for curvature estimation
+        s_prev = max(0.0, s - ds)
+        s_curr = s
+        s_next = min(self._total_path_length, s + ds)
 
-        p_prev = self._path_poses[idx_prev]
-        p_curr = self._path_poses[idx_curr]
-        p_next = self._path_poses[idx_next]
+        # Interpolate 3 points
+        p_prev = self._interpolate_from_parameter(s_prev)
+        p_curr = self._interpolate_from_parameter(s_curr)
+        p_next = self._interpolate_from_parameter(s_next)
 
         # Vectors
         v1 = p_curr - p_prev
@@ -334,9 +404,8 @@ class ILOSGuidance:
         angle = np.arccos(cos_angle)
 
         # Curvature approximation: κ ≈ 2 * sin(θ/2) / L
-        # where L is average segment length
         L_avg = (l1 + l2) / 2.0
-        curvature = 2.0 * np.sin(angle / 2.0) / L_avg
+        curvature = 2.0 * np.sin(angle / 2.0) / L_avg if L_avg > 1e-9 else 0.0
 
         return curvature
 
@@ -361,20 +430,32 @@ class ILOSGuidance:
         if self._path_poses is None or len(self._path_poses) == 0:
             return self._desired_pos, self._desired_yaw, self._desired_velocity
 
-        # 1. Find lookahead point on path (continuous interpolation)
-        p_lookahead = self._find_lookahead_point_continuous(
-            self._closest_point_idx, self._lookahead_distance
-        )
+        # 1. Compute lookahead arc-length parameter
+        s_lookahead = self._path_parameter_s + self._lookahead_distance
+        s_lookahead = min(s_lookahead, self._total_path_length)
 
-        # 2. Get path tangent at lookahead point
-        # Find nearest index to continuous lookahead point for tangent calculation
-        lookahead_idx = self._find_nearest_index(p_lookahead)
-        tangent = self._get_path_tangent(lookahead_idx)
-        chi_p = np.arctan2(tangent[1], tangent[0])  # Path angle
+        # 2. Interpolate lookahead point (continuous)
+        p_lookahead = self._interpolate_from_parameter(s_lookahead)
 
-        # 3. Calculate cross-track error e_y
-        # Find closest point on path
-        p_closest = self._path_poses[self._closest_point_idx]
+        # 3. Get path tangent (from nearby point for numerical derivative)
+        ds_tangent = 0.1  # 10cm ahead for tangent estimation
+        s_tangent_ahead = min(self._path_parameter_s + ds_tangent, self._total_path_length)
+        p_tangent_ahead = self._interpolate_from_parameter(s_tangent_ahead)
+
+        p_current = self._interpolate_from_parameter(self._path_parameter_s)
+        tangent = p_tangent_ahead - p_current
+        tangent_norm = np.linalg.norm(tangent)
+
+        if tangent_norm > 1e-6:
+            tangent = tangent / tangent_norm
+        else:
+            tangent = np.array([1.0, 0.0, 0.0])
+
+        chi_p = np.arctan2(tangent[1], tangent[0])
+
+        # 4. Calculate cross-track error e_y
+        # Use interpolated closest point (continuous)
+        p_closest = self._interpolate_from_parameter(self._path_parameter_s)
 
         # Error vector (vehicle - closest point)
         e_vec = self._vehicle_pos - p_closest
@@ -386,14 +467,14 @@ class ILOSGuidance:
         self._cross_track_error = e_y
         self._max_cte = max(self._max_cte, abs(e_y))
 
-        # 4. Update integral with anti-windup (FOLLOW mode only)
+        # 5. Update integral with anti-windup (FOLLOW mode only)
         if self._mode == PathFollowingMode.FOLLOW:
             self._integral_ey += e_y * dt
             self._integral_ey = np.clip(self._integral_ey,
                                          -self._integral_limit,
                                          self._integral_limit)
 
-        # 5. ILOS heading command (mode-dependent)
+        # 6. ILOS heading command (mode-dependent)
         if self._mode == PathFollowingMode.ALIGN:
             # ALIGN mode: Use fixed path start tangent (no CTE correction)
             # This provides stable heading reference for initial alignment
@@ -407,7 +488,7 @@ class ILOSGuidance:
 
         chi_d = angle_wrap(chi_d)
 
-        # 6. Check mode transition (ALIGN → FOLLOW)
+        # 7. Check mode transition (ALIGN → FOLLOW)
         heading_error = abs(angle_wrap(chi_d - self._vehicle_yaw))
 
         if self._mode == PathFollowingMode.ALIGN:
@@ -416,20 +497,20 @@ class ILOSGuidance:
                 # Transition to FOLLOW mode
                 self._mode = PathFollowingMode.FOLLOW
 
-        # 7. Estimate curvature for velocity profiling
-        self._current_curvature = self._estimate_curvature(lookahead_idx)
+        # 8. Estimate curvature for velocity profiling (at lookahead)
+        self._current_curvature = self._estimate_curvature(s_lookahead)
 
-        # 8. Compute desired speed (velocity profiler)
+        # 9. Compute desired speed (velocity profiler)
         desired_speed = self._compute_speed(self._current_curvature)
 
         # Store for debugging/logging
         self._current_desired_speed = desired_speed
 
-        # 9. Desired position (lookahead point on path)
+        # 10. Desired position (lookahead point on path)
         self._desired_pos = p_lookahead
         self._desired_yaw = chi_d
 
-        # 10. Desired velocity (FRD body frame)
+        # 11. Desired velocity (FRD body frame)
         # Surge: desired speed
         # Sway: lateral correction for cross-track error (Lekkas & Fossen 2014)
         # Heave: from path slope
@@ -475,7 +556,7 @@ class ILOSGuidance:
             # Vertical path, no yaw rate
             r_d = 0.0
 
-        # 11. ALIGN mode: Slow 3D path tracking for safe path entry
+        # 12. ALIGN mode: Slow 3D path tracking for safe path entry
         if self._mode == PathFollowingMode.ALIGN:
             # Track lookahead point with slow speed (smooth 3D approach)
             # This allows gradual depth change along path (NOT vertical drop)
@@ -491,63 +572,6 @@ class ILOSGuidance:
         # Position: lookahead point for outer loop control
         # Velocities: desired body velocities for feedforward control
         return self._desired_pos, self._desired_yaw, self._desired_velocity
-
-    def _find_lookahead_point_continuous(self, start_idx, lookahead_distance):
-        """Find continuous lookahead point using linear interpolation.
-
-        Returns actual 3D point (not index) for smooth controller target updates.
-        Eliminates discrete jumps that cause oscillation.
-
-        Args:
-            start_idx: Starting index (closest point)
-            lookahead_distance: Desired lookahead distance (m)
-
-        Returns:
-            np.ndarray: Lookahead point [x, y, z] (continuous, interpolated)
-        """
-        if self._path_poses is None or len(self._path_poses) == 0:
-            return np.zeros(3)
-
-        total_points = len(self._path_poses)
-
-        # Accumulate distance along path from start_idx
-        accumulated_dist = 0.0
-
-        for i in range(start_idx, total_points - 1):
-            # Distance of this segment
-            segment_vec = self._path_poses[i + 1] - self._path_poses[i]
-            segment_dist = np.linalg.norm(segment_vec)
-
-            # Check if lookahead point lies within this segment
-            if accumulated_dist + segment_dist >= lookahead_distance:
-                # Linear interpolation within segment
-                remaining_dist = lookahead_distance - accumulated_dist
-                alpha = remaining_dist / segment_dist if segment_dist > 1e-9 else 0.0  # [0, 1]
-
-                # Interpolated point
-                p_lookahead = self._path_poses[i] + alpha * segment_vec
-
-                return p_lookahead
-
-            accumulated_dist += segment_dist
-
-        # If lookahead exceeds path length, return end point
-        return self._path_poses[-1]
-
-    def _find_nearest_index(self, point):
-        """Find nearest path index to given point.
-
-        Args:
-            point: np.ndarray [x, y, z]
-
-        Returns:
-            int: Nearest path index
-        """
-        if self._path_poses is None or len(self._path_poses) == 0:
-            return 0
-
-        distances = np.linalg.norm(self._path_poses - point, axis=1)
-        return np.argmin(distances)
 
     def _get_path_tangent(self, idx):
         """Get path tangent at given index.
@@ -649,12 +673,11 @@ class ILOSGuidance:
 
     def reset(self):
         """Reset guidance state."""
-        self._path_parameter = 0.0
-        self._closest_point_idx = 0
+        self._path_parameter_s = 0.0  # Arc-length parameter
         self._integral_ey = 0.0
         self._path_finished = False
         self._max_cte = 0.0
         self._desired_pos = np.zeros(3)
         self._desired_yaw = 0.0
         self._desired_velocity = np.zeros(4)
-        self._mode = PathFollowingMode.ALIGN  # Reset to ALIGN mode
+        self._mode = PathFollowingMode.ALIGN
