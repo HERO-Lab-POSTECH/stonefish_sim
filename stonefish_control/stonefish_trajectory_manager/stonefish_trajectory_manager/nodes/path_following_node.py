@@ -68,7 +68,7 @@ class PathFollowing4DOFNode(Node):
         self.declare_parameter('max_heave_velocity', 0.4)    # m/s (BlueROV2 heave limit)
 
         # Lookahead distance-based speed reduction
-        self.declare_parameter('lookahead_slowdown_distance', 1.5)  # m
+        self.declare_parameter('lookahead_slowdown_ratio', 0.7)  # Ratio (0.0-1.0)
 
         # Velocity profiling parameters
         self.declare_parameter('cruise_speed', 0.5)     # m/s (straight line)
@@ -91,7 +91,7 @@ class PathFollowing4DOFNode(Node):
         depth_kd = self.get_parameter('depth_kd').value
         max_lateral_velocity = self.get_parameter('max_lateral_velocity').value
         max_heave_velocity = self.get_parameter('max_heave_velocity').value
-        lookahead_slowdown_distance = self.get_parameter('lookahead_slowdown_distance').value
+        lookahead_slowdown_ratio = self.get_parameter('lookahead_slowdown_ratio').value
         cruise_speed = self.get_parameter('cruise_speed').value
         min_speed = self.get_parameter('min_speed').value
         curvature_gain = self.get_parameter('curvature_gain').value
@@ -129,7 +129,7 @@ class PathFollowing4DOFNode(Node):
             depth_kd=depth_kd,
             max_lateral_velocity=max_lateral_velocity,
             max_heave_velocity=max_heave_velocity,
-            lookahead_slowdown_distance=lookahead_slowdown_distance
+            lookahead_slowdown_ratio=lookahead_slowdown_ratio
         )
 
         # Subscriber: path from path_generator_node

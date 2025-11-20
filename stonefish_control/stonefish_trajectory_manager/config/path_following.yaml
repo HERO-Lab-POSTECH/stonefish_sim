@@ -94,14 +94,14 @@
     # =========================================
     # Lookahead Distance-Based Speed Reduction
     # =========================================
-    # Lookahead slowdown distance threshold (m)
-    # Physical meaning: Distance threshold for gradual speed reduction
-    # - When distance to lookahead point < threshold: linearly reduce speed
-    # - Prevents robot from overshooting when lookahead point slows/stops
-    # - Formula: speed_factor = current_distance / threshold
-    # Recommended: 0.5-2.0× lookahead_distance
-    # Typical: 1.0-2.0 m
-    lookahead_slowdown_distance: 1.5
+    # Lookahead slowdown ratio threshold (0.0-1.0)
+    # Physical meaning: Ratio threshold for gradual speed reduction
+    # - When (distance to lookahead / lookahead_distance) < ratio: reduce speed
+    # - Prevents robot from overshooting when lookahead gets abnormally close
+    # - Formula: threshold = lookahead_distance × ratio
+    # - Example: ratio=0.7, lookahead=3.0m → slowdown when distance < 2.1m
+    # Typical: 0.5-0.8 (50-80% of lookahead_distance)
+    lookahead_slowdown_ratio: 0.7
 
     # =========================================
     # Heading Alignment
