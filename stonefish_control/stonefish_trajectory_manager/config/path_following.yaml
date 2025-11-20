@@ -27,7 +27,7 @@
     # - Smaller (1-2m): More aggressive, tighter tracking, may oscillate
     # - Larger (3-5m): Smoother, gentler tracking, more stable
     # Typical range for ROV: 2-5m
-    lookahead_distance: 1.0
+    lookahead_distance: 0.5
 
     # ILOS integral gain κ_ILOS (dimensionless)
     # Physical meaning: Strength of integral action for sideslip/current compensation

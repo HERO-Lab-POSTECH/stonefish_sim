@@ -474,15 +474,15 @@ class ILOSGuidance:
             # Vertical path, no yaw rate
             r_d = 0.0
 
-        # 11. Override position and velocities in ALIGN mode (stationary heading alignment)
+        # 11. ALIGN mode: Slow 3D path tracking for safe path entry
         if self._mode == PathFollowingMode.ALIGN:
-            # ALIGN mode: Stay at current position (prevent position controller from moving)
-            self._desired_pos = self._vehicle_pos.copy()  # Critical: current position!
-            desired_speed = 0.0  # No surge (prevent forward motion)
-            # v_lateral: Keep CTE correction (allow lateral drift compensation)
-            # Do NOT override v_lateral - allow sway control for stability
-            # w_d: Keep depth control (allow vertical alignment)
-            # r_d: Keep yaw rate (heading control)
+            # Track lookahead point with slow speed (smooth 3D approach)
+            # This allows gradual depth change along path (NOT vertical drop)
+            # p_lookahead already assigned to _desired_pos (line 428), so keep it
+            desired_speed = 0.3  # Slow approach speed (m/s) - literature-based safe entry
+            # v_lateral: Keep CTE correction (lateral tracking)
+            # w_d: Keep path-based heave (gradual Z change along path)
+            # r_d: Keep yaw rate (heading alignment)
 
         self._desired_velocity = np.array([desired_speed, v_lateral, w_d, r_d])
 
