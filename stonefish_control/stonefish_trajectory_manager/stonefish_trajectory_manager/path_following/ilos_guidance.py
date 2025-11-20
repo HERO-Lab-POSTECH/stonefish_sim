@@ -390,10 +390,12 @@ class ILOSGuidance:
                                      -self._integral_limit,
                                      self._integral_limit)
 
-        # 5. ILOS heading command
+        # 5. ILOS heading command (with adaptive lookahead)
+        # Formula: χ_d = χ_p + arctan(-e_y / Δ) - arctan(κ_ILOS * ∫e_y dt / Δ)
+        # Both arctan terms use adaptive_lookahead distance for consistent heading computation
         chi_d = chi_p \
-                + np.arctan(-e_y / self._lookahead_distance) \
-                - np.arctan(self._integral_gain * self._integral_ey / self._lookahead_distance)
+                + np.arctan(-e_y / adaptive_lookahead) \
+                - np.arctan(self._integral_gain * self._integral_ey / adaptive_lookahead)
 
         chi_d = angle_wrap(chi_d)
 
