@@ -1,0 +1,26 @@
+# Example Waypoint File: Square Path
+#
+# Coordinate Convention:
+#   World Frame: NED (North-East-Down)
+#     X: North, Y: East, Z: Down (underwater is positive)
+#
+# Heading Behavior:
+#   - use_fixed_heading: false → heading automatically points to next waypoint
+#   - use_fixed_heading: true → uses specified heading
+#
+# Angle Units:
+#   - heading_deg: Degrees (easier, automatically converted)
+#   - heading: Radians (more precise)
+#
+# Control: 4DOF (XYZ + Yaw), Roll and Pitch are always 0
+
+inertial_frame_id: 'world_ned'
+
+waypoints:
+  # Start: heading will auto-point to next waypoint (2, 0, -1) **WP1**
+  - position: [0.0, 0.0, 2.0]
+    use_fixed_heading: false
+
+  # Move North: heading auto-points to (2, 2, -1.5) **WP2**
+  - position: [5.0, 0.0, 2.0]
+    use_fixed_heading: false

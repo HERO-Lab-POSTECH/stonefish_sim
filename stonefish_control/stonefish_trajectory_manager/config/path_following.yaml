@@ -27,7 +27,7 @@
     # - Smaller (1-2m): More aggressive, tighter tracking, may oscillate
     # - Larger (3-5m): Smoother, gentler tracking, more stable
     # Typical range for ROV: 2-5m
-    lookahead_distance: 0.5
+    lookahead_distance: 1.0
 
     # ILOS integral gain κ_ILOS (dimensionless)
     # Physical meaning: Strength of integral action for sideslip/current compensation
@@ -90,6 +90,18 @@
     # Based on BlueROV2 thruster capability
     # Typical: 0.3-0.5 m/s
     max_heave_velocity: 0.4
+
+    # =========================================
+    # Lookahead Distance-Based Speed Reduction
+    # =========================================
+    # Lookahead slowdown distance threshold (m)
+    # Physical meaning: Distance threshold for gradual speed reduction
+    # - When distance to lookahead point < threshold: linearly reduce speed
+    # - Prevents robot from overshooting when lookahead point slows/stops
+    # - Formula: speed_factor = current_distance / threshold
+    # Recommended: 0.5-2.0× lookahead_distance
+    # Typical: 1.0-2.0 m
+    lookahead_slowdown_distance: 1.5
 
     # =========================================
     # Heading Alignment
