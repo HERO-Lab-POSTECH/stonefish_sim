@@ -53,29 +53,54 @@ class PathFollowing4DOFNode(Node):
         self.declare_parameter('update_rate', 50.0)  # Hz (match PID rate)
 
         # ILOS parameters
-        self.declare_parameter('lookahead_distance', 3.0)  # meters
+        self.declare_parameter('lookahead_distance', 3.0)  # meters (base, if ALOS disabled)
         self.declare_parameter('integral_gain', 0.05)      # ILOS integral gain
         self.declare_parameter('integral_limit', 5.0)      # Anti-windup limit
         self.declare_parameter('lateral_gain', 0.5)        # Lateral correction gain
         self.declare_parameter('depth_gain', 0.8)          # Depth error correction gain
+
+        # ALOS parameters (Fossen & Lekkas 2023)
+        self.declare_parameter('use_alos', True)           # Enable ALOS
+        self.declare_parameter('lookahead_min', 0.5)       # m (minimum)
+        self.declare_parameter('lookahead_max', 5.0)       # m (maximum)
+        self.declare_parameter('k_lookahead_cte', 1.5)     # CTE sensitivity
+        self.declare_parameter('k_lookahead_curv', 10.0)   # Curvature sensitivity
+        self.declare_parameter('k_lookahead_vel', 0.8)     # Velocity coupling
 
         # Velocity profiling parameters
         self.declare_parameter('cruise_speed', 0.5)     # m/s (straight line)
         self.declare_parameter('min_speed', 0.2)        # m/s (tight curves)
         self.declare_parameter('curvature_gain', 2.0)   # Speed reduction sensitivity
 
+        # CTE-based velocity reduction (KIOST RPM constraint)
+        self.declare_parameter('cte_threshold', 1.0)    # m (recovery trigger)
+        self.declare_parameter('k_cte_slowdown', 0.4)   # Slowdown factor (0-1)
+
         # Get parameters
         self.vehicle_name = self.get_parameter('vehicle_name').value
         update_rate = self.get_parameter('update_rate').value
 
+        # ILOS parameters
         lookahead_distance = self.get_parameter('lookahead_distance').value
         integral_gain = self.get_parameter('integral_gain').value
         integral_limit = self.get_parameter('integral_limit').value
         lateral_gain = self.get_parameter('lateral_gain').value
         depth_gain = self.get_parameter('depth_gain').value
+
+        # ALOS parameters
+        use_alos = self.get_parameter('use_alos').value
+        lookahead_min = self.get_parameter('lookahead_min').value
+        lookahead_max = self.get_parameter('lookahead_max').value
+        k_lookahead_cte = self.get_parameter('k_lookahead_cte').value
+        k_lookahead_curv = self.get_parameter('k_lookahead_curv').value
+        k_lookahead_vel = self.get_parameter('k_lookahead_vel').value
+
+        # Velocity profiling parameters
         cruise_speed = self.get_parameter('cruise_speed').value
         min_speed = self.get_parameter('min_speed').value
         curvature_gain = self.get_parameter('curvature_gain').value
+        cte_threshold = self.get_parameter('cte_threshold').value
+        k_cte_slowdown = self.get_parameter('k_cte_slowdown').value
 
         # State
         self._path_received = False
@@ -92,7 +117,7 @@ class PathFollowing4DOFNode(Node):
         self._tf_buffer = Buffer()
         self._tf_listener = TransformListener(self._tf_buffer, self)
 
-        # Initialize ILOS guidance
+        # Initialize ILOS guidance with ALOS
         self.guidance = ILOSGuidance(
             lookahead_distance=lookahead_distance,
             integral_gain=integral_gain,
@@ -101,7 +126,15 @@ class PathFollowing4DOFNode(Node):
             min_speed=min_speed,
             curvature_gain=curvature_gain,
             lateral_gain=lateral_gain,
-            depth_gain=depth_gain
+            depth_gain=depth_gain,
+            use_alos=use_alos,
+            lookahead_min=lookahead_min,
+            lookahead_max=lookahead_max,
+            k_lookahead_cte=k_lookahead_cte,
+            k_lookahead_curv=k_lookahead_curv,
+            k_lookahead_vel=k_lookahead_vel,
+            cte_threshold=cte_threshold,
+            k_cte_slowdown=k_cte_slowdown
         )
 
         # Subscriber: path from path_generator_node
@@ -158,11 +191,12 @@ class PathFollowing4DOFNode(Node):
         # Timer for trajectory publishing (1 Hz)
         self._trajectory_pub_timer = self.create_timer(1.0, self._publish_trajectory)
 
+        alos_status = "ENABLED" if use_alos else "DISABLED"
         self.get_logger().info(
-            f'[ILOS 4DOF] Initialized - lookahead: {lookahead_distance:.1f}m | '
+            f'[ALOS 4DOF] Initialized - ALOS: {alos_status} | '
+            f'lookahead: [{lookahead_min:.1f}, {lookahead_max:.1f}]m | '
             f'integral_gain: {integral_gain:.3f} | lateral_gain: {lateral_gain:.1f} | '
-            f'depth_gain: {depth_gain:.1f} | cruise_speed: {cruise_speed:.1f}m/s | '
-            f'rate: {update_rate:.0f}Hz'
+            f'cruise_speed: {cruise_speed:.1f}m/s | rate: {update_rate:.0f}Hz'
         )
 
         # Publish initial control mode
