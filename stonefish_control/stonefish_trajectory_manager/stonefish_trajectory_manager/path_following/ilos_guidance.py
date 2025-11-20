@@ -234,19 +234,20 @@ class ILOSGuidance:
         return True
 
     def _find_closest_point(self):
-        """Find closest point on path using forward-only search.
+        """Find closest point on path using forward search with limited window.
 
-        Monotonicity is guaranteed by forward-only search (Lekkas & Fossen 2014).
-        No rate limiting is applied to prevent lag during high-speed maneuvers.
+        Search window prevents jumping to path end in looped paths,
+        while allowing immediate response within the window (no max_increment).
         """
         if self._path_poses is None or len(self._path_poses) == 0:
             return
 
         total_points = len(self._path_poses)
 
-        # Forward-only search for monotone path parameter
+        # Forward search with limited window (prevent path end jump)
+        max_search_window = 50  # Sufficient for high-speed maneuvers
         search_start = self._closest_point_idx
-        search_end = total_points
+        search_end = min(self._closest_point_idx + max_search_window, total_points)
 
         distances = np.linalg.norm(
             self._path_poses[search_start:search_end] - self._vehicle_pos,
@@ -256,7 +257,7 @@ class ILOSGuidance:
         closest_idx_relative = np.argmin(distances)
         new_closest_idx = search_start + closest_idx_relative
 
-        # Update closest point (monotonicity guaranteed by forward search)
+        # Update immediately (no max_increment constraint to prevent lag)
         self._closest_point_idx = new_closest_idx
 
 
