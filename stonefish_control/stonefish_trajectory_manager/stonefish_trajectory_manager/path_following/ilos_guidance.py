@@ -361,13 +361,14 @@ class ILOSGuidance:
         if self._path_poses is None or len(self._path_poses) == 0:
             return self._desired_pos, self._desired_yaw, self._desired_velocity
 
-        # 1. Find lookahead point on path
-        lookahead_idx = self._find_lookahead_point(
+        # 1. Find lookahead point on path (continuous interpolation)
+        p_lookahead = self._find_lookahead_point_continuous(
             self._closest_point_idx, self._lookahead_distance
         )
-        p_lookahead = self._path_poses[lookahead_idx]
 
         # 2. Get path tangent at lookahead point
+        # Find nearest index to continuous lookahead point for tangent calculation
+        lookahead_idx = self._find_nearest_index(p_lookahead)
         tangent = self._get_path_tangent(lookahead_idx)
         chi_p = np.arctan2(tangent[1], tangent[0])  # Path angle
 
@@ -491,60 +492,62 @@ class ILOSGuidance:
         # Velocities: desired body velocities for feedforward control
         return self._desired_pos, self._desired_yaw, self._desired_velocity
 
-    def _find_lookahead_point(self, start_idx, lookahead_distance):
-        """Find point on path that is lookahead_distance ahead with hysteresis.
+    def _find_lookahead_point_continuous(self, start_idx, lookahead_distance):
+        """Find continuous lookahead point using linear interpolation.
 
-        Hysteresis prevents oscillation when closest point fluctuates.
-        If previous lookahead is within ±0.5m zone, keep it for stability.
+        Returns actual 3D point (not index) for smooth controller target updates.
+        Eliminates discrete jumps that cause oscillation.
 
         Args:
-            start_idx: Starting index
+            start_idx: Starting index (closest point)
             lookahead_distance: Desired lookahead distance (m)
 
         Returns:
-            int: Index of lookahead point
+            np.ndarray: Lookahead point [x, y, z] (continuous, interpolated)
+        """
+        if self._path_poses is None or len(self._path_poses) == 0:
+            return np.zeros(3)
+
+        total_points = len(self._path_poses)
+
+        # Accumulate distance along path from start_idx
+        accumulated_dist = 0.0
+
+        for i in range(start_idx, total_points - 1):
+            # Distance of this segment
+            segment_vec = self._path_poses[i + 1] - self._path_poses[i]
+            segment_dist = np.linalg.norm(segment_vec)
+
+            # Check if lookahead point lies within this segment
+            if accumulated_dist + segment_dist >= lookahead_distance:
+                # Linear interpolation within segment
+                remaining_dist = lookahead_distance - accumulated_dist
+                alpha = remaining_dist / segment_dist if segment_dist > 1e-9 else 0.0  # [0, 1]
+
+                # Interpolated point
+                p_lookahead = self._path_poses[i] + alpha * segment_vec
+
+                return p_lookahead
+
+            accumulated_dist += segment_dist
+
+        # If lookahead exceeds path length, return end point
+        return self._path_poses[-1]
+
+    def _find_nearest_index(self, point):
+        """Find nearest path index to given point.
+
+        Args:
+            point: np.ndarray [x, y, z]
+
+        Returns:
+            int: Nearest path index
         """
         if self._path_poses is None or len(self._path_poses) == 0:
             return 0
 
-        total_points = len(self._path_poses)
-
-        # Hysteresis: Check if previous lookahead is still valid
-        if hasattr(self, '_prev_lookahead_idx') and hasattr(self, '_prev_lookahead_dist'):
-            prev_idx = self._prev_lookahead_idx
-
-            # Recalculate distance to previous lookahead point
-            prev_dist = 0.0
-            for i in range(start_idx, min(prev_idx, total_points - 1)):
-                prev_dist += np.linalg.norm(self._path_poses[i+1] - self._path_poses[i])
-
-            # Hysteresis zone: ±0.5m
-            hysteresis = 0.5
-            if abs(prev_dist - lookahead_distance) < hysteresis:
-                # Previous lookahead still valid, keep it
-                self._prev_lookahead_dist = prev_dist
-                return prev_idx
-
-        # Find new lookahead point (existing logic)
-        accumulated_dist = 0.0
-        lookahead_idx = start_idx
-
-        for i in range(start_idx, total_points - 1):
-            segment_dist = np.linalg.norm(self._path_poses[i + 1] - self._path_poses[i])
-            accumulated_dist += segment_dist
-
-            if accumulated_dist >= lookahead_distance:
-                lookahead_idx = i + 1
-                break
-        else:
-            # Reached end of path
-            lookahead_idx = total_points - 1
-
-        # Store for hysteresis
-        self._prev_lookahead_idx = lookahead_idx
-        self._prev_lookahead_dist = accumulated_dist
-
-        return lookahead_idx
+        distances = np.linalg.norm(self._path_poses - point, axis=1)
+        return np.argmin(distances)
 
     def _get_path_tangent(self, idx):
         """Get path tangent at given index.
@@ -655,9 +658,3 @@ class ILOSGuidance:
         self._desired_yaw = 0.0
         self._desired_velocity = np.zeros(4)
         self._mode = PathFollowingMode.ALIGN  # Reset to ALIGN mode
-
-        # Reset hysteresis state
-        if hasattr(self, '_prev_lookahead_idx'):
-            delattr(self, '_prev_lookahead_idx')
-        if hasattr(self, '_prev_lookahead_dist'):
-            delattr(self, '_prev_lookahead_dist')
