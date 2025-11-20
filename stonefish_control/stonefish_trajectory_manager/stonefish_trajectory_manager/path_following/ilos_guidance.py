@@ -234,21 +234,56 @@ class ILOSGuidance:
         return True
 
     def _find_closest_point(self):
-        """Find closest point on path using forward search with limited window.
+        """Find closest point using adaptive search window based on cross-track error.
 
-        Search window prevents jumping to path end in looped paths,
-        while allowing immediate response within the window (no max_increment).
+        Adaptive Strategy (Literature-based):
+        - Uses distance-based threshold (Fossen 2021, ROS2 Nav2)
+        - Converts to index-based window for computational efficiency
+        - Large CTE → wider search for recovery
+        - Small CTE → narrow search for precision
+
+        Reference:
+        - "Time-Varying Lookahead Distance Guidance Law" (IFAC 2016)
+        - ROS2 Nav2 Regulated Pure Pursuit Controller
         """
         if self._path_poses is None or len(self._path_poses) == 0:
             return
 
         total_points = len(self._path_poses)
 
-        # Forward search with limited window (prevent path end jump)
-        max_search_window = 50  # Sufficient for high-speed maneuvers
-        search_start = self._closest_point_idx
-        search_end = min(self._closest_point_idx + max_search_window, total_points)
+        # Step 1: Calculate preliminary CTE for adaptive window sizing
+        # (Same logic as compute_guidance, but simplified for performance)
+        if self._closest_point_idx < total_points:
+            p_closest_prelim = self._path_poses[self._closest_point_idx]
+            tangent_prelim = self._get_path_tangent(self._closest_point_idx)
+            chi_p_prelim = np.arctan2(tangent_prelim[1], tangent_prelim[0])
 
+            e_vec_prelim = self._vehicle_pos - p_closest_prelim
+            e_y_prelim = -e_vec_prelim[0] * np.sin(chi_p_prelim) + e_vec_prelim[1] * np.cos(chi_p_prelim)
+            cte_prelim = abs(e_y_prelim)
+        else:
+            cte_prelim = 0.0
+
+        # Step 2: Determine search distance based on CTE (distance-based threshold)
+        # Large deviation → wider search for path recovery
+        # Small deviation → narrow search for computational efficiency
+        if cte_prelim > 2.0:
+            search_distance = 2.5  # meters - large deviation recovery
+        elif cte_prelim > 1.0:
+            search_distance = 1.5  # meters - moderate deviation
+        else:
+            search_distance = 0.8  # meters - normal tracking
+
+        # Step 3: Convert distance to index window (assumes uniform path spacing)
+        # Estimated avg spacing from path generator config: 0.01m
+        avg_path_spacing = 0.01  # meters per index
+        window_indices = int(search_distance / avg_path_spacing)
+
+        # Step 4: Forward-only search within adaptive window
+        search_start = self._closest_point_idx
+        search_end = min(self._closest_point_idx + window_indices, total_points)
+
+        # Step 5: Find closest point in window
         distances = np.linalg.norm(
             self._path_poses[search_start:search_end] - self._vehicle_pos,
             axis=1
@@ -257,7 +292,7 @@ class ILOSGuidance:
         closest_idx_relative = np.argmin(distances)
         new_closest_idx = search_start + closest_idx_relative
 
-        # Update immediately (no max_increment constraint to prevent lag)
+        # Step 6: Update (no max_increment constraint for immediate response)
         self._closest_point_idx = new_closest_idx
 
 
