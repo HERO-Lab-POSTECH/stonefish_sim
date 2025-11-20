@@ -59,6 +59,14 @@ class PathFollowing4DOFNode(Node):
         self.declare_parameter('lateral_gain', 0.5)        # Lateral correction gain
         self.declare_parameter('depth_gain', 0.8)          # Depth error correction gain
 
+        # PD control parameters
+        self.declare_parameter('lateral_kd', 0.3)     # Lateral velocity derivative gain
+        self.declare_parameter('depth_kd', 0.5)       # Depth velocity derivative gain
+
+        # Velocity saturation limits
+        self.declare_parameter('max_lateral_velocity', 0.5)  # m/s (BlueROV2 sway limit)
+        self.declare_parameter('max_heave_velocity', 0.4)    # m/s (BlueROV2 heave limit)
+
         # Velocity profiling parameters
         self.declare_parameter('cruise_speed', 0.5)     # m/s (straight line)
         self.declare_parameter('min_speed', 0.2)        # m/s (tight curves)
@@ -76,6 +84,10 @@ class PathFollowing4DOFNode(Node):
         integral_limit = self.get_parameter('integral_limit').value
         lateral_gain = self.get_parameter('lateral_gain').value
         depth_gain = self.get_parameter('depth_gain').value
+        lateral_kd = self.get_parameter('lateral_kd').value
+        depth_kd = self.get_parameter('depth_kd').value
+        max_lateral_velocity = self.get_parameter('max_lateral_velocity').value
+        max_heave_velocity = self.get_parameter('max_heave_velocity').value
         cruise_speed = self.get_parameter('cruise_speed').value
         min_speed = self.get_parameter('min_speed').value
         curvature_gain = self.get_parameter('curvature_gain').value
@@ -108,7 +120,11 @@ class PathFollowing4DOFNode(Node):
             curvature_gain=curvature_gain,
             lateral_gain=lateral_gain,
             depth_gain=depth_gain,
-            heading_align_threshold=heading_align_threshold
+            heading_align_threshold=heading_align_threshold,
+            lateral_kd=lateral_kd,
+            depth_kd=depth_kd,
+            max_lateral_velocity=max_lateral_velocity,
+            max_heave_velocity=max_heave_velocity
         )
 
         # Subscriber: path from path_generator_node
@@ -174,9 +190,11 @@ class PathFollowing4DOFNode(Node):
 
         self.get_logger().info(
             f'[ILOS 4DOF] Initialized - lookahead: {lookahead_distance:.1f}m | '
-            f'integral_gain: {integral_gain:.3f} | lateral_gain: {lateral_gain:.1f} | '
-            f'depth_gain: {depth_gain:.1f} | cruise_speed: {cruise_speed:.1f}m/s | '
-            f'heading_align: {heading_align_threshold_deg:.1f}° | rate: {update_rate:.0f}Hz'
+            f'integral_gain: {integral_gain:.3f} | lateral: Kp={lateral_gain:.1f} Kd={lateral_kd:.1f} | '
+            f'depth: Kp={depth_gain:.1f} Kd={depth_kd:.1f} | '
+            f'velocity_limits: lateral={max_lateral_velocity:.1f} heave={max_heave_velocity:.1f} m/s | '
+            f'cruise_speed: {cruise_speed:.1f}m/s | heading_align: {heading_align_threshold_deg:.1f}° | '
+            f'rate: {update_rate:.0f}Hz'
         )
 
         # Publish initial control mode

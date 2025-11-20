@@ -72,7 +72,9 @@ class ILOSGuidance:
     def __init__(self, lookahead_distance=3.0, integral_gain=0.05,
                  integral_limit=5.0, cruise_speed=0.5,
                  min_speed=0.2, curvature_gain=2.0, lateral_gain=0.5,
-                 depth_gain=0.8, heading_align_threshold=np.deg2rad(10.0)):
+                 depth_gain=0.8, heading_align_threshold=np.deg2rad(10.0),
+                 lateral_kd=0.3, depth_kd=0.5,
+                 max_lateral_velocity=0.5, max_heave_velocity=0.4):
         """Initialize ILOS guidance.
 
         Args:
@@ -85,6 +87,10 @@ class ILOSGuidance:
             lateral_gain: Lateral correction gain for cross-track error
             depth_gain: Depth error correction gain (for heave velocity)
             heading_align_threshold: Heading error threshold for ALIGN→FOLLOW transition (rad)
+            lateral_kd: Lateral velocity derivative gain (damping)
+            depth_kd: Depth velocity derivative gain (damping)
+            max_lateral_velocity: Maximum sway velocity limit (m/s)
+            max_heave_velocity: Maximum heave velocity limit (m/s)
         """
         # ILOS parameters
         self._lookahead_distance = lookahead_distance
@@ -97,6 +103,16 @@ class ILOSGuidance:
         self._curvature_gain = curvature_gain
         self._lateral_gain = lateral_gain
         self._depth_gain = depth_gain
+
+        # PD control parameters
+        self._lateral_kd = lateral_kd
+        self._depth_kd = depth_kd
+        self._max_lateral_velocity = max_lateral_velocity
+        self._max_heave_velocity = max_heave_velocity
+
+        # Previous errors for derivative calculation
+        self._prev_ey = 0.0
+        self._prev_ez = 0.0
 
         # Heading alignment parameters
         self._heading_align_threshold = heading_align_threshold
@@ -516,10 +532,19 @@ class ILOSGuidance:
         # Heave: from path slope
         # Yaw rate: from curvature
 
-        # Lateral correction velocity (sway) - proportional to cross-track error
-        # This provides immediate response when robot deviates from path
-        # Formula: v_lateral = -K_lateral * e_y
-        v_lateral = -self._lateral_gain * e_y
+        # Lateral correction velocity (sway) - PD control for cross-track error
+        # P term: proportional to error (immediate response)
+        # D term: damping to reduce oscillations and overshoot
+        # Formula: v_lateral = -K_p * e_y - K_d * (de_y/dt)
+        # Reference: Fossen (2011) recommends K_d = 0.5~1.0 × K_p for critical damping
+        de_y = (e_y - self._prev_ey) / dt if dt > 1e-6 else 0.0
+        v_lateral = -self._lateral_gain * e_y - self._lateral_kd * de_y
+
+        # Apply velocity saturation
+        v_lateral = np.clip(v_lateral, -self._max_lateral_velocity, self._max_lateral_velocity)
+
+        # Update previous error
+        self._prev_ey = e_y
 
         # Heave velocity: Path-based + Depth error correction
         # Two components:
@@ -537,14 +562,22 @@ class ILOSGuidance:
             # Pure vertical path
             w_path = self._cruise_speed * np.sign(tangent[2]) if abs(tangent[2]) > 1e-6 else 0.0
 
-        # Depth error correction (feedback)
+        # Depth error correction (feedback) - PD control
         # e_z = desired_z - actual_z (NED: positive = need to go down)
         # In NED, Z is down, so positive error means we need to descend
+        # PD control provides better depth tracking with reduced oscillations
         e_z = p_lookahead[2] - self._vehicle_pos[2]
-        w_correction = self._depth_gain * e_z
+        de_z = (e_z - self._prev_ez) / dt if dt > 1e-6 else 0.0
+        w_correction = self._depth_gain * e_z + self._depth_kd * de_z
+
+        # Update previous error
+        self._prev_ez = e_z
 
         # Combined heave velocity
         w_d = w_path + w_correction
+
+        # Apply velocity saturation
+        w_d = np.clip(w_d, -self._max_heave_velocity, self._max_heave_velocity)
 
         # Yaw rate from curvature (kinematic relationship: r = v * κ)
         # For 3D path, use horizontal curvature only
@@ -681,3 +714,5 @@ class ILOSGuidance:
         self._desired_yaw = 0.0
         self._desired_velocity = np.zeros(4)
         self._mode = PathFollowingMode.ALIGN
+        self._prev_ey = 0.0
+        self._prev_ez = 0.0
