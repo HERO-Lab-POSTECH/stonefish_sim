@@ -73,8 +73,8 @@ def generate_launch_description():
                 [scenario, '.scn']
             ]),
             'simulation_rate': LaunchConfiguration('simulation_rate'),
-            'window_res_x': '1280',
-            'window_res_y': '1440',
+            'window_res_x': '960',
+            'window_res_y': '1080',
             'rendering_quality': 'high',
         }.items()
     )
