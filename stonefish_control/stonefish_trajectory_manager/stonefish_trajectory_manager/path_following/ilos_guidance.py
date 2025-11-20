@@ -433,8 +433,9 @@ class ILOSGuidance:
         if self._mode == PathFollowingMode.ALIGN:
             # ALIGN mode: Stay at current position (prevent position controller from moving)
             self._desired_pos = self._vehicle_pos.copy()  # Critical: current position!
-            desired_speed = 0.0  # No surge
-            v_lateral = 0.0      # No sway
+            desired_speed = 0.0  # No surge (prevent forward motion)
+            # v_lateral: Keep CTE correction (allow lateral drift compensation)
+            # Do NOT override v_lateral - allow sway control for stability
             # w_d: Keep depth control (allow vertical alignment)
             # r_d: Keep yaw rate (heading control)
 
