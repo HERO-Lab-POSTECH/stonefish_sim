@@ -53,17 +53,11 @@ class PathFollowing4DOFNode(Node):
         self.declare_parameter('update_rate', 50.0)  # Hz (match PID rate)
 
         # ILOS parameters
-        self.declare_parameter('lookahead_distance', 3.0)  # meters (base, if ALOS disabled)
+        self.declare_parameter('lookahead_distance', 3.0)  # meters
         self.declare_parameter('integral_gain', 0.05)      # ILOS integral gain
         self.declare_parameter('integral_limit', 5.0)      # Anti-windup limit
         self.declare_parameter('lateral_gain', 0.5)        # Lateral correction gain
         self.declare_parameter('depth_gain', 0.8)          # Depth error correction gain
-
-        # ALOS parameters (CTE-only, Lekkas & Fossen 2012)
-        self.declare_parameter('use_alos', True)           # Enable ALOS
-        self.declare_parameter('lookahead_min', 2.0)       # m (minimum, increased)
-        self.declare_parameter('lookahead_max', 4.0)       # m (maximum, increased)
-        self.declare_parameter('k_lookahead_cte', 0.5)     # CTE sensitivity (conservative)
 
         # Velocity profiling parameters
         self.declare_parameter('cruise_speed', 0.5)     # m/s (straight line)
@@ -74,20 +68,11 @@ class PathFollowing4DOFNode(Node):
         self.vehicle_name = self.get_parameter('vehicle_name').value
         update_rate = self.get_parameter('update_rate').value
 
-        # ILOS parameters
         lookahead_distance = self.get_parameter('lookahead_distance').value
         integral_gain = self.get_parameter('integral_gain').value
         integral_limit = self.get_parameter('integral_limit').value
         lateral_gain = self.get_parameter('lateral_gain').value
         depth_gain = self.get_parameter('depth_gain').value
-
-        # ALOS parameters (CTE-only)
-        use_alos = self.get_parameter('use_alos').value
-        lookahead_min = self.get_parameter('lookahead_min').value
-        lookahead_max = self.get_parameter('lookahead_max').value
-        k_lookahead_cte = self.get_parameter('k_lookahead_cte').value
-
-        # Velocity profiling parameters
         cruise_speed = self.get_parameter('cruise_speed').value
         min_speed = self.get_parameter('min_speed').value
         curvature_gain = self.get_parameter('curvature_gain').value
@@ -107,7 +92,7 @@ class PathFollowing4DOFNode(Node):
         self._tf_buffer = Buffer()
         self._tf_listener = TransformListener(self._tf_buffer, self)
 
-        # Initialize ILOS guidance with CTE-only ALOS
+        # Initialize ILOS guidance
         self.guidance = ILOSGuidance(
             lookahead_distance=lookahead_distance,
             integral_gain=integral_gain,
@@ -116,11 +101,7 @@ class PathFollowing4DOFNode(Node):
             min_speed=min_speed,
             curvature_gain=curvature_gain,
             lateral_gain=lateral_gain,
-            depth_gain=depth_gain,
-            use_alos=use_alos,
-            lookahead_min=lookahead_min,
-            lookahead_max=lookahead_max,
-            k_lookahead_cte=k_lookahead_cte
+            depth_gain=depth_gain
         )
 
         # Subscriber: path from path_generator_node
@@ -160,7 +141,7 @@ class PathFollowing4DOFNode(Node):
             10
         )
 
-        # Publisher: lookahead_point (for ALOS visualization)
+        # Publisher: lookahead_point (for visualization)
         self.lookahead_point_pub = self.create_publisher(
             PointStamped,
             f'/{self.vehicle_name}/lookahead_point',
@@ -184,12 +165,11 @@ class PathFollowing4DOFNode(Node):
         # Timer for trajectory publishing (1 Hz)
         self._trajectory_pub_timer = self.create_timer(1.0, self._publish_trajectory)
 
-        alos_status = "ENABLED" if use_alos else "DISABLED"
         self.get_logger().info(
-            f'[ALOS 4DOF] Initialized - ALOS: {alos_status} | '
-            f'lookahead: [{lookahead_min:.1f}, {lookahead_max:.1f}]m | '
+            f'[ILOS 4DOF] Initialized - lookahead: {lookahead_distance:.1f}m | '
             f'integral_gain: {integral_gain:.3f} | lateral_gain: {lateral_gain:.1f} | '
-            f'cruise_speed: {cruise_speed:.1f}m/s | rate: {update_rate:.0f}Hz'
+            f'depth_gain: {depth_gain:.1f} | cruise_speed: {cruise_speed:.1f}m/s | '
+            f'rate: {update_rate:.0f}Hz'
         )
 
         # Publish initial control mode
@@ -340,6 +320,15 @@ class PathFollowing4DOFNode(Node):
         # Get guidance command (hybrid architecture: position + heading + velocities)
         desired_position, desired_heading, desired_velocities = self.guidance.compute_guidance(dt)
 
+        # Publish lookahead point for visualization
+        lookahead_msg = PointStamped()
+        lookahead_msg.header.stamp = current_time.to_msg()
+        lookahead_msg.header.frame_id = 'world_ned'
+        lookahead_msg.point.x = float(desired_position[0])
+        lookahead_msg.point.y = float(desired_position[1])
+        lookahead_msg.point.z = float(desired_position[2])
+        self.lookahead_point_pub.publish(lookahead_msg)
+
         # Create TrajectoryPoint message
         msg = TrajectoryPoint()
         msg.header.stamp = current_time.to_msg()
@@ -424,15 +413,6 @@ class PathFollowing4DOFNode(Node):
         # Publish cmd_pose
         self.guidance_pub.publish(msg)
 
-        # Publish lookahead point (for ALOS visualization)
-        lookahead_msg = PointStamped()
-        lookahead_msg.header.stamp = current_time.to_msg()
-        lookahead_msg.header.frame_id = 'world_ned'
-        lookahead_msg.point.x = float(desired_position[0])
-        lookahead_msg.point.y = float(desired_position[1])
-        lookahead_msg.point.z = float(desired_position[2])
-        self.lookahead_point_pub.publish(lookahead_msg)
-
         # Log progress (throttled)
         cmd = self.guidance.get_guidance_command()
         goal_pos = self.guidance._path_poses[-1]
@@ -442,10 +422,9 @@ class PathFollowing4DOFNode(Node):
         lookahead_dist = np.linalg.norm(desired_position - self.guidance._vehicle_pos)
 
         self.get_logger().info(
-            f"[ALOS 4DOF] Progress: {cmd['path_progress']*100:.0f}% | "
+            f"[ILOS 4DOF] Progress: {cmd['path_progress']*100:.0f}% | "
             f"Lookahead: {lookahead_dist:.2f}m | CTE: {cmd['cross_track_error']:.2f}m | "
-            f"Speed: {cmd['desired_speed']:.2f}m/s | Curv: {cmd['current_curvature']:.3f} | "
-            f"Goal: {distance_to_goal:.2f}m",
+            f"Speed: {cmd['desired_speed']:.2f}m/s | Curv: {cmd['current_curvature']:.3f}",
             throttle_duration_sec=2.0
         )
 
