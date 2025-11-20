@@ -74,8 +74,7 @@ class ILOSGuidance:
                  min_speed=0.2, curvature_gain=2.0, lateral_gain=0.5,
                  depth_gain=0.8, heading_align_threshold=np.deg2rad(10.0),
                  lateral_kd=0.3, depth_kd=0.5,
-                 max_lateral_velocity=0.5, max_heave_velocity=0.4,
-                 lookahead_slowdown_ratio=0.7):
+                 max_lateral_velocity=0.5, max_heave_velocity=0.4):
         """Initialize ILOS guidance.
 
         Args:
@@ -92,9 +91,6 @@ class ILOSGuidance:
             depth_kd: Depth velocity derivative gain (damping)
             max_lateral_velocity: Maximum sway velocity limit (m/s)
             max_heave_velocity: Maximum heave velocity limit (m/s)
-            lookahead_slowdown_ratio: Ratio threshold for speed reduction (0.0-1.0)
-                When (distance to lookahead / lookahead_distance) < ratio, reduce speed
-                to prevent overshooting. Typical: 0.5-0.8 (50-80% of lookahead_distance)
         """
         # ILOS parameters
         self._lookahead_distance = lookahead_distance
@@ -113,9 +109,6 @@ class ILOSGuidance:
         self._depth_kd = depth_kd
         self._max_lateral_velocity = max_lateral_velocity
         self._max_heave_velocity = max_heave_velocity
-
-        # Lookahead distance-based speed reduction
-        self._lookahead_slowdown_ratio = lookahead_slowdown_ratio
 
         # Previous errors for derivative calculation
         self._prev_ey = 0.0
@@ -524,24 +517,26 @@ class ILOSGuidance:
         self._current_curvature = self._estimate_curvature(s_lookahead)
 
         # 9. Compute desired speed (velocity profiler)
-        desired_speed = self._compute_speed(self._current_curvature)
+        curvature_speed = self._compute_speed(self._current_curvature)
 
-        # 9.5. Lookahead distance-based speed reduction (ratio-based)
-        # When robot gets abnormally close to lookahead point, gradually reduce speed
+        # 9.5. Lookahead distance-based speed reduction (cruise_speed 기준, 독립적)
+        # Reduce speed proportionally to distance from lookahead point
         # This prevents overshooting when lookahead point slows down or stops
         lookahead_dist = np.linalg.norm(p_lookahead - self._vehicle_pos)
 
-        # Ratio-based threshold: slowdown when distance < ratio × lookahead_distance
-        # Example: ratio=0.7, lookahead=3.0m → threshold=2.1m
-        slowdown_threshold = self._lookahead_distance * self._lookahead_slowdown_ratio
+        # Simple linear reduction based on actual distance to lookahead
+        # Uses cruise_speed as base (independent from curvature-based speed)
+        # Example: cruise_speed=1m/s, lookahead_distance=1m
+        #          actual_distance=0.9m → lookahead_speed = 1.0 × 0.9 = 0.9 m/s
+        #          actual_distance=0.1m → lookahead_speed = 1.0 × 0.1 = 0.1 m/s
+        #          actual_distance=0m   → lookahead_speed = 0 m/s (stop)
+        speed_factor = min(1.0, lookahead_dist / self._lookahead_distance)
+        speed_factor = max(speed_factor, 0.1)  # Minimum 10% speed to maintain control
+        lookahead_speed = self._cruise_speed * speed_factor
 
-        if lookahead_dist < slowdown_threshold:
-            # Linear speed reduction: v = v_desired * (d / d_threshold)
-            # When d = 0: v = 0 (full stop)
-            # When d = d_threshold: v = v_desired (no reduction)
-            speed_factor = lookahead_dist / slowdown_threshold
-            speed_factor = max(speed_factor, 0.1)  # Minimum 10% speed to maintain control
-            desired_speed *= speed_factor
+        # Final speed: minimum of curvature-based and lookahead-based
+        # This ensures both constraints are respected without double-penalizing
+        desired_speed = min(curvature_speed, lookahead_speed)
 
         # Store for debugging/logging
         self._current_desired_speed = desired_speed
