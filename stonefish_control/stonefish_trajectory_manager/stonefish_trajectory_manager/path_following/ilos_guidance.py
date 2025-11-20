@@ -65,9 +65,9 @@ class ILOSGuidance:
     def __init__(self, lookahead_distance=3.0, integral_gain=0.05,
                  integral_limit=5.0, cruise_speed=0.5,
                  min_speed=0.2, curvature_gain=2.0, lateral_gain=0.5,
-                 depth_gain=0.8, use_alos=True, lookahead_min=0.5,
-                 lookahead_max=5.0, k_lookahead_cte=1.5,
-                 k_lookahead_curv=10.0, k_lookahead_vel=0.8,
+                 depth_gain=0.8, use_alos=True, lookahead_min=1.0,
+                 lookahead_max=3.0, k_lookahead_cte=1.0,
+                 k_lookahead_curv=2.0, k_lookahead_vel=0.5,
                  cte_threshold=1.0, k_cte_slowdown=0.4):
         """Initialize ILOS guidance.
 

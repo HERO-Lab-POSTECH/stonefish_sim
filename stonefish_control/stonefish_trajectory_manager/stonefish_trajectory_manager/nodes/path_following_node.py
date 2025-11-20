@@ -61,11 +61,11 @@ class PathFollowing4DOFNode(Node):
 
         # ALOS parameters (Fossen & Lekkas 2023)
         self.declare_parameter('use_alos', True)           # Enable ALOS
-        self.declare_parameter('lookahead_min', 0.5)       # m (minimum)
-        self.declare_parameter('lookahead_max', 5.0)       # m (maximum)
-        self.declare_parameter('k_lookahead_cte', 1.5)     # CTE sensitivity
-        self.declare_parameter('k_lookahead_curv', 10.0)   # Curvature sensitivity
-        self.declare_parameter('k_lookahead_vel', 0.8)     # Velocity coupling
+        self.declare_parameter('lookahead_min', 1.0)       # m (minimum)
+        self.declare_parameter('lookahead_max', 3.0)       # m (maximum)
+        self.declare_parameter('k_lookahead_cte', 1.0)     # CTE sensitivity
+        self.declare_parameter('k_lookahead_curv', 2.0)    # Curvature sensitivity
+        self.declare_parameter('k_lookahead_vel', 0.5)     # Velocity coupling
 
         # Velocity profiling parameters
         self.declare_parameter('cruise_speed', 0.5)     # m/s (straight line)
