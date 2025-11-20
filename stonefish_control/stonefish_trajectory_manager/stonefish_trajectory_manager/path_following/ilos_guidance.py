@@ -234,29 +234,30 @@ class ILOSGuidance:
         return True
 
     def _find_closest_point(self):
-        """Find closest point on path to vehicle position."""
+        """Find closest point on path using forward-only search.
+
+        Monotonicity is guaranteed by forward-only search (Lekkas & Fossen 2014).
+        No rate limiting is applied to prevent lag during high-speed maneuvers.
+        """
         if self._path_poses is None or len(self._path_poses) == 0:
             return
 
         total_points = len(self._path_poses)
 
-        max_jump = 20
-        search_start_idx = self._closest_point_idx
-        search_end_idx = min(self._closest_point_idx + max_jump, total_points)
+        # Forward-only search for monotone path parameter
+        search_start = self._closest_point_idx
+        search_end = total_points
 
         distances = np.linalg.norm(
-            self._path_poses[search_start_idx:search_end_idx] - self._vehicle_pos,
+            self._path_poses[search_start:search_end] - self._vehicle_pos,
             axis=1
         )
 
         closest_idx_relative = np.argmin(distances)
-        candidate_idx = search_start_idx + closest_idx_relative
+        new_closest_idx = search_start + closest_idx_relative
 
-        max_increment = 5
-        if candidate_idx > self._closest_point_idx + max_increment:
-            self._closest_point_idx = self._closest_point_idx + max_increment
-        else:
-            self._closest_point_idx = candidate_idx
+        # Update closest point (monotonicity guaranteed by forward search)
+        self._closest_point_idx = new_closest_idx
 
 
     def _estimate_curvature(self, idx):
@@ -348,16 +349,24 @@ class ILOSGuidance:
         self._cross_track_error = e_y
         self._max_cte = max(self._max_cte, abs(e_y))
 
-        # 4. Update integral with anti-windup
-        self._integral_ey += e_y * dt
-        self._integral_ey = np.clip(self._integral_ey,
-                                     -self._integral_limit,
-                                     self._integral_limit)
+        # 4. Update integral with anti-windup (FOLLOW mode only)
+        if self._mode == PathFollowingMode.FOLLOW:
+            self._integral_ey += e_y * dt
+            self._integral_ey = np.clip(self._integral_ey,
+                                         -self._integral_limit,
+                                         self._integral_limit)
 
-        # 5. ILOS heading command
-        chi_d = chi_p \
-                + np.arctan(-e_y / self._lookahead_distance) \
-                - np.arctan(self._integral_gain * self._integral_ey / self._lookahead_distance)
+        # 5. ILOS heading command (mode-dependent)
+        if self._mode == PathFollowingMode.ALIGN:
+            # ALIGN mode: Use fixed path start tangent (no CTE correction)
+            # This provides stable heading reference for initial alignment
+            tangent_start = self._get_path_tangent(0)  # Path start tangent
+            chi_d = np.arctan2(tangent_start[1], tangent_start[0])
+        else:
+            # FOLLOW mode: Full ILOS with CTE correction and integral action
+            chi_d = chi_p \
+                    + np.arctan(-e_y / self._lookahead_distance) \
+                    - np.arctan(self._integral_gain * self._integral_ey / self._lookahead_distance)
 
         chi_d = angle_wrap(chi_d)
 
