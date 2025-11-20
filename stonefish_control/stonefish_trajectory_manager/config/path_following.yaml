@@ -47,7 +47,18 @@
     # - Smaller (0.3-0.5): Gentle correction, smoother path following
     # - Larger (0.7-1.0): Aggressive correction, tighter tracking
     # Balance between tracking accuracy and smoothness
-    lateral_gain: 1.0
+    lateral_gain: 0.8
+
+    # =========================================
+    # PD Control Parameters (NEW)
+    # =========================================
+    # Lateral velocity derivative gain (dimensionless)
+    # Physical meaning: Damping for sway velocity control
+    # Formula: v_lateral = -K_p * e_y - K_d * (de_y/dt)
+    # - Provides damping to reduce oscillations
+    # - Recommended: K_d = 0.5~1.0 × K_p (Fossen 2011)
+    # Typical: 0.2-0.5
+    lateral_kd: 0.5
 
     # Depth correction gain (dimensionless)
     # Physical meaning: How aggressively to correct depth error via heave velocity
@@ -57,24 +68,57 @@
     # This adds feedback to depth control (in addition to path-based feedforward)
     depth_gain: 0.8
 
+    # Depth velocity derivative gain (dimensionless)
+    # Physical meaning: Damping for heave velocity control
+    # Formula: w_correction = K_p * e_z + K_d * (de_z/dt)
+    # - Reduces overshoot in depth changes
+    # - Smoother depth transitions
+    # Typical: 0.3-0.7
+    depth_kd: 0.5
+
+    # =========================================
+    # Velocity Saturation Limits
+    # =========================================
+    # Maximum lateral (sway) velocity (m/s)
+    # Physical meaning: Safety limit for sideways motion
+    # Based on BlueROV2 thruster capability
+    # Typical: 0.3-0.7 m/s
+    max_lateral_velocity: 0.5
+
+    # Maximum heave velocity (m/s)
+    # Physical meaning: Safety limit for vertical motion
+    # Based on BlueROV2 thruster capability
+    # Typical: 0.3-0.5 m/s
+    max_heave_velocity: 0.4
+
+    # =========================================
+    # Heading Alignment
+    # =========================================
+    # Heading alignment threshold (degrees)
+    # Physical meaning: Maximum heading error for ALIGN→FOLLOW transition
+    # - ALIGN mode: Stationary heading alignment at path start
+    # - FOLLOW mode: Full path following with motion
+    # Typical: 5-15 degrees
+    heading_align_threshold: 10.0
+
     # =========================================
     # Velocity Profiling (Curvature-Based)
     # =========================================
     # Cruise speed (m/s) - target speed on straight segments
     # Typical for BlueROV2: 0.3-0.8 m/s
-    cruise_speed: 1.0
+    cruise_speed: 0.5
 
     # Minimum speed (m/s) - minimum speed in tight curves
     # Should be > 0 to ensure continuous progress
     # Typical: 20-40% of cruise speed
-    min_speed: 0.3
+    min_speed: 0.2
 
     # Curvature gain (dimensionless)
     # Controls how aggressively to slow down in curves
     # Formula: u_d = u_cruise / (1 + k_curve * |κ|)
     # - Smaller (1.0-1.5): Less slowdown, faster but less precise
     # - Larger (2.0-3.0): More slowdown, slower but more precise
-    curvature_gain: 3.0
+    curvature_gain: 2.0
 
     # =========================================
     # Control Loop
