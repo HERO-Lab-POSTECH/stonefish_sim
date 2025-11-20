@@ -58,6 +58,32 @@
     depth_gain: 0.8
 
     # =========================================
+    # ALOS (Adaptive Line-of-Sight) Parameters
+    # =========================================
+    # Based on Lekkas & Fossen (2012) "A Time-Varying Lookahead Distance Guidance Law"
+    # CTE-only adaptive lookahead (NO curvature, NO velocity coupling)
+
+    # Enable ALOS (if false, uses fixed lookahead_distance)
+    use_alos: true
+
+    # Minimum lookahead distance (m)
+    # Conservative value to avoid singularities
+    # Recommended: 1.5-3.0m (Lekkas & Fossen 2012)
+    lookahead_min: 2.0
+
+    # Maximum lookahead distance (m)
+    # Prevents excessive lookahead at high CTE
+    # Recommended: 3.0-5.0m
+    lookahead_max: 4.0
+
+    # CTE sensitivity gain (dimensionless)
+    # Formula: Δ = Δ_min + k_cte * |e_y|
+    # Recommended: 0.3-0.8 (Lekkas & Fossen 2012)
+    # - Smaller (0.3-0.5): Conservative, smoother adaptation
+    # - Larger (0.6-0.8): Aggressive, faster convergence
+    k_lookahead_cte: 0.5
+
+    # =========================================
     # Velocity Profiling (Curvature-Based)
     # =========================================
     # Cruise speed (m/s) - target speed on straight segments

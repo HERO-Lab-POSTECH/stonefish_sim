@@ -65,10 +65,8 @@ class ILOSGuidance:
     def __init__(self, lookahead_distance=3.0, integral_gain=0.05,
                  integral_limit=5.0, cruise_speed=0.5,
                  min_speed=0.2, curvature_gain=2.0, lateral_gain=0.5,
-                 depth_gain=0.8, use_alos=True, lookahead_min=1.0,
-                 lookahead_max=3.0, k_lookahead_cte=1.0,
-                 k_lookahead_curv=2.0, k_lookahead_vel=0.5,
-                 cte_threshold=1.0, k_cte_slowdown=0.4):
+                 depth_gain=0.8, use_alos=True, lookahead_min=2.0,
+                 lookahead_max=4.0, k_lookahead_cte=0.5):
         """Initialize ILOS guidance.
 
         Args:
@@ -83,24 +81,18 @@ class ILOSGuidance:
             use_alos: Enable ALOS (Adaptive Line-of-Sight)
             lookahead_min: Minimum lookahead distance (m) for ALOS
             lookahead_max: Maximum lookahead distance (m) for ALOS
-            k_lookahead_cte: ALOS CTE sensitivity gain
-            k_lookahead_curv: ALOS curvature sensitivity gain
-            k_lookahead_vel: ALOS velocity coupling gain
-            cte_threshold: CTE threshold for speed reduction (m)
-            k_cte_slowdown: CTE-based slowdown factor (0-1)
+            k_lookahead_cte: ALOS CTE sensitivity gain (Lekkas & Fossen 2012)
         """
         # ILOS parameters
         self._lookahead_distance = lookahead_distance
         self._integral_gain = integral_gain
         self._integral_limit = integral_limit
 
-        # ALOS parameters (Fossen & Lekkas 2023)
+        # ALOS parameters (CTE-only, Lekkas & Fossen 2012)
         self._use_alos = use_alos
         self._lookahead_min = lookahead_min
         self._lookahead_max = lookahead_max
         self._k_lookahead_cte = k_lookahead_cte
-        self._k_lookahead_curv = k_lookahead_curv
-        self._k_lookahead_vel = k_lookahead_vel
 
         # Velocity profiling parameters
         self._cruise_speed = cruise_speed
@@ -108,10 +100,6 @@ class ILOSGuidance:
         self._curvature_gain = curvature_gain
         self._lateral_gain = lateral_gain
         self._depth_gain = depth_gain
-
-        # CTE-based velocity reduction (KIOST RPM constraint method)
-        self._cte_threshold = cte_threshold
-        self._k_cte_slowdown = k_cte_slowdown
 
         # Vehicle state
         self._vehicle_pos = np.zeros(3)  # [x, y, z] NED world
@@ -315,7 +303,13 @@ class ILOSGuidance:
         return curvature
 
     def compute_guidance(self, dt):
-        """Compute ILOS guidance command (hybrid velocity + position architecture).
+        """Compute ILOS guidance command with CTE-only ALOS (Solution 2).
+
+        This implementation follows Lekkas & Fossen (2012) strictly:
+        - CTE calculated ONCE at closest point (consistent tangent)
+        - Adaptive lookahead = CTE only (no curvature, no velocity)
+        - Same e_y value used throughout (no recalculation)
+        - Path tangent at lookahead point for heading direction
 
         Args:
             dt: Time step (s)
@@ -326,93 +320,78 @@ class ILOSGuidance:
                 desired_heading: ψ_d (rad, world NED frame)
                 desired_velocities: [u, v, w, r] (m/s, m/s, m/s, rad/s, FRD body frame)
 
-        Note:
-            This is a HYBRID architecture combining:
-            - Position control: lookahead point for outer loop stability
-            - Velocity control: desired velocities for path tracking
-            Both are commanded simultaneously for optimal performance.
+        Reference:
+            Lekkas & Fossen (2012). "A Time-Varying Lookahead Distance Guidance Law"
         """
         if self._path_poses is None or len(self._path_poses) == 0:
             return self._desired_pos, self._desired_yaw, self._desired_velocity
 
-        # 1. Compute adaptive lookahead distance (ALOS)
+        # ===== STEP 1: Calculate CTE FIRST (closest point basis, ONCE!) =====
+        p_closest = self._path_poses[self._closest_point_idx]
+        tangent_closest = self._get_path_tangent(self._closest_point_idx)
+        chi_p_closest = np.arctan2(tangent_closest[1], tangent_closest[0])
+
+        # Error vector (vehicle - closest point)
+        e_vec = self._vehicle_pos - p_closest
+
+        # Cross-track error (perpendicular to path at closest point)
+        # Formula: e_y = -e_x * sin(χ_p) + e_y_world * cos(χ_p)
+        e_y = -e_vec[0] * np.sin(chi_p_closest) + e_vec[1] * np.cos(chi_p_closest)
+
+        self._cross_track_error = e_y
+        self._max_cte = max(self._max_cte, abs(e_y))
+
+        # ===== STEP 2: Adaptive lookahead (CTE-only, Lekkas & Fossen 2012) =====
         if self._use_alos:
-            # Need preliminary curvature and CTE for lookahead calculation
-            prelim_lookahead_idx = self._find_lookahead_point(
-                self._closest_point_idx, self._lookahead_distance
-            )
-            prelim_curvature = self._estimate_curvature(prelim_lookahead_idx)
-
-            # Get preliminary CTE (using current closest point)
-            p_closest = self._path_poses[self._closest_point_idx]
-            prelim_tangent = self._get_path_tangent(self._closest_point_idx)
-            chi_p_prelim = np.arctan2(prelim_tangent[1], prelim_tangent[0])
-            e_vec = self._vehicle_pos - p_closest
-            prelim_cte = -e_vec[0] * np.sin(chi_p_prelim) + e_vec[1] * np.cos(chi_p_prelim)
-
-            # Current surge speed (use cruise_speed if not available)
-            current_surge = self._vehicle_velocity[0] if np.linalg.norm(self._vehicle_velocity) > 0.01 else self._cruise_speed
-
-            # Compute adaptive lookahead
-            adaptive_lookahead = self._compute_adaptive_lookahead(
-                prelim_cte, prelim_curvature, current_surge
-            )
+            # Formula: Δ = Δ_min + k_cte * |e_y|
+            # NO curvature, NO velocity (to avoid rapid changes)
+            adaptive_lookahead = self._lookahead_min + \
+                               self._k_lookahead_cte * abs(e_y)
+            adaptive_lookahead = np.clip(adaptive_lookahead,
+                                        self._lookahead_min,
+                                        self._lookahead_max)
         else:
             adaptive_lookahead = self._lookahead_distance
 
-        # 2. Find lookahead point on path
+        # ===== STEP 3: Find lookahead point =====
         lookahead_idx = self._find_lookahead_point(
             self._closest_point_idx, adaptive_lookahead
         )
         p_lookahead = self._path_poses[lookahead_idx]
 
-        # 2. Get path tangent at lookahead point
+        # ===== STEP 4: Get path tangent at lookahead (for heading direction) =====
         tangent = self._get_path_tangent(lookahead_idx)
-        chi_p = np.arctan2(tangent[1], tangent[0])  # Path angle
+        chi_p = np.arctan2(tangent[1], tangent[0])
 
-        # 3. Calculate cross-track error e_y
-        # Find closest point on path
-        p_closest = self._path_poses[self._closest_point_idx]
-
-        # Error vector (vehicle - closest point)
-        e_vec = self._vehicle_pos - p_closest
-
-        # Cross-track error (perpendicular to path)
-        # e_y = lateral component in path frame
-        e_y = -e_vec[0] * np.sin(chi_p) + e_vec[1] * np.cos(chi_p)
-
-        self._cross_track_error = e_y
-        self._max_cte = max(self._max_cte, abs(e_y))
-
-        # 4. Update integral with anti-windup
+        # ===== STEP 5: Update integral (use SAME e_y from STEP 1) =====
         self._integral_ey += e_y * dt
         self._integral_ey = np.clip(self._integral_ey,
                                      -self._integral_limit,
                                      self._integral_limit)
 
-        # 5. ILOS heading command (with adaptive lookahead)
+        # ===== STEP 6: ILOS heading (use SAME e_y, adaptive Δ) =====
         # Formula: χ_d = χ_p + arctan(-e_y / Δ) - arctan(κ_ILOS * ∫e_y dt / Δ)
-        # Both arctan terms use adaptive_lookahead distance for consistent heading computation
+        # Both arctan terms use adaptive_lookahead for consistent heading
         chi_d = chi_p \
                 + np.arctan(-e_y / adaptive_lookahead) \
                 - np.arctan(self._integral_gain * self._integral_ey / adaptive_lookahead)
 
         chi_d = angle_wrap(chi_d)
 
-        # 6. Estimate curvature for velocity profiling
+        # ===== STEP 7: Velocity profiling (curvature-based only, NO CTE) =====
         self._current_curvature = self._estimate_curvature(lookahead_idx)
 
-        # 7. Compute desired speed (velocity profiler with CTE reduction)
-        desired_speed = self._compute_speed(self._current_curvature, e_y)
+        # Curvature-based reduction only (remove CTE-based reduction)
+        desired_speed = self._cruise_speed / (1.0 + self._curvature_gain * abs(self._current_curvature))
+        desired_speed = max(desired_speed, self._min_speed)
 
-        # Store for debugging/logging
         self._current_desired_speed = desired_speed
 
-        # 8. Desired position (lookahead point on path)
+        # ===== STEP 8: Desired position (lookahead point on path) =====
         self._desired_pos = p_lookahead
         self._desired_yaw = chi_d
 
-        # 9. Desired velocity (FRD body frame)
+        # ===== STEP 9: Desired velocity (FRD body frame) =====
         # Surge: desired speed
         # Sway: lateral correction for cross-track error (Lekkas & Fossen 2014)
         # Heave: from path slope
@@ -525,61 +504,53 @@ class ILOSGuidance:
 
         return tangent
 
-    def _compute_adaptive_lookahead(self, cross_track_error, curvature, surge_speed):
-        """Compute adaptive lookahead distance (ALOS guidance law).
+    def _compute_adaptive_lookahead(self, cross_track_error):
+        """Compute adaptive lookahead distance (CTE-only ALOS).
 
-        Based on Fossen & Lekkas (2023) "An Adaptive Line-of-sight (ALOS)
-        Guidance Law for Path Following of Aircraft and Marine Craft".
+        Based on Lekkas & Fossen (2012) "A Time-Varying Lookahead Distance
+        Guidance Law". Uses ONLY cross-track error to avoid rapid changes
+        from curvature or velocity variations.
 
         Formula:
-            Δ(t) = Δ_min + k_cte|e_y| + k_κ|κ(s)| + k_v·U
+            Δ(t) = Δ_min + k_cte * |e_y|
 
         Args:
             cross_track_error: Cross-track error e_y (m)
-            curvature: Path curvature κ (1/m)
-            surge_speed: Current surge speed U (m/s)
 
         Returns:
             float: Adaptive lookahead distance Δ(t) (m)
+
+        Reference:
+            Lekkas & Fossen (2012), recommended k_cte ∈ [0.3, 0.8]
         """
-        delta = self._lookahead_min + \
-                self._k_lookahead_cte * abs(cross_track_error) + \
-                self._k_lookahead_curv * abs(curvature) + \
-                self._k_lookahead_vel * surge_speed
+        delta = self._lookahead_min + self._k_lookahead_cte * abs(cross_track_error)
 
         # Saturate to safe limits
         delta = np.clip(delta, self._lookahead_min, self._lookahead_max)
 
         return delta
 
-    def _compute_speed(self, curvature, cross_track_error):
-        """Compute desired speed based on path curvature and CTE.
+    def _compute_speed(self, curvature):
+        """Compute desired speed based on path curvature only.
 
-        Velocity profiling with two components:
-        1. Curvature-based reduction (Nature Scientific Reports 2022)
-        2. CTE-based reduction (KIOST RPM constraint method)
+        Velocity profiling using curvature-based reduction only.
+        CTE-based reduction is removed to avoid coupling with ALOS lookahead.
 
         Formula:
             u_d = u_cruise / (1.0 + k_curve * |κ|)
-            if |CTE| > threshold: u_d *= (1 - k_cte * min(|CTE|/2, 1))
             u_d = max(u_d, u_min)
 
         Args:
             curvature: Path curvature (1/m)
-            cross_track_error: Cross-track error (m)
 
         Returns:
             float: Desired speed (m/s)
-        """
-        # 1. Curvature-based reduction (기존)
-        speed = self._cruise_speed / (1.0 + self._curvature_gain * abs(curvature))
 
-        # 2. CTE-based reduction (NEW)
-        if abs(cross_track_error) > self._cte_threshold:
-            cte_penalty = self._k_cte_slowdown * min(
-                abs(cross_track_error) / 2.0, 1.0
-            )
-            speed *= (1.0 - cte_penalty)
+        Reference:
+            Nature Scientific Reports (2022) for curvature-based velocity profiling
+        """
+        # Curvature-based reduction only
+        speed = self._cruise_speed / (1.0 + self._curvature_gain * abs(curvature))
 
         # Clamp to minimum speed
         speed = max(speed, self._min_speed)

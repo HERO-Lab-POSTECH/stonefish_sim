@@ -59,22 +59,16 @@ class PathFollowing4DOFNode(Node):
         self.declare_parameter('lateral_gain', 0.5)        # Lateral correction gain
         self.declare_parameter('depth_gain', 0.8)          # Depth error correction gain
 
-        # ALOS parameters (Fossen & Lekkas 2023)
+        # ALOS parameters (CTE-only, Lekkas & Fossen 2012)
         self.declare_parameter('use_alos', True)           # Enable ALOS
-        self.declare_parameter('lookahead_min', 1.0)       # m (minimum)
-        self.declare_parameter('lookahead_max', 3.0)       # m (maximum)
-        self.declare_parameter('k_lookahead_cte', 1.0)     # CTE sensitivity
-        self.declare_parameter('k_lookahead_curv', 2.0)    # Curvature sensitivity
-        self.declare_parameter('k_lookahead_vel', 0.5)     # Velocity coupling
+        self.declare_parameter('lookahead_min', 2.0)       # m (minimum, increased)
+        self.declare_parameter('lookahead_max', 4.0)       # m (maximum, increased)
+        self.declare_parameter('k_lookahead_cte', 0.5)     # CTE sensitivity (conservative)
 
         # Velocity profiling parameters
         self.declare_parameter('cruise_speed', 0.5)     # m/s (straight line)
         self.declare_parameter('min_speed', 0.2)        # m/s (tight curves)
         self.declare_parameter('curvature_gain', 2.0)   # Speed reduction sensitivity
-
-        # CTE-based velocity reduction (KIOST RPM constraint)
-        self.declare_parameter('cte_threshold', 1.0)    # m (recovery trigger)
-        self.declare_parameter('k_cte_slowdown', 0.4)   # Slowdown factor (0-1)
 
         # Get parameters
         self.vehicle_name = self.get_parameter('vehicle_name').value
@@ -87,20 +81,16 @@ class PathFollowing4DOFNode(Node):
         lateral_gain = self.get_parameter('lateral_gain').value
         depth_gain = self.get_parameter('depth_gain').value
 
-        # ALOS parameters
+        # ALOS parameters (CTE-only)
         use_alos = self.get_parameter('use_alos').value
         lookahead_min = self.get_parameter('lookahead_min').value
         lookahead_max = self.get_parameter('lookahead_max').value
         k_lookahead_cte = self.get_parameter('k_lookahead_cte').value
-        k_lookahead_curv = self.get_parameter('k_lookahead_curv').value
-        k_lookahead_vel = self.get_parameter('k_lookahead_vel').value
 
         # Velocity profiling parameters
         cruise_speed = self.get_parameter('cruise_speed').value
         min_speed = self.get_parameter('min_speed').value
         curvature_gain = self.get_parameter('curvature_gain').value
-        cte_threshold = self.get_parameter('cte_threshold').value
-        k_cte_slowdown = self.get_parameter('k_cte_slowdown').value
 
         # State
         self._path_received = False
@@ -117,7 +107,7 @@ class PathFollowing4DOFNode(Node):
         self._tf_buffer = Buffer()
         self._tf_listener = TransformListener(self._tf_buffer, self)
 
-        # Initialize ILOS guidance with ALOS
+        # Initialize ILOS guidance with CTE-only ALOS
         self.guidance = ILOSGuidance(
             lookahead_distance=lookahead_distance,
             integral_gain=integral_gain,
@@ -130,11 +120,7 @@ class PathFollowing4DOFNode(Node):
             use_alos=use_alos,
             lookahead_min=lookahead_min,
             lookahead_max=lookahead_max,
-            k_lookahead_cte=k_lookahead_cte,
-            k_lookahead_curv=k_lookahead_curv,
-            k_lookahead_vel=k_lookahead_vel,
-            cte_threshold=cte_threshold,
-            k_cte_slowdown=k_cte_slowdown
+            k_lookahead_cte=k_lookahead_cte
         )
 
         # Subscriber: path from path_generator_node
