@@ -620,57 +620,113 @@ void ROS2SimulationManager::SetOceanCurrentService(const stonefish_msgs::srv::Se
         return;
     }
 
-    // Check if current is Uniform type
-    Uniform* uniform_vf = dynamic_cast<Uniform*>(vf);
-    if(uniform_vf == nullptr)
+    // Validate current_type
+    if(req->current_type != "uniform" && req->current_type != "jet")
     {
         res->success = false;
-        res->message = "Current at index " + std::to_string(req->current_index) + " is not a Uniform velocity field.";
-        RCLCPP_ERROR(nh_->get_logger(), "SetOceanCurrent failed: Current %d is not Uniform type.", req->current_index);
+        res->message = "Invalid current_type: '" + req->current_type + "'. Must be 'uniform' or 'jet'.";
+        RCLCPP_ERROR(nh_->get_logger(), "SetOceanCurrent failed: Invalid current_type '%s'", req->current_type.c_str());
         return;
     }
 
-    // Validate velocity array size
-    if(req->velocity.size() != 3)
+    // Type-specific handling
+    if(req->current_type == "uniform")
     {
-        res->success = false;
-        res->message = "Velocity array must have exactly 3 elements [vx, vy, vz].";
-        RCLCPP_ERROR(nh_->get_logger(), "SetOceanCurrent failed: Invalid velocity array size %zu", req->velocity.size());
-        return;
+        // Try to cast to Uniform type
+        Uniform* uniform_vf = dynamic_cast<Uniform*>(vf);
+        if(uniform_vf == nullptr)
+        {
+            res->success = false;
+            res->message = "Type mismatch: Current at index " + std::to_string(req->current_index) + " is not a Uniform velocity field.";
+            RCLCPP_ERROR(nh_->get_logger(), "SetOceanCurrent failed: Current %d is not Uniform type.", req->current_index);
+            return;
+        }
+
+        // Validate velocity array size
+        if(req->velocity.size() != 3)
+        {
+            res->success = false;
+            res->message = "Velocity array must have exactly 3 elements [vx, vy, vz] for Uniform type.";
+            RCLCPP_ERROR(nh_->get_logger(), "SetOceanCurrent failed: Invalid velocity array size %zu", req->velocity.size());
+            return;
+        }
+
+        // Apply settings
+        if(req->enable)
+        {
+            // Set velocity
+            Vector3 vel(req->velocity[0], req->velocity[1], req->velocity[2]);
+            uniform_vf->setVelocity(vel);
+
+            // Enable currents if not already enabled
+            ocean->EnableCurrents();
+
+            // Update OpenGL data for visualization
+            ocean->UpdateCurrentsData();
+
+            res->success = true;
+            res->message = "Ocean current " + std::to_string(req->current_index) +
+                           " (Uniform) enabled with velocity [" +
+                           std::to_string(req->velocity[0]) + ", " +
+                           std::to_string(req->velocity[1]) + ", " +
+                           std::to_string(req->velocity[2]) + "] m/s.";
+            RCLCPP_INFO(nh_->get_logger(), "%s", res->message.c_str());
+        }
+        else
+        {
+            // Disable by setting velocity to zero
+            uniform_vf->setVelocity(Vector3(0.0, 0.0, 0.0));
+
+            // Update OpenGL data
+            ocean->UpdateCurrentsData();
+
+            res->success = true;
+            res->message = "Ocean current " + std::to_string(req->current_index) + " (Uniform) disabled.";
+            RCLCPP_INFO(nh_->get_logger(), "%s", res->message.c_str());
+        }
     }
-
-    // Apply settings
-    if(req->enable)
+    else if(req->current_type == "jet")
     {
-        // Set velocity
-        Vector3 vel(req->velocity[0], req->velocity[1], req->velocity[2]);
-        uniform_vf->setVelocity(vel);
+        // Try to cast to Jet type
+        Jet* jet_vf = dynamic_cast<Jet*>(vf);
+        if(jet_vf == nullptr)
+        {
+            res->success = false;
+            res->message = "Type mismatch: Current at index " + std::to_string(req->current_index) + " is not a Jet velocity field.";
+            RCLCPP_ERROR(nh_->get_logger(), "SetOceanCurrent failed: Current %d is not Jet type.", req->current_index);
+            return;
+        }
 
-        // Enable currents if not already enabled
-        ocean->EnableCurrents();
+        // Apply settings
+        if(req->enable)
+        {
+            // Set outlet velocity
+            jet_vf->setOutletVelocity(req->outlet_velocity);
 
-        // Update OpenGL data for visualization
-        ocean->UpdateCurrentsData();
+            // Enable currents if not already enabled
+            ocean->EnableCurrents();
 
-        res->success = true;
-        res->message = "Ocean current " + std::to_string(req->current_index) +
-                       " enabled with velocity [" +
-                       std::to_string(req->velocity[0]) + ", " +
-                       std::to_string(req->velocity[1]) + ", " +
-                       std::to_string(req->velocity[2]) + "] m/s.";
-        RCLCPP_INFO(nh_->get_logger(), "%s", res->message.c_str());
-    }
-    else
-    {
-        // Disable by setting velocity to zero
-        uniform_vf->setVelocity(Vector3(0.0, 0.0, 0.0));
+            // Update OpenGL data for visualization
+            ocean->UpdateCurrentsData();
 
-        // Update OpenGL data
-        ocean->UpdateCurrentsData();
+            res->success = true;
+            res->message = "Ocean current " + std::to_string(req->current_index) +
+                           " (Jet) enabled with outlet velocity " +
+                           std::to_string(req->outlet_velocity) + " m/s.";
+            RCLCPP_INFO(nh_->get_logger(), "%s", res->message.c_str());
+        }
+        else
+        {
+            // Disable by setting outlet velocity to zero
+            jet_vf->setOutletVelocity(0.0);
 
-        res->success = true;
-        res->message = "Ocean current " + std::to_string(req->current_index) + " disabled.";
-        RCLCPP_INFO(nh_->get_logger(), "%s", res->message.c_str());
+            // Update OpenGL data
+            ocean->UpdateCurrentsData();
+
+            res->success = true;
+            res->message = "Ocean current " + std::to_string(req->current_index) + " (Jet) disabled.";
+            RCLCPP_INFO(nh_->get_logger(), "%s", res->message.c_str());
+        }
     }
 }
 

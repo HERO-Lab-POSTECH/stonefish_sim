@@ -14,3 +14,11 @@
     - 해수 흐름 없음 (null ocean)
     - 잘못된 인덱스 (invalid index)
     - 지원하지 않는 타입 (non-Uniform type)
+
+### Changed
+- `set_ocean_current` 서비스 확장
+  - Jet 속도장(Velocity Field) 지원 추가
+  - `setOutletVelocity` 메서드 호출로 Jet 배출 속도 제어
+  - 타입 검증 로직 추가: Uniform/Jet 타입 구분 처리
+  - 타입 불일치 시 명확한 오류 메시지 반환
+  - 역호환성 유지 (Uniform 타입 기존 동작 보장)

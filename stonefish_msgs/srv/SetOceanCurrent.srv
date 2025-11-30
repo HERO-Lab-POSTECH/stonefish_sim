@@ -1,7 +1,13 @@
 # Request
 int32 current_index        # Ocean current index (default: 0)
 bool enable                # true: enable, false: disable
-float64[3] velocity        # [vx, vy, vz] in m/s (NED frame)
+string current_type        # Type of current: "uniform" or "jet"
+
+# Fields for Uniform type
+float64[3] velocity        # [vx, vy, vz] in m/s (NED frame) - used when current_type="uniform"
+
+# Fields for Jet type
+float64 outlet_velocity    # Scalar outlet velocity in m/s - used when current_type="jet"
 
 ---
 # Response
