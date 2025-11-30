@@ -1,0 +1,7 @@
+# SetWaveHeight.srv
+# Request to set ocean wave height at runtime
+
+float64 wave_height    # New wave height in meters (0.0 - 2.0)
+---
+bool success           # True if wave height was set successfully
+string message         # Status message or error description
