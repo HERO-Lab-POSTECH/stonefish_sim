@@ -1,0 +1,61 @@
+# Position Controller Parameters for BlueROV2
+# Precise 6DOF position control with PID feedback
+
+position_controller_4dof:
+  ros__parameters:
+    # General
+    vehicle_name: 'bluerov2'
+    control_rate: 50.0  # Hz
+
+    # ============================================
+    # PID Gains (tuned for position control)
+    # ============================================
+    # Kp: Proportional gain (position error feedback)
+    # Kd: Derivative gain (velocity damping)
+    # Ki: Integral gain (steady-state error elimination)
+    # Kb: Anti-windup back-calculation gain
+    Kp: [300.0, 300.0, 400.0, 200.0]  # [surge, sway, heave, yaw]
+    Kd: [150.0, 150.0, 200.0, 100.0]  # Velocity damping
+    Ki: [10.0, 10.0, 20.0, 5.0]       # Integral action
+    Kb: [0.8, 0.8, 0.8, 0.8]          # Anti-windup factor
+
+    # ============================================
+    # Saturation Limits
+    # ============================================
+    # Maximum wrench command to thruster allocator
+    max_force: 800.0   # N (linear forces: surge, sway, heave)
+    max_torque: 160.0  # Nm (rotational torques: roll, pitch, yaw)
+
+    # ============================================
+    # Integral Safety
+    # ============================================
+    # Prevents integral windup by limiting accumulated error
+    # Formula: integral_limit = (sat_limit / Ki) × safety_factor
+    integral_safety_factor: 2.0  # Higher = more integral authority
+
+    # ============================================
+    # Position Error Tolerance
+    # ============================================
+    # Acceptance criteria for waypoint arrival
+    position_error_threshold: 0.1  # m
+    angle_error_threshold: 0.087   # rad (~5 degrees)
+
+# Design Notes:
+#
+# Tuning Strategy:
+#   1. Start with Kp high, Kd/Ki = 0
+#   2. Increase Kd to damp oscillations
+#   3. Increase Ki for steady-state accuracy
+#   4. Adjust saturation limits based on vehicle response
+#
+# Position Hold:
+#   - Moderate Kp for stable convergence
+#   - High Kd for velocity damping (prevents overshoot)
+#   - Low Ki for steady-state (integral windup risk)
+#   - Anti-windup mechanism active
+#
+# Coordinate System:
+#   - NED (North-East-Down) convention
+#   - Body-frame control (roll, pitch fixed at 0 for underactuated vehicles)
+#   - 4DOF control: X, Y, Z (positions) + Yaw
+#

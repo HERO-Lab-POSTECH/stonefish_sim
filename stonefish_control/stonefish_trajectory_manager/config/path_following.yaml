@@ -27,7 +27,7 @@
     # - Smaller (1-2m): More aggressive, tighter tracking, may oscillate
     # - Larger (3-5m): Smoother, gentler tracking, more stable
     # Typical range for ROV: 2-5m
-    lookahead_distance: 0.5
+    lookahead_distance: 2.0
 
     # ILOS integral gain κ_ILOS (dimensionless)
     # Physical meaning: Strength of integral action for sideslip/current compensation
@@ -48,7 +48,7 @@
     # - Smaller (0.3-0.5): Gentle correction, smoother path following
     # - Larger (0.7-1.0): Aggressive correction, tighter tracking
     # Balance between tracking accuracy and smoothness
-    lateral_gain: 0.8
+    lateral_gain: 1.0
 
     # =========================================
     # PD Control Parameters (NEW)
@@ -59,7 +59,7 @@
     # - Provides damping to reduce oscillations
     # - Recommended: K_d = 0.5~1.0 × K_p (Fossen 2011)
     # Typical: 0.2-0.5
-    lateral_kd: 0.5
+    lateral_kd: 0.8
 
     # Depth correction gain (dimensionless)
     # Physical meaning: How aggressively to correct depth error via heave velocity
@@ -112,14 +112,14 @@
     # Minimum speed (m/s) - minimum speed in tight curves
     # Should be > 0 to ensure continuous progress
     # Typical: 20-40% of cruise speed
-    min_speed: 0.2
+    min_speed: 0.1
 
     # Curvature gain (dimensionless)
     # Controls how aggressively to slow down in curves
     # Formula: u_d = u_cruise / (1 + k_curve * |κ|)
     # - Smaller (1.0-1.5): Less slowdown, faster but less precise
     # - Larger (2.0-3.0): More slowdown, slower but more precise
-    curvature_gain: 2.0
+    curvature_gain: 3.0
 
     # =========================================
     # Control Loop

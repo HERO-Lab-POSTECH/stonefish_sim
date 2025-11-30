@@ -1,0 +1,72 @@
+# Velocity Controller Parameters for BlueROV2
+# Cascaded velocity-based control for path following
+
+velocity_controller_4dof:
+  ros__parameters:
+    # General
+    vehicle_name: 'bluerov2'
+    control_rate: 50.0  # Hz
+
+    # ============================================
+    # PID Gains (tuned for velocity control)
+    # ============================================
+    # Velocity-based control requires LOWER gains than position-based
+    # Reason: Velocity errors are smaller than position errors
+    #
+    # Gain Selection Guidelines:
+    #   Kp: Force per velocity error (N·s/m for linear, Nm·s/rad for angular)
+    #   Kd: Velocity damping (N·s²/m for linear, Nm·s²/rad for angular)
+    #   Ki: Integral compensation for steady-state errors
+    #
+    # [Surge, Sway, Heave, Yaw]
+    Kp: [200.0, 200.0, 350.0, 150.0]
+    Kd: [100.0, 100.0, 150.0, 80.0]  # Velocity damping
+    Ki: [20.0, 20.0, 40.0, 10.0]     # Integral action
+    Kb: [0.8, 0.8, 0.8, 0.8]         # Anti-windup factor
+
+    # ============================================
+    # Saturation Limits
+    # ============================================
+    # Maximum wrench command to thruster allocator
+    max_force: 800.0   # N (linear forces: surge, sway, heave)
+    max_torque: 160.0  # Nm (rotational torques: roll, pitch, yaw)
+
+    # ============================================
+    # Anti-Windup Protection
+    # ============================================
+    # Prevents integral windup by limiting accumulated error
+    # Formula: integral_limit = (sat_limit / Ki) × safety_factor
+    integral_safety_factor: 1.0  # Conservative for velocity mode
+
+# Design Notes:
+#
+# Velocity Mode (Path Following):
+#   - Lower Kp than position mode (velocity errors < position errors)
+#   - Strong Kd for velocity damping
+#   - Moderate Ki for steady-state accuracy
+#   - Responsive to velocity commands
+#   - Fast path tracking capability
+#
+# Cascaded Control Architecture:
+#   1. Path Following Node generates velocity setpoints
+#   2. Velocity Controller tracks velocity setpoints
+#   3. Wrench is sent to Thruster Allocator
+#   4. Thrusters apply forces to vehicle
+#
+# Coordinate System:
+#   - NED (North-East-Down) convention
+#   - Body-frame control (roll, pitch fixed at 0 for underactuated vehicles)
+#   - 4DOF control: Surge, Sway, Heave, Yaw velocities
+#
+# Tuning Guidelines:
+#   1. Test constant velocity command
+#      - If oscillating: Reduce Kp, increase Kd
+#      - If slow response: Increase Kp
+#      - If steady-state error: Increase Ki
+#   2. Test step velocity change
+#      - Measure: Rise time, overshoot, settling time
+#      - Ideal: <10% overshoot, <2s settling time
+#   3. Test with path following
+#      - Verify cruise_speed is achieved
+#      - Check heading tracking accuracy
+#
