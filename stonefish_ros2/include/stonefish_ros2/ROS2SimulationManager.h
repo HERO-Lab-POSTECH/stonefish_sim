@@ -43,6 +43,7 @@
 #include "stonefish_msgs/srv/sonar_settings2.hpp"
 #include "stonefish_msgs/srv/set_ocean_current.hpp"
 #include "stonefish_msgs/srv/set_wave_height.hpp"
+#include "stonefish_msgs/srv/set_wind_velocity.hpp"
 
 #include <Stonefish/core/SimulationManager.h>
 #include <Stonefish/actuators/Servo.h>
@@ -115,6 +116,8 @@ namespace sf
                              stonefish_msgs::srv::SetOceanCurrent::Response::SharedPtr res);
         void SetWaveHeightService(const stonefish_msgs::srv::SetWaveHeight::Request::SharedPtr req,
                              stonefish_msgs::srv::SetWaveHeight::Response::SharedPtr res);
+        void SetWindVelocityService(const stonefish_msgs::srv::SetWindVelocity::Request::SharedPtr req,
+                             stonefish_msgs::srv::SetWindVelocity::Response::SharedPtr res);
         void UniformVFCallback(const geometry_msgs::msg::Vector3::SharedPtr msg, Uniform* vf);
         void JetVFCallback(const std_msgs::msg::Float64::SharedPtr msg, Jet* vf);
         void ActuatorOriginCallback(const geometry_msgs::msg::Transform::SharedPtr msg, Actuator* act);

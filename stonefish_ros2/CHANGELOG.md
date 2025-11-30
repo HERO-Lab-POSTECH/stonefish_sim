@@ -6,6 +6,22 @@
 - `set_wave_height` 서비스 파도 높이 범위 확대: 0.0-10.0 meters (기존: 0.0-2.0m)
 
 ### Added
+- `set_wind_velocity` ROS2 서비스 구현 (ROS2SimulationManager)
+  - 서비스명: `/stonefish_ros2/stonefish_simulator/set_wind_velocity`
+  - 서비스 타입: `stonefish_msgs/srv/SetWindVelocity`
+  - 기능:
+    - 실행 중 대기 바람 속도 동적 제어 (Uniform 타입)
+    - NED 좌표계 속도 입력 [north, east, down] (m/s)
+    - 풍속 검증 (최대 50 m/s 안전 제한)
+  - 오류 처리:
+    - 대기 없음 (null atmosphere)
+    - 바람 타입 검증 (Uniform만 지원)
+    - 풍속 범위 검증
+  - 사용 예시:
+    ```bash
+    ros2 service call /stonefish_ros2/stonefish_simulator/set_wind_velocity \
+      stonefish_msgs/srv/SetWindVelocity "{north: 5.0, east: 2.0, down: 0.0}"
+    ```
 - `set_wave_height` ROS2 서비스 구현 (ROS2SimulationManager)
   - 서비스명: `/stonefish_ros2/stonefish_simulator/set_wave_height`
   - 서비스 타입: `stonefish_msgs/srv/SetWaveHeight`

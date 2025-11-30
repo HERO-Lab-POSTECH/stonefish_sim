@@ -32,6 +32,7 @@
 
 #include <Stonefish/entities/animation/ManualTrajectory.h>
 #include <Stonefish/entities/forcefields/Ocean.h>
+#include <Stonefish/entities/forcefields/Atmosphere.h>
 #include <Stonefish/entities/forcefields/Uniform.h>
 #include <Stonefish/entities/forcefields/Jet.h>
 #include <Stonefish/sensors/scalar/Pressure.h>
@@ -155,6 +156,7 @@ void ROS2SimulationManager::BuildScenario()
     srvs_["disable_currents"] = nh_->create_service<std_srvs::srv::Trigger>("disable_currents", std::bind(&ROS2SimulationManager::DisableCurrentsService, this, _1, _2));
     srvs_["set_ocean_current"] = nh_->create_service<stonefish_msgs::srv::SetOceanCurrent>("/stonefish_ros2/stonefish_simulator/set_ocean_current", std::bind(&ROS2SimulationManager::SetOceanCurrentService, this, _1, _2));
     srvs_["set_wave_height"] = nh_->create_service<stonefish_msgs::srv::SetWaveHeight>("/stonefish_ros2/stonefish_simulator/set_wave_height", std::bind(&ROS2SimulationManager::SetWaveHeightService, this, _1, _2));
+    srvs_["set_wind_velocity"] = nh_->create_service<stonefish_msgs::srv::SetWindVelocity>("/stonefish_ros2/stonefish_simulator/set_wind_velocity", std::bind(&ROS2SimulationManager::SetWindVelocityService, this, _1, _2));
 }
 
 void ROS2SimulationManager::DestroyScenario()
@@ -714,6 +716,54 @@ void ROS2SimulationManager::SetWaveHeightService(const stonefish_msgs::srv::SetW
         res->success = false;
         res->message = std::string("Exception while setting wave height: ") + e.what();
         RCLCPP_ERROR(nh_->get_logger(), "%s", res->message.c_str());
+    }
+}
+
+void ROS2SimulationManager::SetWindVelocityService(const stonefish_msgs::srv::SetWindVelocity::Request::SharedPtr req,
+                                            stonefish_msgs::srv::SetWindVelocity::Response::SharedPtr res)
+{
+    try {
+        sf::Atmosphere* atmosphere = getAtmosphere();
+
+        if (atmosphere == nullptr) {
+            res->success = false;
+            res->message = "Atmosphere not found in simulation";
+            RCLCPP_ERROR(nh_->get_logger(), "%s", res->message.c_str());
+            return;
+        }
+
+        // Create wind velocity vector (NED coordinates)
+        sf::Vector3 wind_velocity(req->north, req->east, req->down);
+
+        // Validate wind speed magnitude
+        double wind_speed = wind_velocity.length();
+        if (wind_speed > 50.0) {
+            res->success = false;
+            res->message = "Wind speed " + std::to_string(wind_speed) +
+                          " m/s is unrealistically high (max 50 m/s for safety)";
+            RCLCPP_ERROR(nh_->get_logger(), "%s", res->message.c_str());
+            return;
+        }
+
+        // Set wind velocity
+        atmosphere->SetWindVelocity(wind_velocity);
+
+        res->success = true;
+        if (wind_speed < 0.01) {
+            res->message = "Wind disabled (velocity near zero)";
+        } else {
+            res->message = "Wind velocity set to [N:" + std::to_string(req->north) +
+                          ", E:" + std::to_string(req->east) +
+                          ", D:" + std::to_string(req->down) + "] m/s (speed: " +
+                          std::to_string(wind_speed) + " m/s)";
+        }
+
+        RCLCPP_INFO(nh_->get_logger(), "%s", res->message.c_str());
+
+    } catch (const std::exception& e) {
+        res->success = false;
+        res->message = std::string("Exception: ") + e.what();
+        RCLCPP_ERROR(nh_->get_logger(), "SetWindVelocity service error: %s", e.what());
     }
 }
 

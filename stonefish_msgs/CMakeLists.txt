@@ -23,6 +23,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/SetMode.srv"
   "srv/SetOceanCurrent.srv"
   "srv/SetWaveHeight.srv"
+  "srv/SetWindVelocity.srv"
   "srv/SonarSettings.srv"
   "srv/SonarSettings2.srv"
   DEPENDENCIES std_msgs geometry_msgs
