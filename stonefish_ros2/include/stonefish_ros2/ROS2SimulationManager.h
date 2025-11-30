@@ -41,6 +41,7 @@
 #include "tf2_ros/transform_broadcaster.h"
 #include "stonefish_msgs/srv/sonar_settings.hpp"
 #include "stonefish_msgs/srv/sonar_settings2.hpp"
+#include "stonefish_msgs/srv/set_ocean_current.hpp"
 
 #include <Stonefish/core/SimulationManager.h>
 #include <Stonefish/actuators/Servo.h>
@@ -107,8 +108,10 @@ namespace sf
 
         void EnableCurrentsService(const std_srvs::srv::Trigger::Request::SharedPtr req, 
                             std_srvs::srv::Trigger::Response::SharedPtr res);
-		void DisableCurrentsService(const std_srvs::srv::Trigger::Request::SharedPtr req, 
+		void DisableCurrentsService(const std_srvs::srv::Trigger::Request::SharedPtr req,
                              std_srvs::srv::Trigger::Response::SharedPtr res);
+        void SetOceanCurrentService(const stonefish_msgs::srv::SetOceanCurrent::Request::SharedPtr req,
+                             stonefish_msgs::srv::SetOceanCurrent::Response::SharedPtr res);
         void UniformVFCallback(const geometry_msgs::msg::Vector3::SharedPtr msg, Uniform* vf);
         void JetVFCallback(const std_msgs::msg::Float64::SharedPtr msg, Jet* vf);
         void ActuatorOriginCallback(const geometry_msgs::msg::Transform::SharedPtr msg, Actuator* act);

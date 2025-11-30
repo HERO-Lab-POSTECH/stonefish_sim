@@ -31,6 +31,7 @@
 #include "std_msgs/msg/bool.hpp"
 
 #include <Stonefish/entities/animation/ManualTrajectory.h>
+#include <Stonefish/entities/forcefields/Ocean.h>
 #include <Stonefish/entities/forcefields/Uniform.h>
 #include <Stonefish/entities/forcefields/Jet.h>
 #include <Stonefish/sensors/scalar/Pressure.h>
@@ -152,6 +153,7 @@ void ROS2SimulationManager::BuildScenario()
     // Standard services
     srvs_["enable_currents"] = nh_->create_service<std_srvs::srv::Trigger>("enable_currents", std::bind(&ROS2SimulationManager::EnableCurrentsService, this, _1, _2));
     srvs_["disable_currents"] = nh_->create_service<std_srvs::srv::Trigger>("disable_currents", std::bind(&ROS2SimulationManager::DisableCurrentsService, this, _1, _2));
+    srvs_["set_ocean_current"] = nh_->create_service<stonefish_msgs::srv::SetOceanCurrent>("/stonefish_ros2/stonefish_simulator/set_ocean_current", std::bind(&ROS2SimulationManager::SetOceanCurrentService, this, _1, _2));
 }
 
 void ROS2SimulationManager::DestroyScenario()
@@ -586,13 +588,90 @@ void ROS2SimulationManager::EnableCurrentsService(const std_srvs::srv::Trigger::
     res->success = true;
 }
 
-void ROS2SimulationManager::DisableCurrentsService(const std_srvs::srv::Trigger::Request::SharedPtr req, 
+void ROS2SimulationManager::DisableCurrentsService(const std_srvs::srv::Trigger::Request::SharedPtr req,
                                             std_srvs::srv::Trigger::Response::SharedPtr res)
-{   
+{
     (void)req;
     getOcean()->DisableCurrents();
     res->message = "Ocean current simulation disabled.";
     res->success = true;
+}
+
+void ROS2SimulationManager::SetOceanCurrentService(const stonefish_msgs::srv::SetOceanCurrent::Request::SharedPtr req,
+                                            stonefish_msgs::srv::SetOceanCurrent::Response::SharedPtr res)
+{
+    // Validate ocean exists
+    Ocean* ocean = getOcean();
+    if(ocean == nullptr)
+    {
+        res->success = false;
+        res->message = "Ocean not found in simulation.";
+        RCLCPP_ERROR(nh_->get_logger(), "SetOceanCurrent failed: Ocean not found.");
+        return;
+    }
+
+    // Validate current_index
+    VelocityField* vf = ocean->getCurrent(req->current_index);
+    if(vf == nullptr)
+    {
+        res->success = false;
+        res->message = "Invalid current_index: " + std::to_string(req->current_index);
+        RCLCPP_ERROR(nh_->get_logger(), "SetOceanCurrent failed: Invalid current_index %d", req->current_index);
+        return;
+    }
+
+    // Check if current is Uniform type
+    Uniform* uniform_vf = dynamic_cast<Uniform*>(vf);
+    if(uniform_vf == nullptr)
+    {
+        res->success = false;
+        res->message = "Current at index " + std::to_string(req->current_index) + " is not a Uniform velocity field.";
+        RCLCPP_ERROR(nh_->get_logger(), "SetOceanCurrent failed: Current %d is not Uniform type.", req->current_index);
+        return;
+    }
+
+    // Validate velocity array size
+    if(req->velocity.size() != 3)
+    {
+        res->success = false;
+        res->message = "Velocity array must have exactly 3 elements [vx, vy, vz].";
+        RCLCPP_ERROR(nh_->get_logger(), "SetOceanCurrent failed: Invalid velocity array size %zu", req->velocity.size());
+        return;
+    }
+
+    // Apply settings
+    if(req->enable)
+    {
+        // Set velocity
+        Vector3 vel(req->velocity[0], req->velocity[1], req->velocity[2]);
+        uniform_vf->setVelocity(vel);
+
+        // Enable currents if not already enabled
+        ocean->EnableCurrents();
+
+        // Update OpenGL data for visualization
+        ocean->UpdateCurrentsData();
+
+        res->success = true;
+        res->message = "Ocean current " + std::to_string(req->current_index) +
+                       " enabled with velocity [" +
+                       std::to_string(req->velocity[0]) + ", " +
+                       std::to_string(req->velocity[1]) + ", " +
+                       std::to_string(req->velocity[2]) + "] m/s.";
+        RCLCPP_INFO(nh_->get_logger(), "%s", res->message.c_str());
+    }
+    else
+    {
+        // Disable by setting velocity to zero
+        uniform_vf->setVelocity(Vector3(0.0, 0.0, 0.0));
+
+        // Update OpenGL data
+        ocean->UpdateCurrentsData();
+
+        res->success = true;
+        res->message = "Ocean current " + std::to_string(req->current_index) + " disabled.";
+        RCLCPP_INFO(nh_->get_logger(), "%s", res->message.c_str());
+    }
 }
 
 void ROS2SimulationManager::UniformVFCallback(const geometry_msgs::msg::Vector3::SharedPtr msg, Uniform* vf)

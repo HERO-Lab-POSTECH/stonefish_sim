@@ -1,0 +1,9 @@
+# Request
+int32 current_index        # Ocean current index (default: 0)
+bool enable                # true: enable, false: disable
+float64[3] velocity        # [vx, vy, vz] in m/s (NED frame)
+
+---
+# Response
+bool success
+string message

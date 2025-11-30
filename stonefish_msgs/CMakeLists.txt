@@ -21,6 +21,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/NEDPose.msg"
   "msg/ThrusterState.msg"
   "srv/SetMode.srv"
+  "srv/SetOceanCurrent.srv"
   "srv/SonarSettings.srv"
   "srv/SonarSettings2.srv"
   DEPENDENCIES std_msgs geometry_msgs
