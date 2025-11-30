@@ -154,6 +154,7 @@ void ROS2SimulationManager::BuildScenario()
     srvs_["enable_currents"] = nh_->create_service<std_srvs::srv::Trigger>("enable_currents", std::bind(&ROS2SimulationManager::EnableCurrentsService, this, _1, _2));
     srvs_["disable_currents"] = nh_->create_service<std_srvs::srv::Trigger>("disable_currents", std::bind(&ROS2SimulationManager::DisableCurrentsService, this, _1, _2));
     srvs_["set_ocean_current"] = nh_->create_service<stonefish_msgs::srv::SetOceanCurrent>("/stonefish_ros2/stonefish_simulator/set_ocean_current", std::bind(&ROS2SimulationManager::SetOceanCurrentService, this, _1, _2));
+    srvs_["set_wave_height"] = nh_->create_service<stonefish_msgs::srv::SetWaveHeight>("/stonefish_ros2/stonefish_simulator/set_wave_height", std::bind(&ROS2SimulationManager::SetWaveHeightService, this, _1, _2));
 }
 
 void ROS2SimulationManager::DestroyScenario()
@@ -671,6 +672,48 @@ void ROS2SimulationManager::SetOceanCurrentService(const stonefish_msgs::srv::Se
         res->success = true;
         res->message = "Ocean current " + std::to_string(req->current_index) + " disabled.";
         RCLCPP_INFO(nh_->get_logger(), "%s", res->message.c_str());
+    }
+}
+
+void ROS2SimulationManager::SetWaveHeightService(const stonefish_msgs::srv::SetWaveHeight::Request::SharedPtr req,
+                                            stonefish_msgs::srv::SetWaveHeight::Response::SharedPtr res)
+{
+    // Validate ocean exists
+    Ocean* ocean = getOcean();
+    if(ocean == nullptr)
+    {
+        res->success = false;
+        res->message = "Ocean not found in simulation.";
+        RCLCPP_ERROR(nh_->get_logger(), "SetWaveHeight failed: Ocean not found.");
+        return;
+    }
+
+    // Validate wave height range (0.0 to 2.0 per Stonefish convention)
+    if(req->wave_height < 0.0 || req->wave_height > 2.0)
+    {
+        res->success = false;
+        res->message = "Invalid wave_height: " + std::to_string(req->wave_height) + " (valid range: 0.0 - 2.0 meters)";
+        RCLCPP_ERROR(nh_->get_logger(), "%s", res->message.c_str());
+        return;
+    }
+
+    try {
+        // Set wave height
+        ocean->setWaveHeight(req->wave_height);
+
+        res->success = true;
+        if(req->wave_height == 0.0) {
+            res->message = "Ocean waves disabled (flat surface)";
+            RCLCPP_INFO(nh_->get_logger(), "Ocean waves disabled.");
+        } else {
+            res->message = "Wave height set to " + std::to_string(req->wave_height) + " meters";
+            RCLCPP_INFO(nh_->get_logger(), "Wave height set to %.2f meters.", req->wave_height);
+        }
+
+    } catch (const std::exception& e) {
+        res->success = false;
+        res->message = std::string("Exception while setting wave height: ") + e.what();
+        RCLCPP_ERROR(nh_->get_logger(), "%s", res->message.c_str());
     }
 }
 
