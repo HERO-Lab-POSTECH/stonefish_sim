@@ -1,161 +1,275 @@
-# Stonefish Control - ROS2 Control Packages for UUV Simulation
+# Stonefish Control - ROS2 Control Packages for Marine Robotics
 
-ROS2 기반 수중 로봇(UUV) 제어 패키지 모음. UUV Simulator의 제어 알고리즘을 Stonefish ROS2 시뮬레이터용으로 포팅한 프로젝트입니다.
+ROS2-based control system for underwater vehicles (UUVs) and surface vehicles, ported from UUV Simulator and adapted for the Stonefish marine robotics simulator.
 
-## 📦 패키지 목록
+## Overview
 
-### ✅ 완성된 패키지
+This meta-package provides a complete control stack for marine robotics simulation, including thrust allocation, trajectory generation, path following, and various control algorithms. It follows a modular architecture where each sub-package handles a specific aspect of the control pipeline.
+
+## Package List
+
+### Core Packages (Production-Ready)
 
 #### 1. **stonefish_control_msgs**
-ROS2 제어 메시지 및 서비스 정의
-- 4개 메시지: Waypoint, WaypointSet, Trajectory, TrajectoryPoint
-- 22개 서비스: 제어기 설정, waypoint 관리, trajectory 생성 등
+Message and service definitions for control systems.
+
+**Contents**:
+- 4 messages: `Waypoint`, `WaypointSet`, `Trajectory`, `TrajectoryPoint`
+- 22 services: Controller configuration, waypoint management, trajectory generation
+
+**Location**: `stonefish_control_msgs/`
 
 #### 2. **stonefish_thruster_manager**
-추력기 할당 및 관리
-- TAM (Thruster Allocation Matrix) 기반 추력 할당
-- Wrench (6DOF 힘/토크) → Thruster commands 변환
-- Thruster models (Proportional, Custom)
-- BlueROV2, Girona500 등 다양한 로봇 지원
+Thrust allocation using TAM (Thruster Allocation Matrix).
 
-#### 3. **stonefish_control** (구조만 완성)
-통합 제어 알고리즘 패키지
-- PID 계열 컨트롤러
-- Cascaded control
-- Advanced control (Sliding Mode, Feedback Linearization 등)
+**Features**:
+- Converts 6DOF wrench to individual thruster forces
+- Supports multiple thruster configurations (BlueROV2, Girona500, etc.)
+- Thruster models: Proportional, Custom
+- TAM-based least-squares allocation
 
-### ⏳ 개발 예정 패키지
+**Location**: `stonefish_thruster_manager/`
 
-- **stonefish_trajectory_manager**: Waypoint 및 trajectory 관리
-- **stonefish_control_utils**: 제어 유틸리티 및 시각화
-- **stonefish_teleop_manager**: 키보드/조이스틱 원격 조종
+#### 3. **stonefish_trajectory_manager**
+Path generation and following with LOS guidance.
 
-## 🚀 빠른 시작
+**Features**:
+- Waypoint-based path generation
+- Interpolation methods: Linear, Cubic, LIPB (Log-Interpolated Polynomial Bezier)
+- LOS (Line-of-Sight) guidance law
+- Automatic velocity profiling based on curvature
+- 4DOF paths (X, Y, Z, Yaw)
 
-### 1. 빌드
+**Location**: `stonefish_trajectory_manager/`
+
+### Development Packages
+
+#### 4. **stonefish_control**
+Main control algorithms package.
+
+**Planned Controllers**:
+- PID controllers (standard, nonlinear, underactuated)
+- Cascaded control (position → velocity → acceleration)
+- Advanced control (Sliding Mode, Feedback Linearization, Model Predictive Control)
+
+**Current Status**: Package structure complete, controllers under development
+
+**Location**: `stonefish_control/`
+
+#### 5. **stonefish_control_utils**
+Control utilities and visualization tools.
+
+**Features**:
+- PID parameter optimization
+- Control performance analysis
+- Visualization tools
+
+**Location**: `stonefish_control_utils/`
+
+#### 6. **stonefish_teleop_manager**
+Teleoperation interfaces.
+
+**Planned Features**:
+- Keyboard teleoperation
+- Joystick/gamepad support
+- Haptic feedback (future)
+
+**Status**: Planned
+
+**Location**: `stonefish_teleop_manager/`
+
+## Quick Start
+
+### 1. Build
 
 ```bash
 cd /workspace/colcon_ws
 
-# 스크립트 사용
-./build_stonefish_control.sh
-
-# 또는 수동 빌드
+# Build all control packages
 colcon build --packages-select \
     stonefish_control_msgs \
     stonefish_thruster_manager \
+    stonefish_trajectory_manager \
+    stonefish_control_utils \
     stonefish_control
+
+# Or build individually
+colcon build --packages-select stonefish_thruster_manager
 ```
 
-### 2. 환경 설정
+### 2. Source Workspace
 
 ```bash
 source /workspace/colcon_ws/install/setup.bash
 ```
 
-### 3. Thruster Allocator 실행
+### 3. Launch Simulation with Control
+
+#### Basic Simulation with Thruster Manager
 
 ```bash
-# BlueROV2 기본 설정
-ros2 launch stonefish_thruster_manager thruster_allocator.launch.py \
+# BlueROV2 with thruster manager (included by default)
+ros2 launch stonefish_ros2 bluerov2.launch.py
+```
+
+#### Thruster Manager Only
+
+```bash
+# Launch thruster manager separately
+ros2 launch stonefish_thruster_manager thruster_manager.launch.py \
     vehicle_name:=bluerov2
 
-# 커스텀 TAM 파일 사용
-ros2 launch stonefish_thruster_manager thruster_allocator.launch.py \
+# Custom TAM file
+ros2 launch stonefish_thruster_manager thruster_manager.launch.py \
     vehicle_name:=bluerov2 \
-    tam_file:=/path/to/TAM.yaml \
+    tam_file:=/path/to/custom/TAM.yaml \
     max_thrust:=150.0 \
     timeout:=1.0
 ```
 
-### 4. 제어 명령 전송
+#### Path Following
 
 ```bash
-# Wrench 명령 발행 (Surge 10N, Yaw 5N⋅m)
+# Generate and visualize path
+ros2 launch stonefish_trajectory_manager path_generator.launch.py \
+    waypoint_file:=/workspace/colcon_ws/src/stonefish_control/stonefish_trajectory_manager/config/example_waypoints.yaml \
+    interpolation_method:=lipb
+
+# Path following with LOS guidance
+ros2 launch stonefish_trajectory_manager path_following.launch.py \
+    waypoint_file:=/workspace/colcon_ws/src/stonefish_control/stonefish_trajectory_manager/config/example_waypoints.yaml \
+    vehicle_name:=bluerov2 \
+    lookahead_distance:=2.5 \
+    robot_max_speed:=1.0
+```
+
+### 4. Send Control Commands
+
+```bash
+# Send wrench command (10N forward, 5N⋅m yaw)
 ros2 topic pub /bluerov2/thruster_manager/input geometry_msgs/msg/Wrench \
     "{force: {x: 10.0, y: 0.0, z: 0.0}, torque: {x: 0.0, y: 0.0, z: 5.0}}" \
     --once
 
-# 추력기 출력 확인
+# Check thruster outputs
 ros2 topic echo /bluerov2/setpoint/pwm
+
+# Monitor odometry
+ros2 topic echo /bluerov2/odometry
 ```
 
-## 🧪 테스트
+## Testing
 
-### TAM 테스트
+### TAM (Thruster Allocation Matrix) Testing
 
-```bash
-# TAM 로딩 및 변환 테스트
-python3 /workspace/colcon_ws/test_tam.py
-```
-
-**예상 출력**:
-```
-✅ TAM loaded successfully
-   - Number of thrusters: 8
-   - TAM shape: (6, 8)
-
-🧪 Test Case 1: Pure Surge (Fx = 10 N)
-   Input Wrench: [10.  0.  0.  0.  0.  0.]
-   Thrust Forces: [3.536 3.536 3.536 3.536 0.    0.    0.    0.   ]
-   Expected: All horizontal thrusters contribute equally
-
-✅ All tests passed!
-```
-
-### Python에서 TAM 사용
+#### Python API Test
 
 ```python
 from stonefish_thruster_manager.thruster_manager import ThrusterManager
 import numpy as np
 
-# TAM 로딩
+# Load TAM
 tam_mgr = ThrusterManager(
     tam_file_path='/workspace/colcon_ws/src/stonefish_description/data/robots/bluerov2/config/TAM.yaml'
 )
 
-# Wrench → Thrust
+# Wrench → Thrust conversion
 wrench = np.array([10, 0, 20, 0, 0, 5])  # [Fx, Fy, Fz, Tx, Ty, Tz]
 thrust_forces = tam_mgr.compute_thrust_forces(wrench)
 print(f"Thrust forces: {thrust_forces}")
 
-# Thrust → Wrench (검증)
+# Verify: Thrust → Wrench
 wrench_check = tam_mgr.compute_wrench(thrust_forces)
 print(f"Recovered wrench: {wrench_check}")
 ```
 
-## 📐 TAM (Thruster Allocation Matrix)
+**Expected Output**:
+```
+Thrust forces: [3.536 3.536 3.536 3.536 5.0 5.0 5.0 5.0]
+Recovered wrench: [10.  0. 20.  0.  0.  5.]
+```
 
-### BlueROV2 Heavy Configuration
+#### ROS2 Runtime Test
 
-BlueROV2는 8개의 추력기를 사용합니다:
-- **수평 추력기 4개** (T1-T4): 45° 각도로 배치, Surge/Sway/Yaw 제어
-- **수직 추력기 4개** (T5-T8): 아래 방향, Heave/Roll/Pitch 제어
+```bash
+# Start simulator with thruster manager
+ros2 launch stonefish_ros2 bluerov2.launch.py
 
-TAM 파일 위치:
+# Send test wrench (in another terminal)
+ros2 topic pub /bluerov2/thruster_manager/input geometry_msgs/msg/Wrench \
+    "{force: {x: 10.0, y: 0.0, z: 0.0}, torque: {x: 0.0, y: 0.0, z: 0.0}}" \
+    --once
+
+# Monitor thruster outputs
+ros2 topic echo /bluerov2/setpoint/pwm
+```
+
+### Path Following Test
+
+```bash
+# Terminal 1: Start simulation
+ros2 launch stonefish_ros2 bluerov2.launch.py
+
+# Terminal 2: Launch path following
+ros2 launch stonefish_trajectory_manager path_following.launch.py \
+    vehicle_name:=bluerov2
+
+# Monitor progress
+ros2 topic echo /bluerov2/odometry
+ros2 topic echo /bluerov2/path_following/current_waypoint
+```
+
+## Architecture
+
+### Control System Flow
+
+```
+User Command (Waypoint/Pose/Wrench)
+    ↓
+Controller (PID/Cascaded/Hybrid)
+    ↓ 6DOF Wrench: [Fx, Fy, Fz, Tx, Ty, Tz]
+Thruster Allocator (TAM-based)
+    ↓ Thrust Array: [F1, F2, ..., FN]
+Stonefish Simulator
+    ↓ State Feedback
+Back to Controller
+```
+
+### TAM (Thruster Allocation Matrix)
+
+#### BlueROV2 Configuration
+
+BlueROV2 uses 8 thrusters:
+- **Horizontal Thrusters (T1-T4)**: 45° angle, control Surge/Sway/Yaw
+- **Vertical Thrusters (T5-T8)**: Downward, control Heave/Roll/Pitch
+
+**TAM File Location**:
 ```
 /workspace/colcon_ws/src/stonefish_description/data/robots/bluerov2/config/TAM.yaml
 ```
 
-### TAM 공식
+#### TAM Formula
 
+**Forward Mapping** (Thrust → Wrench):
 ```
 [Fx, Fy, Fz, Tx, Ty, Tz]ᵀ = TAM × [F1, F2, F3, F4, F5, F6, F7, F8]ᵀ
 ```
 
-역변환 (Pseudo-inverse):
+**Inverse Mapping** (Wrench → Thrust):
 ```
 [F1, F2, ..., F8]ᵀ = pinv(TAM) × [Fx, Fy, Fz, Tx, Ty, Tz]ᵀ
 ```
 
-### 새 로봇 추가하기
+Where `pinv(TAM)` is the Moore-Penrose pseudo-inverse (least-squares solution).
 
-1. TAM YAML 파일 생성:
+#### Adding New Robots
+
+1. **Create TAM Configuration Directory**:
 ```bash
 mkdir -p /workspace/colcon_ws/src/stonefish_description/data/robots/my_robot/config
 ```
 
-2. TAM.yaml 작성:
+2. **Write TAM.yaml**:
 ```yaml
 tam:
   # 6 rows (DOF) x N columns (thrusters)
@@ -167,119 +281,138 @@ tam:
   - [t1_tz, t2_tz, ..., tN_tz]  # Row 5: Yaw torque contribution
 ```
 
-3. Thruster Allocator 실행:
+**Example** (4-thruster configuration):
+```yaml
+tam:
+  - [0.707, 0.707, -0.707, -0.707]  # Fx (surge)
+  - [0.707, -0.707, -0.707, 0.707]  # Fy (sway)
+  - [0.0, 0.0, 0.0, 0.0]            # Fz (heave, no vertical thrusters)
+  - [0.0, 0.0, 0.0, 0.0]            # Tx (roll)
+  - [0.0, 0.0, 0.0, 0.0]            # Ty (pitch)
+  - [0.2, -0.2, 0.2, -0.2]          # Tz (yaw)
+```
+
+3. **Launch Thruster Manager**:
 ```bash
-ros2 launch stonefish_thruster_manager thruster_allocator.launch.py \
+ros2 launch stonefish_thruster_manager thruster_manager.launch.py \
     vehicle_name:=my_robot \
     tam_file:=/workspace/colcon_ws/src/stonefish_description/data/robots/my_robot/config/TAM.yaml
 ```
 
-## 🔧 개발 상태
+## Topics
 
-### 완료 (50%)
-- ✅ ROS2 메시지/서비스 시스템
-- ✅ TAM 기반 추력기 할당
-- ✅ Thruster models
-- ✅ 패키지 구조 및 빌드 시스템
+### Thruster Manager
 
-### 진행 중 (50%)
+#### Subscribed Topics
+
+| Topic | Type | Description |
+|-------|------|-------------|
+| `/{vehicle_name}/thruster_manager/input` | `geometry_msgs/Wrench` | Wrench command (6DOF) |
+| `/{vehicle_name}/thruster_manager/input_stamped` | `geometry_msgs/WrenchStamped` | Timestamped wrench command |
+
+#### Published Topics
+
+| Topic | Type | Description |
+|-------|------|-------------|
+| `/{vehicle_name}/setpoint/pwm` | `std_msgs/Float64MultiArray` | Thruster PWM commands [-1.0, 1.0] |
+
+### Path Following (Trajectory Manager)
+
+#### Subscribed Topics
+
+| Topic | Type | Description |
+|-------|------|-------------|
+| `/{vehicle_name}/odometry` | `nav_msgs/Odometry` | Robot state feedback |
+
+#### Published Topics
+
+| Topic | Type | Description |
+|-------|------|-------------|
+| `/{vehicle_name}/reference/trajectory` | `nav_msgs/Path` | Generated trajectory path |
+| `/{vehicle_name}/path_following/current_waypoint` | `geometry_msgs/PoseStamped` | Current target waypoint |
+| `/{vehicle_name}/cmd_vel` | `geometry_msgs/Twist` | Velocity command (LOS guidance output) |
+
+### Controllers (Future)
+
+#### Subscribed Topics
+
+| Topic | Type | Description |
+|-------|------|-------------|
+| `/{vehicle_name}/odometry` | `nav_msgs/Odometry` | Robot state |
+| `/{vehicle_name}/cmd_pose` | `geometry_msgs/PoseStamped` | Position setpoint |
+| `/{vehicle_name}/reference/trajectory` | `stonefish_control_msgs/Trajectory` | Trajectory reference |
+
+#### Published Topics
+
+| Topic | Type | Description |
+|-------|------|-------------|
+| `/{vehicle_name}/thruster_manager/input` | `geometry_msgs/Wrench` | Control wrench output |
+
+## Development Status
+
+### Completed Components
+- ✅ ROS2 message/service system
+- ✅ TAM-based thrust allocation
+- ✅ Thruster models (proportional, custom)
+- ✅ Path generation (Linear, Cubic, LIPB)
+- ✅ LOS guidance law
+- ✅ Package structure and build system
+
+### In Progress
 - ⏳ Control interfaces (vehicle dynamics, controller base classes)
 - ⏳ PID controllers (standard, nonlinear, underactuated)
 - ⏳ Cascaded control (position → velocity → acceleration)
-- ⏳ Trajectory management
-- ⏳ Teleoperation
+- ⏳ Teleoperation interfaces
 
-자세한 진행 상황: `/workspace/migration_progress.md` 참조
+### Roadmap
+1. Complete control interface base classes
+2. Implement basic PID controllers
+3. Add cascaded control architecture
+4. Integrate trajectory manager with controllers
+5. Full-stack integration testing
 
-## 📊 시스템 아키텍처
+## Package-Specific Documentation
 
-```
-┌─────────────────────┐
-│  User Command       │
-│  (Wrench/Waypoint)  │
-└──────────┬──────────┘
-           │
-           ▼
-┌─────────────────────┐
-│  Controller         │
-│  (PID/Cascaded/SM)  │
-└──────────┬──────────┘
-           │ Wrench (6DOF)
-           ▼
-┌─────────────────────┐
-│ Thruster Allocator  │
-│  (TAM-based)        │
-└──────────┬──────────┘
-           │ Thrust Array
-           ▼
-┌─────────────────────┐
-│ Stonefish Simulator │
-│  (8 Thrusters)      │
-└─────────────────────┘
-```
+Individual packages have their own detailed READMEs:
 
-## 🔗 토픽 구조
+- **stonefish_thruster_manager**: See `stonefish_thruster_manager/README.md` (pending)
+- **stonefish_trajectory_manager**: See `stonefish_trajectory_manager/README.md` ✅
+- **stonefish_control**: See `stonefish_control/README.md` (pending)
+- **stonefish_control_utils**: See `stonefish_control_utils/README.md` (pending)
 
-### Thruster Manager
-```
-입력:
-  /bluerov2/thruster_manager/input              (geometry_msgs/Wrench)
-  /bluerov2/thruster_manager/input_stamped      (geometry_msgs/WrenchStamped)
+## Related Packages
 
-출력:
-  /bluerov2/setpoint/pwm                        (std_msgs/Float64MultiArray)
-```
+- **stonefish_ros2**: Core simulator interface
+- **stonefish_msgs**: Basic sensor/actuator messages
+- **stonefish_description**: Robot models and TAM configurations
+- **stonefish_slam**: SLAM using DVL/sonar data
 
-### 제어기 (향후)
-```
-입력:
-  /bluerov2/odom                                (nav_msgs/Odometry)
-  /bluerov2/reference/pose                      (geometry_msgs/PoseStamped)
-  /bluerov2/reference/trajectory                (stonefish_control_msgs/Trajectory)
+## References
 
-출력:
-  /bluerov2/thruster_manager/input              (geometry_msgs/Wrench)
-```
+### Documentation
 
-## 📚 참고 자료
+- **Stonefish Simulator**: https://stonefish.readthedocs.io
+- **ROS2 Humble**: https://docs.ros.org/en/humble/
+- **UUV Simulator** (original control system): https://github.com/uuvsimulator/uuv_simulator
+- **Fossen's Handbook**: "Handbook of Marine Craft Hydrodynamics and Motion Control" (2011)
 
-### 문서
-- [UUV Simulator 제어 시스템 분석](/workspace/control_system_analysis.md)
-- [Stonefish 시뮬레이터 분석](/workspace/stonefish_control_analysis.md)
-- [마이그레이션 진행 상황](/workspace/migration_progress.md)
+### Key Papers
 
-### 원본 프로젝트
-- [UUV Simulator](https://github.com/uuvsimulator/uuv_simulator)
-- [Stonefish](https://github.com/patrykcieslak/stonefish)
+- **LOS Guidance**: Fossen, T. I. (2011). "Handbook of Marine Craft Hydrodynamics and Motion Control"
+- **TAM Allocation**: Fossen, T. I., & Johansen, T. A. (2006). "A Survey of Control Allocation Methods for Ships and Underwater Vehicles"
 
-### ROS2 문서
-- [ROS2 Humble](https://docs.ros.org/en/humble/)
-- [Migration Guide](https://docs.ros.org/en/humble/The-ROS2-Project/Contributing/Migration-Guide.html)
+## License
 
-## 🤝 기여
-
-이 프로젝트는 UUV Simulator를 ROS2/Stonefish 환경으로 포팅하는 작업입니다.
-
-### 다음 단계
-1. control_interfaces 변환
-2. 기본 PID 컨트롤러 구현
-3. Cascaded control 구현
-4. 통합 테스트
-
-## 📝 라이선스
-
-Apache License 2.0
+**Apache License 2.0**
 
 Original UUV Simulator code:
 - Copyright (c) 2016-2019 The UUV Simulator Authors
 - Licensed under Apache License 2.0
 
-ROS2 포팅:
-- Copyright 2025
+ROS2 port and enhancements:
+- Copyright 2025 HERO Lab, POSTECH
 - Licensed under Apache License 2.0
 
 ---
 
-**현재 상태**: 핵심 인프라 완성 (50%), 제어 알고리즘 개발 진행 중
-
-**문의**: migration_progress.md 참조
+**Current Status**: Core infrastructure complete, control algorithms under development
