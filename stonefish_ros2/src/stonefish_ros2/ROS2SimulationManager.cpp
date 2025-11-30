@@ -691,25 +691,25 @@ void ROS2SimulationManager::SetWaveHeightService(const stonefish_msgs::srv::SetW
     }
 
     // Validate wave height range (0.0 to 10.0)
-    if(req->wave_height < 0.0 || req->wave_height > 10.0)
+    if(req->height < 0.0 || req->height > 10.0)
     {
         res->success = false;
-        res->message = "Invalid wave_height: " + std::to_string(req->wave_height) + " (valid range: 0.0 - 10.0 meters)";
+        res->message = "Invalid wave_height: " + std::to_string(req->height) + " (valid range: 0.0 - 10.0 meters)";
         RCLCPP_ERROR(nh_->get_logger(), "%s", res->message.c_str());
         return;
     }
 
     try {
         // Set wave height
-        ocean->setWaveHeight(req->wave_height);
+        ocean->setWaveHeight(req->height);
 
         res->success = true;
-        if(req->wave_height == 0.0) {
+        if(req->height == 0.0) {
             res->message = "Ocean waves disabled (flat surface)";
             RCLCPP_INFO(nh_->get_logger(), "Ocean waves disabled.");
         } else {
-            res->message = "Wave height set to " + std::to_string(req->wave_height) + " meters";
-            RCLCPP_INFO(nh_->get_logger(), "Wave height set to %.2f meters.", req->wave_height);
+            res->message = "Wave height set to " + std::to_string(req->height) + " meters";
+            RCLCPP_INFO(nh_->get_logger(), "Wave height set to %.2f meters.", req->height);
         }
 
     } catch (const std::exception& e) {
@@ -732,8 +732,8 @@ void ROS2SimulationManager::SetWindVelocityService(const stonefish_msgs::srv::Se
             return;
         }
 
-        // Create wind velocity vector (NED coordinates)
-        sf::Vector3 wind_velocity(req->north, req->east, req->down);
+        // Create wind velocity vector (NED coordinates: xyz = North, East, Down)
+        sf::Vector3 wind_velocity(req->x, req->y, req->z);
 
         // Validate wind speed magnitude
         double wind_speed = wind_velocity.length();
@@ -752,9 +752,9 @@ void ROS2SimulationManager::SetWindVelocityService(const stonefish_msgs::srv::Se
         if (wind_speed < 0.01) {
             res->message = "Wind disabled (velocity near zero)";
         } else {
-            res->message = "Wind velocity set to [N:" + std::to_string(req->north) +
-                          ", E:" + std::to_string(req->east) +
-                          ", D:" + std::to_string(req->down) + "] m/s (speed: " +
+            res->message = "Wind velocity set to [X:" + std::to_string(req->x) +
+                          ", Y:" + std::to_string(req->y) +
+                          ", Z:" + std::to_string(req->z) + "] m/s (speed: " +
                           std::to_string(wind_speed) + " m/s)";
         }
 

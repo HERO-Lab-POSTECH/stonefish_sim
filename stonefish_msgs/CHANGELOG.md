@@ -4,18 +4,20 @@
 
 ### Changed
 - `SetWaveHeight.srv` 파도 높이 범위 확대: 0.0-10.0 meters (기존: 0.0-2.0m)
+- **SetWindVelocity.srv**: 필드명 변경 `north/east/down` → `x/y/z` (시나리오 파일 규칙과 일관성)
+- **SetWaveHeight.srv**: 필드명 단순화 `wave_height` → `height`
 
 ### Added
 - `SetWindVelocity.srv` 서비스 정의
   - 목적: 실행 중 대기 바람 속도(Wind Velocity) 동적 제어
   - 필드:
-    - `request`: north, east, down (float64, m/s, NED 좌표계)
+    - `request`: x, y, z (float64, m/s, NED 좌표계)
     - `response`: success (bool), message (string)
   - 용도: 시뮬레이션 중 풍속 조건 실시간 변경
 - `SetWaveHeight.srv` 서비스 정의
   - 목적: 실행 중 해양 파도 높이(Ocean Wave Height) 동적 제어
   - 필드:
-    - `request`: wave_height (0.0 - 10.0 meters)
+    - `request`: height (0.0 - 10.0 meters)
     - `response`: 성공 여부 및 상태 메시지
   - 용도: 시뮬레이션 중 파도 조건 실시간 변경 (0.0 = flat ocean)
 

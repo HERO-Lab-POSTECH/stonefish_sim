@@ -1,10 +1,10 @@
 # SetWindVelocity.srv
 # Request to set atmospheric wind velocity at runtime
 
-# NED coordinate system (North-East-Down)
-float64 north    # Wind velocity component in North direction [m/s]
-float64 east     # Wind velocity component in East direction [m/s]
-float64 down     # Wind velocity component in Down direction [m/s] (typically 0.0)
+# NED coordinate system: xyz = [North, East, Down]
+float64 x    # Wind velocity X component (North) [m/s]
+float64 y    # Wind velocity Y component (East) [m/s]
+float64 z    # Wind velocity Z component (Down) [m/s] (typically 0.0)
 ---
 bool success           # True if wind velocity was set successfully
 string message         # Status message or error description
