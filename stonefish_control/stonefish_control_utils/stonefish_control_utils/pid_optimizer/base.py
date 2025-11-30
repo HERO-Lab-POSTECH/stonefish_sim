@@ -18,6 +18,7 @@ import os
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Tuple, Optional
+from ament_index_python.packages import get_package_share_directory
 
 from stonefish_control_msgs.srv import SetPIDParams, GetPIDParams, ResetTrajectory, ResetController
 from stonefish_control_msgs.msg import TrajectoryPoint
@@ -416,13 +417,17 @@ class BaseOptimizer(Node, ABC):
         """
         try:
             if self.controller_type == 'cascaded':
+                # Get params file path using package resolution
+                control_pkg_share = get_package_share_directory('stonefish_control')
+                params_file = os.path.join(control_pkg_share, 'config', 'bluerov2', 'cascaded_params.yaml')
+
                 # Launch cascaded_control_node
                 cmd = [
                     'bash', '-c',
                     f'source /workspace/colcon_ws/install/setup.bash && '
                     f'ros2 run stonefish_control cascaded_control_node '
                     f'--ros-args -r __ns:=/{self.vehicle_name} '
-                    f'--params-file /workspace/colcon_ws/src/stonefish_sim/stonefish_control/stonefish_control/config/bluerov2/cascaded_params.yaml '
+                    f'--params-file {params_file} '
                     f'> /dev/null 2>&1'
                 ]
                 controller_name = 'cascaded_control_node'

@@ -11,6 +11,8 @@ import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
 from pathlib import Path
+import os
+import tempfile
 
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import WrenchStamped
@@ -33,7 +35,8 @@ class PIDTuningToolNode(Node):
         super().__init__('pid_tuning_tool')
 
         # Parameters
-        self.declare_parameter('output_file', '/workspace/colcon_ws/pid_tuning_data.csv')
+        default_output = os.path.join(tempfile.gettempdir(), 'pid_tuning_data.csv')
+        self.declare_parameter('output_file', default_output)
         self.declare_parameter('log_duration', 10.0)
         self.declare_parameter('auto_plot', True)
         self.declare_parameter('auto_analyze', True)

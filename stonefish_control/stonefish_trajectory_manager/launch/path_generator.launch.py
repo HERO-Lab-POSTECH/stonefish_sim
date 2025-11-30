@@ -42,13 +42,19 @@ from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 from launch.actions import ExecuteProcess
+from ament_index_python.packages import get_package_share_directory
+import os
 
 
 def generate_launch_description():
+    # Get package share directory for portable path resolution
+    pkg_share = get_package_share_directory('stonefish_trajectory_manager')
+    default_waypoint_file = os.path.join(pkg_share, 'config', 'examples', 'krit_lawnmower.yaml')
+
     # Declare launch arguments
     waypoint_file_arg = DeclareLaunchArgument(
         'waypoint_file',
-        default_value='/workspace/colcon_ws/src/stonefish_sim/stonefish_control/stonefish_trajectory_manager/config/examples/krit_lawnmower.yaml',
+        default_value=default_waypoint_file,
         description='Path to YAML waypoint file (required)'
     )
 
