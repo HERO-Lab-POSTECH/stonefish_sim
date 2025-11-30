@@ -4,7 +4,7 @@
 	<include file="data/worlds/sea.scn"/>
 
 	<!-- Include OptiBlueboat robot -->
-	<include file="data/robots/opti_blueboat/opti_blueboat.scn">
+	<include file="data/robots/blueboat/blueboat.scn">
 		<arg name="vehicle_name" value="blueboat"/>
 		<arg name="xyz" value="0.0 0.0 0.0"/>
 		<arg name="rpy" value="0.0 0.0 0.0"/>

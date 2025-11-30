@@ -219,11 +219,11 @@
 			<specs beam_angle="30.0"/>
 			<range velocity="9.0 9.0 9.0" altitude_min="0.2" altitude_max="100.0"/>
 			<noise velocity="0.0015" altitude="0.001"/>
-			<ros_publisher topic="/$(arg vehicle_name)/dvl_sim"
+			<ros_publisher topic="/$(arg vehicle_name)/dvl"
 						   altitude_topic="/$(arg vehicle_name)/altitude"/>
 		</sensor>
 
-		<!-- <sensor name="camera_front" type="camera" rate="5.0">
+		<!-- <sensor name="camera_front" type="camera" rate="20.0">
 			<link name="base_link"/>
 			<origin rpy="1.2 0.0 1.571" xyz="0.3 0.0 0.0"/>
 			<specs resolution_x="800" resolution_y="600" horizontal_fov="55.0"/>
@@ -256,9 +256,9 @@
 			<origin xyz="0.16 0.0725 0.15" rpy="1.571 0.0 1.571"/>
 			<link name="base_link"/>
 			<ros_publisher topic="/$(arg vehicle_name)/right"/>
-		</sensor>
+		</sensor> -->
 
-		<sensor name="multibeam" rate="10.0" type="multibeam">
+		<!-- <sensor name="multibeam" rate="10.0" type="multibeam">
 			<specs fov="90.0" steps="128"/>
 			<range distance_min="0.25" distance_max="50.0"/>
 			<noise distance="0.1"/>
@@ -266,14 +266,14 @@
 			<origin xyz="0.2 0.0 0.2" rpy="0.0 -0.0 0.0"/>
 			<link name="base_link"/>
 			<ros_publisher topic="/$(arg vehicle_name)/multibeam"/>
-		</sensor>-->
+		</sensor> -->
 
 		<sensor name="fls" type="fls">
 			<specs beams="512" bins="500" horizontal_fov="130.0" vertical_fov="20.0"/>
-			<settings range_min="0.5" range_max="20.0" gain="1.1"/>
+			<settings range_min="0.5" range_max="15.0" gain="1.1"/>
 			<noise multiplicative="0.01" additive="0.02"/>
 			<display colormap="hot"/>
-			<origin xyz="0.0 0.0 0.0" rpy="1.39626 0.0 1.571"/>
+			<origin xyz="0.0 0.0 0.0" rpy="0.785398 0.0 1.571"/> <!--tilt angle: 90 - roll-->
 			<link name="base_link"/>
 			<ros_publisher topic="/$(arg vehicle_name)/fls"/>
 		</sensor>
