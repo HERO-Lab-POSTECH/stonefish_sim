@@ -422,7 +422,7 @@ class BaseOptimizer(Node, ABC):
                     f'source /workspace/colcon_ws/install/setup.bash && '
                     f'ros2 run stonefish_control cascaded_control_node '
                     f'--ros-args -r __ns:=/{self.vehicle_name} '
-                    f'--params-file /workspace/colcon_ws/src/stonefish_control/stonefish_control/config/bluerov2/cascaded_params.yaml '
+                    f'--params-file /workspace/colcon_ws/src/stonefish_sim/stonefish_control/stonefish_control/config/bluerov2/cascaded_params.yaml '
                     f'> /dev/null 2>&1'
                 ]
                 controller_name = 'cascaded_control_node'

@@ -48,7 +48,7 @@ def generate_launch_description():
     # Declare launch arguments
     waypoint_file_arg = DeclareLaunchArgument(
         'waypoint_file',
-        default_value='/workspace/colcon_ws/src/stonefish_control/stonefish_trajectory_manager/config/examples/krit_lawnmower.yaml',
+        default_value='/workspace/colcon_ws/src/stonefish_sim/stonefish_control/stonefish_trajectory_manager/config/examples/krit_lawnmower.yaml',
         description='Path to YAML waypoint file (required)'
     )
 
