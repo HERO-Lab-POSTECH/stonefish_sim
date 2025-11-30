@@ -688,11 +688,11 @@ void ROS2SimulationManager::SetWaveHeightService(const stonefish_msgs::srv::SetW
         return;
     }
 
-    // Validate wave height range (0.0 to 2.0 per Stonefish convention)
-    if(req->wave_height < 0.0 || req->wave_height > 2.0)
+    // Validate wave height range (0.0 to 10.0)
+    if(req->wave_height < 0.0 || req->wave_height > 10.0)
     {
         res->success = false;
-        res->message = "Invalid wave_height: " + std::to_string(req->wave_height) + " (valid range: 0.0 - 2.0 meters)";
+        res->message = "Invalid wave_height: " + std::to_string(req->wave_height) + " (valid range: 0.0 - 10.0 meters)";
         RCLCPP_ERROR(nh_->get_logger(), "%s", res->message.c_str());
         return;
     }
