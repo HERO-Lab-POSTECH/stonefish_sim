@@ -9,6 +9,16 @@
   - `SetWaveHeight`: `req->wave_height` → `req->height`
 
 ### Added
+- **Odometry TF 발행 기능** (2025-11-30)
+  - Odometry 메시지 발행 시 TF transform도 함께 발행
+  - Transform frame: `{robot_name}_odom` → `{robot_name}/base_link`
+  - SLAM TF tree 연결 문제 해결
+  - Timestamp 동기화 보장
+  - 수정 파일:
+    - `include/stonefish_ros2/ROS2Interface.h`: tf_broadcaster_ 멤버 추가
+    - `src/stonefish_ros2/ROS2Interface.cpp`: PublishOdometry()에서 TF 발행
+    - `src/stonefish_ros2/ROS2SimulationManager.cpp`: PublishOdometry()에 tf_broadcaster 전달
+
 - `set_wind_velocity` ROS2 서비스 구현 (ROS2SimulationManager)
   - 서비스명: `/stonefish_ros2/stonefish_simulator/set_wind_velocity`
   - 서비스 타입: `stonefish_msgs/srv/SetWindVelocity`
