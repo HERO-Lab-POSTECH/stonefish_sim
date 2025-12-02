@@ -268,12 +268,12 @@
 			<ros_publisher topic="/$(arg vehicle_name)/multibeam"/>
 		</sensor> -->
 
-		<sensor name="fls" type="fls">
+		<sensor name="fls" type="fls" rate="100.0">
 			<specs beams="512" bins="500" horizontal_fov="130.0" vertical_fov="20.0"/>
-			<settings range_min="0.5" range_max="15.0" gain="1.1"/>
+			<settings range_min="0.5" range_max="30.0" gain="1.1"/>
 			<noise multiplicative="0.01" additive="0.02"/>
 			<display colormap="hot"/>
-			<origin xyz="0.0 0.0 0.0" rpy="0.785398 0.0 1.571"/> <!--tilt angle: 90 - roll-->
+			<origin xyz="0.0 0.0 0.0" rpy="1.39626 0.0 1.571"/> <!--tilt angle: 90 - roll-->
 			<link name="base_link"/>
 			<ros_publisher topic="/$(arg vehicle_name)/fls"/>
 		</sensor>
