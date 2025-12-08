@@ -208,10 +208,6 @@ class PathFollowing4DOFNode(Node):
         Args:
             msg: nav_msgs/Path message
         """
-        if self._path_received:
-            # Already received, ignore republishes to avoid resetting trajectory
-            return
-
         if len(msg.poses) == 0:
             self.get_logger().warn('Received empty path')
             return
@@ -225,12 +221,18 @@ class PathFollowing4DOFNode(Node):
         # Set path in guidance
         self.guidance.set_path(path_poses)
 
-        self.get_logger().info(
-            f'[ILOS 4DOF] Path received - {len(path_poses)} points '
-            f'({self.guidance._total_path_length:.1f}m total)'
-        )
-
-        self._path_received = True
+        # Log path reception with update indicator
+        if self._path_received:
+            self.get_logger().info(
+                f'[ILOS 4DOF] Path updated - {len(path_poses)} points '
+                f'({self.guidance._total_path_length:.1f}m total)'
+            )
+        else:
+            self.get_logger().info(
+                f'[ILOS 4DOF] Path received - {len(path_poses)} points '
+                f'({self.guidance._total_path_length:.1f}m total)'
+            )
+            self._path_received = True
 
         # Start trajectory recording
         self._recording_active = True
