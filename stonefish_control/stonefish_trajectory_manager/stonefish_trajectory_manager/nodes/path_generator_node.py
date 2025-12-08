@@ -128,9 +128,8 @@ class PathGeneratorNode(Node):
         Args:
             msg: nav_msgs/Odometry message
         """
-        # Removed early return to allow path regeneration on reset
-        # if self._path_generated:
-        #     return  # Already generated, ignore further odometry
+        if self._path_generated:
+            return  # Already generated, ignore further odometry
 
         # Extract robot position directly from odometry
         robot_pos = np.array([
@@ -265,7 +264,7 @@ class PathGeneratorNode(Node):
 
     def publish_callback(self):
         """Publish path and visualization markers."""
-        if self._trajectory_points is None:
+        if not self._path_generated or self._trajectory_points is None:
             return  # Path not generated yet, skip publishing
 
         # Publish waypoint markers for RViz
