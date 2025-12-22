@@ -8,7 +8,7 @@
 	<static name="infrastructure" type="model">
 		<!-- Simplified collision box mesh (prevents crash from 145MB model) -->
 		<physical>
-			<mesh filename="data/models/infrastructure/meshes/model.obj" scale="1.0"/>
+			<mesh filename="data/models/infrastructure/meshes/model.obj" scale="1.5"/>
 			<origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
 		</physical>
 		<material name="Rock"/>

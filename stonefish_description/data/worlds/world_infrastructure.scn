@@ -6,7 +6,7 @@
 	<include file="data/worlds/common/visual.scn"/>
 
 	<include file="data/models/infrastructure/infrastructure.scn">
-		<arg name="xyz" value="0.0 0.0 9.0"/>
+		<arg name="xyz" value="0.0 0.0 10.0"/>
 		<arg name="rpy" value="0.0 0.0 0.0"/>
 	</include>
 </scenario>

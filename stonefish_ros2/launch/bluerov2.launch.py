@@ -16,8 +16,8 @@
 
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
-from launch.conditions import IfCondition
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, PythonExpression
+from launch.conditions import IfCondition, UnlessCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
@@ -57,8 +57,8 @@ def generate_launch_description():
     vehicle_name = LaunchConfiguration('vehicle_name')
     scenario = LaunchConfiguration('scenario')
 
-    # 1. Stonefish Simulator
-    simulator = IncludeLaunchDescription(
+    # 1. Stonefish Simulator (GPU)
+    simulator_gpu = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([
             FindPackageShare('stonefish_ros2'),
             '/launch/simulator_gpu.launch.py'
@@ -76,7 +76,8 @@ def generate_launch_description():
             'window_res_x': '960',
             'window_res_y': '1080',
             'rendering_quality': 'high',
-        }.items()
+        }.items(),
+
     )
 
     # 2. Thruster Manager (conditional)
@@ -131,7 +132,7 @@ def generate_launch_description():
         scenario_arg,
         start_thruster_arg,
         simulation_rate_arg,
-        simulator,
+        simulator_gpu,
         thruster_manager,
         base_link_frd_publisher,
     ])
