@@ -69,33 +69,79 @@ class ILOSGuidance:
         ∫e_y dt: Integral of cross-track error
     """
 
-    def __init__(self, lookahead_distance=3.0, integral_gain=0.05,
-                 integral_limit=5.0, cruise_speed=0.5,
-                 min_speed=0.2, curvature_gain=2.0, lateral_gain=0.5,
-                 depth_gain=0.8, heading_align_threshold=np.deg2rad(10.0),
-                 lateral_kd=0.3, depth_kd=0.5,
-                 max_lateral_velocity=0.5, max_heave_velocity=0.4):
+    def __init__(self, lookahead_distance=5.0, cruise_speed=1.0,
+                 curvature_gain=6.0, lateral_gain=0.6,
+                 # === Auto-calculated if None ===
+                 lateral_kd=None, lateral_ki=None,
+                 depth_gain=None, depth_kd=None, depth_ki=None,
+                 min_speed=None, min_lookahead=None,
+                 # === Fixed defaults (rarely changed) ===
+                 integral_gain=0.0, integral_limit=5.0,
+                 heading_align_threshold=np.deg2rad(10.0),
+                 derivative_filter_tau=0.1,
+                 max_lateral_velocity=None, max_heave_velocity=None,
+                 adaptive_lookahead=True,
+                 curvature_preview_enabled=True, curvature_preview_samples=8,
+                 curvature_ff_gain=None):
         """Initialize ILOS guidance.
 
-        Args:
-            lookahead_distance: Lookahead distance Δ (m)
-            integral_gain: ILOS integral gain κ_ILOS
-            integral_limit: Anti-windup limit for integral
-            cruise_speed: Cruise speed on straight segments (m/s)
-            min_speed: Minimum speed in curves (m/s)
-            curvature_gain: Curvature-based speed reduction gain
-            lateral_gain: Lateral correction gain for cross-track error
-            depth_gain: Depth error correction gain (for heave velocity)
-            heading_align_threshold: Heading error threshold for ALIGN→FOLLOW transition (rad)
-            lateral_kd: Lateral velocity derivative gain (damping)
-            depth_kd: Depth velocity derivative gain (damping)
-            max_lateral_velocity: Maximum sway velocity limit (m/s)
-            max_heave_velocity: Maximum heave velocity limit (m/s)
+        Primary Parameters (tune these):
+            lookahead_distance: How far ahead to look (m). Rule: 3-5 × cruise_speed
+            cruise_speed: Target speed on straights (m/s). 1 knot ≈ 0.5 m/s
+            curvature_gain: Curve slowdown strength. Higher = slower in curves
+            lateral_gain: Cross-track correction strength (P-gain)
+
+        Auto-calculated (override if needed):
+            lateral_kd: D-gain = 0.8 × lateral_gain
+            lateral_ki: I-gain = 0.2 × lateral_gain
+            depth_gain: Depth P-gain = 1.3 × lateral_gain
+            depth_kd: Depth D-gain = 0.6 × depth_gain
+            depth_ki: Depth I-gain = 0.12 × depth_gain
+            min_speed: Min curve speed = 0.2 × cruise_speed
+            min_lookahead: Min lookahead = 0.4 × lookahead_distance
         """
+        # === Auto-calculate derived parameters ===
+        if lateral_kd is None:
+            lateral_kd = 0.8 * lateral_gain
+        if lateral_ki is None:
+            lateral_ki = 0.2 * lateral_gain
+        if depth_gain is None:
+            depth_gain = 1.3 * lateral_gain
+        if depth_kd is None:
+            depth_kd = 0.6 * depth_gain
+        if depth_ki is None:
+            depth_ki = 0.12 * depth_gain
+        if min_speed is None:
+            min_speed = 0.2 * cruise_speed
+        if min_lookahead is None:
+            min_lookahead = 0.7 * lookahead_distance  # Min 70% of base (don't shrink too much)
+        if max_lateral_velocity is None:
+            max_lateral_velocity = 0.3 * cruise_speed  # 30% of cruise speed
+        if max_heave_velocity is None:
+            max_heave_velocity = 0.25 * cruise_speed   # 25% of cruise speed
+        if curvature_ff_gain is None:
+            # Curvature feedforward: anticipate heading change based on upcoming curvature
+            # Keep small to not interfere with CTE correction
+            # Typical curvature 0.1-0.3 → FF should be ~5-15 degrees max
+            curvature_ff_gain = 0.8  # Fixed, not scaled with lookahead
+
         # ILOS parameters
-        self._lookahead_distance = lookahead_distance
+        self._lookahead_distance_base = lookahead_distance  # Base lookahead
+        self._lookahead_distance = lookahead_distance       # Effective (may be adaptive)
         self._integral_gain = integral_gain
         self._integral_limit = integral_limit
+
+        # Adaptive lookahead parameters (for curve overshooting fix)
+        self._adaptive_lookahead = adaptive_lookahead
+        self._min_lookahead = min_lookahead
+        self._lookahead_filter_tau = 1.0  # Lookahead smoothing (s)
+        self._lookahead_filtered = lookahead_distance  # Filtered lookahead
+        self._curvature_for_lookahead_filtered = 0.0  # Filtered curvature for adaptive lookahead
+
+        # Curvature preview parameters (for early curve detection)
+        self._curvature_preview_enabled = curvature_preview_enabled
+        self._curvature_preview_samples = curvature_preview_samples
+        self._curvature_ff_gain = curvature_ff_gain  # Heading feedforward from curvature
 
         # Velocity profiling parameters
         self._cruise_speed = cruise_speed
@@ -104,15 +150,32 @@ class ILOSGuidance:
         self._lateral_gain = lateral_gain
         self._depth_gain = depth_gain
 
-        # PD control parameters
+        # PID control parameters
         self._lateral_kd = lateral_kd
         self._depth_kd = depth_kd
+        self._lateral_ki = lateral_ki       # Phase 1.2: Lateral I term
+        self._depth_ki = depth_ki           # Phase 1.1: Depth I term
         self._max_lateral_velocity = max_lateral_velocity
         self._max_heave_velocity = max_heave_velocity
 
         # Previous errors for derivative calculation
         self._prev_ey = 0.0
         self._prev_ez = 0.0
+
+        # Phase 1: Integral states for lateral/depth PID
+        self._integral_ey_lateral = 0.0  # Lateral I term (separate from ILOS integral)
+        self._integral_ez = 0.0          # Depth I term
+
+        # Phase 1.3: Low-pass filter for derivative noise reduction
+        self._filter_tau = derivative_filter_tau  # Time constant (s)
+        self._de_y_filtered = 0.0  # Filtered lateral derivative
+        self._de_z_filtered = 0.0  # Filtered depth derivative
+
+        # Curvature filtering (prevent heading/lookahead oscillation)
+        # Use asymmetric filter: fast response when curvature decreases
+        self._curvature_filter_tau_up = 0.3    # Slow filter when curvature increases
+        self._curvature_filter_tau_down = 0.05  # Fast filter when curvature decreases
+        self._signed_curvature_filtered = 0.0  # For heading feedforward
 
         # Heading alignment parameters
         self._heading_align_threshold = heading_align_threshold
@@ -380,11 +443,12 @@ class ILOSGuidance:
         return best_s
 
 
-    def _estimate_curvature(self, s):
+    def _estimate_curvature(self, s, use_3d=True):
         """Estimate curvature at arc-length parameter s using 3-point method.
 
         Args:
             s: Arc-length parameter (m)
+            use_3d: If True, compute full 3D curvature; if False, horizontal only
 
         Returns:
             float: Curvature (1/m)
@@ -403,9 +467,15 @@ class ILOSGuidance:
         p_curr = self._interpolate_from_parameter(s_curr)
         p_next = self._interpolate_from_parameter(s_next)
 
-        # Vectors
+        # Vectors (tangent approximations)
         v1 = p_curr - p_prev
         v2 = p_next - p_curr
+
+        # Phase 3.2: Choose 2D or 3D curvature
+        if not use_3d:
+            # 2D curvature (horizontal plane only)
+            v1 = v1[:2]  # [x, y] only
+            v2 = v2[:2]
 
         # Lengths
         l1 = np.linalg.norm(v1)
@@ -424,6 +494,140 @@ class ILOSGuidance:
         curvature = 2.0 * np.sin(angle / 2.0) / L_avg if L_avg > 1e-9 else 0.0
 
         return curvature
+
+    def _estimate_signed_curvature(self, s):
+        """Estimate signed curvature at arc-length parameter s.
+
+        Returns signed curvature where:
+            Positive = left turn (counterclockwise in NED top-down view)
+            Negative = right turn (clockwise in NED top-down view)
+
+        Args:
+            s: Arc-length parameter (m)
+
+        Returns:
+            float: Signed curvature (1/m)
+        """
+        if self._path_poses is None or len(self._path_poses) < 3:
+            return 0.0
+
+        ds = 0.1
+        s_prev = max(0.0, s - ds)
+        s_curr = s
+        s_next = min(self._total_path_length, s + ds)
+
+        p_prev = self._interpolate_from_parameter(s_prev)
+        p_curr = self._interpolate_from_parameter(s_curr)
+        p_next = self._interpolate_from_parameter(s_next)
+
+        v1 = p_curr - p_prev
+        v2 = p_next - p_curr
+
+        l1 = np.linalg.norm(v1[:2])
+        l2 = np.linalg.norm(v2[:2])
+
+        if l1 < 1e-9 or l2 < 1e-9:
+            return 0.0
+
+        # Cross product z-component determines turn direction
+        # In NED: positive z is down, so cross product sign is flipped
+        cross_z = v1[0] * v2[1] - v1[1] * v2[0]  # x1*y2 - y1*x2
+        sign = 1.0 if cross_z > 0 else -1.0
+
+        # Curvature magnitude
+        cos_angle = np.dot(v1[:2], v2[:2]) / (l1 * l2)
+        cos_angle = np.clip(cos_angle, -1.0, 1.0)
+        angle = np.arccos(cos_angle)
+
+        L_avg = (l1 + l2) / 2.0
+        curvature = 2.0 * np.sin(angle / 2.0) / L_avg if L_avg > 1e-9 else 0.0
+
+        return sign * curvature
+
+    def _estimate_curvature_3d_frenet(self, s):
+        """Estimate 3D curvature using Frenet-Serret formula (Phase 3.2).
+
+        Uses cross product method for accurate 3D curvature:
+            κ = |T' × T''| / |T'|³
+
+        This is more accurate than angle-based method for complex 3D paths.
+
+        Args:
+            s: Arc-length parameter (m)
+
+        Returns:
+            float: 3D curvature (1/m)
+        """
+        if self._path_poses is None or len(self._path_poses) < 3:
+            return 0.0
+
+        # Sample 4 points for second derivative estimation
+        ds = 0.1  # 10cm spacing
+        s_m1 = max(0.0, s - ds)
+        s_0 = s
+        s_p1 = min(self._total_path_length, s + ds)
+        s_p2 = min(self._total_path_length, s + 2 * ds)
+
+        p_m1 = self._interpolate_from_parameter(s_m1)
+        p_0 = self._interpolate_from_parameter(s_0)
+        p_p1 = self._interpolate_from_parameter(s_p1)
+        p_p2 = self._interpolate_from_parameter(s_p2)
+
+        # First derivatives (tangent vectors)
+        T1 = (p_0 - p_m1) / ds if s > ds else (p_p1 - p_0) / ds
+        T2 = (p_p1 - p_0) / ds
+        T3 = (p_p2 - p_p1) / ds if s_p2 > s_p1 else T2
+
+        # Second derivatives (curvature vectors)
+        T_prime = (T2 - T1) / ds
+        T_double_prime = (T3 - T2) / ds
+
+        # Cross product magnitude
+        cross = np.cross(T_prime, T_double_prime)
+        cross_norm = np.linalg.norm(cross)
+
+        # Curvature κ = |T' × T''| / |T'|³
+        T_prime_norm = np.linalg.norm(T_prime)
+        if T_prime_norm < 1e-9:
+            return 0.0
+
+        curvature = cross_norm / (T_prime_norm ** 3 + 1e-9)
+
+        return curvature
+
+    def _estimate_max_curvature_preview(self, s_start, s_end):
+        """Estimate maximum curvature between s_start and s_end (curvature preview).
+
+        Samples curvature at multiple points to detect curves early.
+        This allows the vehicle to slow down BEFORE entering a curve.
+
+        Args:
+            s_start: Start arc-length (current position)
+            s_end: End arc-length (lookahead position)
+
+        Returns:
+            float: Maximum curvature in the preview window (1/m)
+        """
+        if not self._curvature_preview_enabled:
+            return self._estimate_curvature(s_end)
+
+        if self._path_poses is None or len(self._path_poses) < 3:
+            return 0.0
+
+        # Sample curvature at multiple points
+        max_curvature = 0.0
+        n_samples = max(2, self._curvature_preview_samples)
+
+        for i in range(n_samples):
+            # Sample from current position to lookahead
+            alpha = i / (n_samples - 1)
+            s_sample = s_start + alpha * (s_end - s_start)
+            s_sample = np.clip(s_sample, 0.0, self._total_path_length)
+
+            curvature = self._estimate_curvature(s_sample)
+            max_curvature = max(max_curvature, curvature)
+
+        return max_curvature
 
     def compute_guidance(self, dt):
         """Compute ILOS guidance command (hybrid velocity + position architecture).
@@ -445,6 +649,46 @@ class ILOSGuidance:
         """
         if self._path_poses is None or len(self._path_poses) == 0:
             return self._desired_pos, self._desired_yaw, self._desired_velocity
+
+        # 0. Adaptive Lookahead (curvature-based, double-filtered for smoothness)
+        # High curvature = shorter lookahead for tighter control
+        # Low curvature = longer lookahead for stability
+        if self._adaptive_lookahead:
+            # Use max curvature over a window ahead
+            preview_dist = self._lookahead_distance_base
+            s_preview_end = min(self._path_parameter_s + preview_dist, self._total_path_length)
+            curvature_raw = self._estimate_max_curvature_preview(
+                self._path_parameter_s, s_preview_end
+            )
+
+            # Step 1: Filter the curvature itself (prevents sudden jumps)
+            # Use asymmetric filter: fast increase (react to curves), slow decrease (smooth exit)
+            tau_up = 0.3    # Fast reaction to upcoming curves
+            tau_down = 1.5  # Slow return after curves (prevents oscillation)
+            if curvature_raw > self._curvature_for_lookahead_filtered:
+                alpha_curv = dt / (tau_up + dt)
+            else:
+                alpha_curv = dt / (tau_down + dt)
+            self._curvature_for_lookahead_filtered = (
+                alpha_curv * curvature_raw +
+                (1 - alpha_curv) * self._curvature_for_lookahead_filtered
+            )
+
+            # Step 2: Compute lookahead from filtered curvature
+            curvature_factor = 1.0 / (1.0 + 3.0 * self._curvature_for_lookahead_filtered)
+            lookahead_target = (
+                self._min_lookahead +
+                (self._lookahead_distance_base - self._min_lookahead) * curvature_factor
+            )
+
+            # Step 3: Filter the lookahead distance (additional smoothing)
+            alpha_la = dt / (self._lookahead_filter_tau + dt)
+            self._lookahead_filtered = (
+                alpha_la * lookahead_target + (1 - alpha_la) * self._lookahead_filtered
+            )
+            self._lookahead_distance = self._lookahead_filtered
+        else:
+            self._lookahead_distance = self._lookahead_distance_base
 
         # 1. Compute lookahead arc-length parameter
         s_lookahead = self._path_parameter_s + self._lookahead_distance
@@ -483,9 +727,13 @@ class ILOSGuidance:
         self._cross_track_error = e_y
         self._max_cte = max(self._max_cte, abs(e_y))
 
-        # 5. Update integral with anti-windup (FOLLOW mode only)
+        # 5. Update integral with anti-windup and leaky integration (FOLLOW mode only)
+        # Leaky integrator: prevents accumulation from transient errors (curves)
+        # while still responding to constant disturbances (currents)
+        # Formula: integral = decay * integral + e_y * dt
         if self._mode == PathFollowingMode.FOLLOW:
-            self._integral_ey += e_y * dt
+            decay = 0.995  # ~0.5% decay per step → ~1s time constant at 20Hz
+            self._integral_ey = decay * self._integral_ey + e_y * dt
             self._integral_ey = np.clip(self._integral_ey,
                                          -self._integral_limit,
                                          self._integral_limit)
@@ -497,7 +745,30 @@ class ILOSGuidance:
             tangent_start = self._get_path_tangent(0)  # Path start tangent
             chi_d = np.arctan2(tangent_start[1], tangent_start[0])
         else:
-            # FOLLOW mode: Full ILOS with CTE correction and integral action
+            # FOLLOW mode: Full ILOS with CTE correction, integral action, and curvature FF
+            # Curvature feedforward: anticipate heading change based on upcoming curvature
+            # This allows shorter lookahead while maintaining high-speed performance
+            signed_curvature_raw = self._estimate_signed_curvature(
+                min(self._path_parameter_s + self._lookahead_distance, self._total_path_length)
+            )
+            # Asymmetric low-pass filter: slow up, fast down
+            # This prevents oscillation on curve entry, but allows quick recovery on exit
+            if abs(signed_curvature_raw) > abs(self._signed_curvature_filtered):
+                # Curvature increasing → slow filter (smooth entry)
+                tau = self._curvature_filter_tau_up
+            else:
+                # Curvature decreasing → fast filter (quick exit recovery)
+                tau = self._curvature_filter_tau_down
+
+            alpha_curv = dt / (tau + dt)
+            self._signed_curvature_filtered = (
+                alpha_curv * signed_curvature_raw +
+                (1 - alpha_curv) * self._signed_curvature_filtered
+            )
+            curvature_ff = self._curvature_ff_gain * self._signed_curvature_filtered
+
+            # ILOS heading without curvature_ff (simpler, more stable)
+            # curvature_ff causes curve exit overshoot - disabled for now
             chi_d = chi_p \
                     + np.arctan(-e_y / self._lookahead_distance) \
                     - np.arctan(self._integral_gain * self._integral_ey / self._lookahead_distance)
@@ -513,8 +784,18 @@ class ILOSGuidance:
                 # Transition to FOLLOW mode
                 self._mode = PathFollowingMode.FOLLOW
 
-        # 8. Estimate curvature for velocity profiling (at lookahead)
-        self._current_curvature = self._estimate_curvature(s_lookahead)
+        # 8. Estimate curvature for velocity profiling (with extended preview)
+        # Must look far enough ahead to slow down before curves
+        preview_time = 4.0  # Look 4 seconds ahead
+        current_speed = max(np.linalg.norm(self._vehicle_velocity[:2]), self._cruise_speed)
+        speed_preview_dist = current_speed * preview_time
+        min_preview_dist = 5.0  # Always look at least 5m ahead
+        preview_dist = max(self._lookahead_distance, speed_preview_dist, min_preview_dist)
+        s_preview = min(self._path_parameter_s + preview_dist, self._total_path_length)
+
+        self._current_curvature = self._estimate_max_curvature_preview(
+            self._path_parameter_s, s_preview
+        )
 
         # 9. Compute desired speed (velocity profiler)
         curvature_speed = self._compute_speed(self._current_curvature)
@@ -551,13 +832,35 @@ class ILOSGuidance:
         # Heave: from path slope
         # Yaw rate: from curvature
 
-        # Lateral correction velocity (sway) - PD control for cross-track error
+        # Lateral correction velocity (sway) - PID control for cross-track error
         # P term: proportional to error (immediate response)
+        # I term: eliminates steady-state error from constant currents (Phase 1.2)
         # D term: damping to reduce oscillations and overshoot
-        # Formula: v_lateral = -K_p * e_y - K_d * (de_y/dt)
-        # Reference: Fossen (2011) recommends K_d = 0.5~1.0 × K_p for critical damping
-        de_y = (e_y - self._prev_ey) / dt if dt > 1e-6 else 0.0
-        v_lateral = -self._lateral_gain * e_y - self._lateral_kd * de_y
+        # Formula: v_lateral = -K_p * e_y - K_i * ∫e_y dt - K_d * (de_y/dt)
+        # Reference: Fossen (2011), Lekkas & Fossen (2014)
+
+        # Derivative with low-pass filter (Phase 1.3)
+        de_y_raw = (e_y - self._prev_ey) / dt if dt > 1e-6 else 0.0
+        alpha = dt / (self._filter_tau + dt)  # Low-pass filter coefficient
+        self._de_y_filtered = alpha * de_y_raw + (1 - alpha) * self._de_y_filtered
+
+        # Integral with anti-windup (Phase 1.2) - FOLLOW mode only
+        if self._mode == PathFollowingMode.FOLLOW:
+            self._integral_ey_lateral += e_y * dt
+            self._integral_ey_lateral = np.clip(
+                self._integral_ey_lateral,
+                -self._integral_limit,
+                self._integral_limit
+            )
+
+        # PID control (positive e_y = right of path → need negative v to go left)
+        # FRD body frame: +Y is starboard (right), -Y is port (left)
+        # Sign convention: e_y > 0 (right of path) → v_lateral < 0 (go left in body frame)
+        v_lateral = (
+            -self._lateral_gain * e_y
+            - self._lateral_ki * self._integral_ey_lateral
+            - self._lateral_kd * self._de_y_filtered
+        )
 
         # Apply velocity saturation
         v_lateral = np.clip(v_lateral, -self._max_lateral_velocity, self._max_lateral_velocity)
@@ -581,13 +884,33 @@ class ILOSGuidance:
             # Pure vertical path
             w_path = self._cruise_speed * np.sign(tangent[2]) if abs(tangent[2]) > 1e-6 else 0.0
 
-        # Depth error correction (feedback) - PD control
+        # Depth error correction (feedback) - PID control (Phase 1.1)
         # e_z = desired_z - actual_z (NED: positive = need to go down)
         # In NED, Z is down, so positive error means we need to descend
-        # PD control provides better depth tracking with reduced oscillations
+        # PID control: I term eliminates steady-state error from vertical currents
+        # Reference: Fossen (2011), Lekkas & Fossen (2014)
         e_z = p_lookahead[2] - self._vehicle_pos[2]
-        de_z = (e_z - self._prev_ez) / dt if dt > 1e-6 else 0.0
-        w_correction = self._depth_gain * e_z + self._depth_kd * de_z
+
+        # Derivative with low-pass filter (Phase 1.3)
+        de_z_raw = (e_z - self._prev_ez) / dt if dt > 1e-6 else 0.0
+        alpha_z = dt / (self._filter_tau + dt)  # Same filter time constant
+        self._de_z_filtered = alpha_z * de_z_raw + (1 - alpha_z) * self._de_z_filtered
+
+        # Integral with anti-windup (Phase 1.1) - FOLLOW mode only
+        if self._mode == PathFollowingMode.FOLLOW:
+            self._integral_ez += e_z * dt
+            self._integral_ez = np.clip(
+                self._integral_ez,
+                -self._integral_limit,
+                self._integral_limit
+            )
+
+        # PID control
+        w_correction = (
+            self._depth_gain * e_z
+            + self._depth_ki * self._integral_ez
+            + self._depth_kd * self._de_z_filtered
+        )
 
         # Update previous error
         self._prev_ez = e_z
@@ -726,7 +1049,7 @@ class ILOSGuidance:
     def reset(self):
         """Reset guidance state."""
         self._path_parameter_s = 0.0  # Arc-length parameter
-        self._integral_ey = 0.0
+        self._integral_ey = 0.0       # ILOS heading integral
         self._path_finished = False
         self._max_cte = 0.0
         self._desired_pos = np.zeros(3)
@@ -735,3 +1058,11 @@ class ILOSGuidance:
         self._mode = PathFollowingMode.ALIGN
         self._prev_ey = 0.0
         self._prev_ez = 0.0
+        # Phase 1: Reset lateral/depth PID integrals and filters
+        self._integral_ey_lateral = 0.0
+        self._integral_ez = 0.0
+        self._de_y_filtered = 0.0
+        self._de_z_filtered = 0.0
+        # Adaptive lookahead filters
+        self._lookahead_filtered = self._lookahead_distance_base
+        self._curvature_for_lookahead_filtered = 0.0

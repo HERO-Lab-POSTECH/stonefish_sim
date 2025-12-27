@@ -39,7 +39,7 @@ from transforms3d.euler import euler2quat, quat2euler
 from tf2_ros import Buffer, TransformListener
 from rclpy.duration import Duration
 
-from ..path_following import ILOSGuidance
+from ..path_following import ILOSGuidance, ALOSGuidance
 
 
 class PathFollowing4DOFNode(Node):
@@ -75,6 +75,12 @@ class PathFollowing4DOFNode(Node):
         # Initial heading alignment
         self.declare_parameter('heading_align_threshold', 10.0)  # degrees
 
+        # ALOS option
+        self.declare_parameter('use_alos', False)  # Use ALOS instead of ILOS
+
+        # Adaptive lookahead option
+        self.declare_parameter('adaptive_lookahead', True)  # Adaptive lookahead based on curvature
+
         # Get parameters
         self.vehicle_name = self.get_parameter('vehicle_name').value
         update_rate = self.get_parameter('update_rate').value
@@ -93,6 +99,8 @@ class PathFollowing4DOFNode(Node):
         curvature_gain = self.get_parameter('curvature_gain').value
         heading_align_threshold_deg = self.get_parameter('heading_align_threshold').value
         heading_align_threshold = np.deg2rad(heading_align_threshold_deg)
+        use_alos = self.get_parameter('use_alos').value
+        adaptive_lookahead = self.get_parameter('adaptive_lookahead').value
 
         # State
         self._path_received = False
@@ -110,22 +118,27 @@ class PathFollowing4DOFNode(Node):
         self._tf_buffer = Buffer()
         self._tf_listener = TransformListener(self._tf_buffer, self)
 
-        # Initialize ILOS guidance
-        self.guidance = ILOSGuidance(
+        # Initialize guidance (ILOS or ALOS)
+        guidance_params = dict(
             lookahead_distance=lookahead_distance,
-            integral_gain=integral_gain,
-            integral_limit=integral_limit,
             cruise_speed=cruise_speed,
-            min_speed=min_speed,
             curvature_gain=curvature_gain,
             lateral_gain=lateral_gain,
-            depth_gain=depth_gain,
-            heading_align_threshold=heading_align_threshold,
-            lateral_kd=lateral_kd,
-            depth_kd=depth_kd,
+            min_speed=min_speed,
             max_lateral_velocity=max_lateral_velocity,
-            max_heave_velocity=max_heave_velocity
+            max_heave_velocity=max_heave_velocity,
+            adaptive_lookahead=adaptive_lookahead,
+            # Let auto-calculation handle the rest (or override if specified)
+            heading_align_threshold=heading_align_threshold,
         )
+
+        if use_alos:
+            self.guidance = ALOSGuidance(**guidance_params)
+            self.get_logger().info('Using ALOS guidance (adaptive sideslip)')
+        else:
+            guidance_params['integral_gain'] = integral_gain
+            self.guidance = ILOSGuidance(**guidance_params)
+            self.get_logger().info('Using ILOS guidance (integral correction)')
 
         # Subscriber: path from path_generator_node
         self.path_sub = self.create_subscription(
