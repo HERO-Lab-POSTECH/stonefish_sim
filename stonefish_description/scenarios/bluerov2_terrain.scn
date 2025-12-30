@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<scenario>
+	<!-- Include seabed world (base environment) -->
+	<include file="data/worlds/world_terrain.scn"/>
+	<include file="data/worlds/common/environment.scn"/>
+	<include file="data/worlds/common/materials.scn"/>
+	<include file="data/worlds/common/visual.scn"/>
+	
+	<!-- Include BlueROV2 robot -->
+	<include file="data/robots/bluerov2/bluerov2.scn">
+		<arg name="vehicle_name" value="bluerov2"/>
+		<arg name="xyz" value="0.0 0.0 0.0"/>
+		<arg name="rpy" value="0.0 0.0 0.0"/>
+	</include>
+</scenario>

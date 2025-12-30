@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<scenario>
+	<include file="data/worlds/common/environment.scn"/>
+	<include file="data/worlds/common/materials.scn"/>
+	<include file="data/worlds/common/visual.scn"/>
+
+	<static name="Bottom" type="terrain">
+		<height_map filename="data/models/terrain/source/TerrainMapUpscaled_16bit.png"/>
+		<dimensions scalex="1.0" scaley="1.0" height="50.0"/>
+		<material name="Rock"/>
+		<look name="seabed"/>
+		<world_transform rpy="$(arg rpy)" xyz="$(arg xyz)"/>
+	</static>
+</scenario>
