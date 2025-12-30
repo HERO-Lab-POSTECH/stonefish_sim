@@ -1,0 +1,62 @@
+# Unified 6DOF Controller Configuration
+# BlueROV2 - 4DOF Control (Surge, Sway, Heave, Yaw)
+#
+# Architecture: Cascaded Control
+#   Outer Loop: Position → Velocity (P-control)
+#   Inner Loop: Velocity → Force/Torque (PI-control)
+#
+# Reference: Fossen (2011) "Handbook of Marine Craft Hydrodynamics"
+
+unified_controller:
+  ros__parameters:
+    # General settings
+    vehicle_name: 'bluerov2'
+    control_rate: 50.0  # Hz
+    initial_mode: 'velocity'  # 'position', 'velocity', 'hybrid'
+
+    # Outer loop: Position → Velocity command
+    # P-control only (no D-term - implicit in cascaded structure)
+    outer_loop:
+      # Proportional gains [surge, sway, heave, yaw]
+      # Units: [1/s, 1/s, 1/s, 1/s]
+      # Reduced yaw gain to prevent oscillation
+      Kp: [0.6, 0.6, 0.8, 2.0]
+
+      # Maximum velocity command [surge, sway, heave, yaw_rate]
+      # Units: [m/s, m/s, m/s, rad/s]
+      # Increased yaw_rate limit for faster heading tracking
+      max_velocity: [0.6, 0.6, 0.4, 1.5]
+
+    # Inner loop: Velocity → Force/Torque
+    # PI-control with back-calculation anti-windup
+    # Reference: Inner loop bandwidth should be 10x outer loop
+    inner_loop:
+      # Proportional gains [surge, sway, heave, yaw]
+      # Units: [N/(m/s), N/(m/s), N/(m/s), Nm/(rad/s)]
+      # Yaw Kp increased 2x for faster heading response
+      Kp: [200.0, 200.0, 250.0, 300.0]
+
+      # Integral gains [surge, sway, heave, yaw]
+      # Units: [N/(m), N/(m), N/(m), Nm/(rad)]
+      # Yaw Ki increased for faster steady-state convergence
+      Ki: [50.0, 50.0, 60.0, 40.0]
+
+      # Anti-windup back-calculation gains [surge, sway, heave, yaw]
+      # Reference: Åström & Hägglund (1995)
+      # Increased yaw Kb to prevent integral windup during fast maneuvers
+      Kb: [0.8, 0.8, 0.8, 1.0]
+
+      # Saturation limits
+      max_force: 200.0   # N (per axis)
+      max_torque: 80.0   # Nm (yaw axis) - increased for faster yaw response
+
+    # Vehicle parameters (for feedforward)
+    mass: 20.0           # kg (includes added mass)
+    inertial:
+      izz: 0.13          # kg·m² (yaw moment of inertia)
+
+    # Feedforward control
+    # Uses trajectory acceleration for model-based feedforward
+    feedforward:
+      enabled: true
+      gain: 0.8  # Scaling factor (0.0 = disabled, 1.0 = full model)
