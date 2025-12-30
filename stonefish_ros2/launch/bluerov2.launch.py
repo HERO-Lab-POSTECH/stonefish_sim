@@ -37,7 +37,7 @@ def generate_launch_description():
 
     scenario_arg = DeclareLaunchArgument(
         'scenario',
-        default_value='bluerov2_infrastructure',
+        default_value='bluerov2_terrain',
         description='Scenario name (without .scn extension)'
     )
 
