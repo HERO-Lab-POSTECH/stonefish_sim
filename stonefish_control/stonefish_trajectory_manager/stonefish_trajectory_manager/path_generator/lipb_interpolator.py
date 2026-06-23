@@ -192,10 +192,6 @@ class LIPBInterpolator(PathGenerator):
             self._interp_fcns['heading'] = lambda x: head_offset_line
         else:
             # Set a simple spline to interpolate heading offset, if existent
-            print(f'[LIPB DEBUG] Creating heading spline with {len(heading)} points', file=sys.stderr, flush=True)
-            print(f'[LIPB DEBUG] len(self._s)={len(self._s)}, len(heading)={len(heading)}', file=sys.stderr, flush=True)
-            print(f'[LIPB DEBUG] heading offsets (deg): {[np.rad2deg(h) for h in heading]}', file=sys.stderr, flush=True)
-
             # Ensure heading and _s have same length
             if len(heading) != len(self._s):
                 print(f'[LIPB ERROR] Length mismatch: heading={len(heading)}, _s={len(self._s)}', file=sys.stderr, flush=True)
