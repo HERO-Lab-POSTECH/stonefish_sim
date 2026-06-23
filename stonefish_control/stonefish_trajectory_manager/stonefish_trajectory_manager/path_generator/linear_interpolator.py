@@ -91,7 +91,7 @@ class LinearInterpolator(PathGenerator):
         self._marker_id = 0
 
         self._interp_fcns['pos'] = list()
-        # TODO: Segment tracking map
+        # Maps each path segment index to its originating waypoint index
         self._segment_to_wp_map = [0]
 
         for i in range(1, self._waypoints.num_waypoints):
