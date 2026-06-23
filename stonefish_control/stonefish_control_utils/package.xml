@@ -4,8 +4,8 @@
   <name>stonefish_control_utils</name>
   <version>1.0.0</version>
   <description>Utility tools for PID tuning and optimization in Stonefish simulator</description>
-  <maintainer email="your_email@example.com">Your Name</maintainer>
-  <license>Apache-2.0</license>
+  <maintainer email="luckkim123@gmail.com">Seungmin Kim</maintainer>
+  <license>GPL-3.0</license>
 
   <depend>rclpy</depend>
   <depend>stonefish_control_msgs</depend>

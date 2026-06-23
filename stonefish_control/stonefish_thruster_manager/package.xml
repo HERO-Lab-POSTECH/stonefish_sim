@@ -5,9 +5,9 @@
   <version>1.0.0</version>
   <description>Thruster allocation manager for Stonefish simulator - converts 6DOF wrenches to thruster commands</description>
 
-  <maintainer email="your_email@example.com">Your Name</maintainer>
+  <maintainer email="luckkim123@gmail.com">Seungmin Kim</maintainer>
 
-  <license>Apache-2.0</license>
+  <license>GPL-3.0</license>
 
   <buildtool_depend>ament_python</buildtool_depend>
 

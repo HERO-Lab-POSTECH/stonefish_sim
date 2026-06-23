@@ -5,8 +5,8 @@
   <version>0.3.0</version>
   <description>Path generation and following for Stonefish UUV simulation (includes Simple LOS guidance)</description>
 
-  <maintainer email="dev@example.com">Stonefish Control Team</maintainer>
-  <license>Apache-2.0</license>
+  <maintainer email="luckkim123@gmail.com">Seungmin Kim</maintainer>
+  <license>GPL-3.0</license>
 
   <buildtool_depend>ament_python</buildtool_depend>
 
