@@ -1,6 +1,0 @@
-#!/usr/bin/env python3
-"""Wrapper script for pid_optimizer executable"""
-from stonefish_control_utils.pid_optimizer.node import main
-
-if __name__ == '__main__':
-    main()

@@ -1,8 +1,0 @@
-Traceback (most recent call last):
-  File "/workspace/colcon_ws/install/stonefish_control_utils/lib/python3.10/site-packages/stonefish_control_utils/pid_optimizer/base.py", line 1142, in _reset_trajectory
-    if not self.reset_trajectory_client.wait_for_service(timeout_sec=15.0):
-  File "/opt/ros/humble/local/lib/python3.10/dist-packages/rclpy/client.py", line 180, in wait_for_service
-    return self.service_is_ready()
-  File "/opt/ros/humble/local/lib/python3.10/dist-packages/rclpy/client.py", line 160, in service_is_ready
-    return self.__client.service_server_is_available()
-rclpy._rclpy_pybind11.RCLError: failed to check service availability: rcl node's context is invalid, at ./src/rcl/node.c:428
