@@ -70,10 +70,15 @@ P1·P2에서 테스트·CI 안전망을 깔았지만 본 코드는 거의 손대
 
 ### 2.1 파일·디렉토리 구조
 - 모든 Python 파일은 **snake_case**. 노드 실행 진입점은 **`*_node.py`** 접미사를 붙인다.
-  근거: `nodes/path_generator_node.py`, `nodes/path_following_node.py`, `controllers/hybrid_controller_node.py`.
+  근거: `nodes/path_generator_node.py`, `nodes/path_following_node.py`, `nodes/hybrid_controller_node.py`.
 - 각 ROS2 패키지는 **ament_python 레이아웃**: `setup.py` + `setup.cfg`가 `entry_points`(console_scripts)를
   정의하고, 노드는 `nodes/`, 컨트롤러는 `controllers/`, 알고리즘은 전용 서브모듈(`path_generator/`,
   `common/`, `control_interfaces/`)에 둔다. 근거: `stonefish_trajectory_manager/setup.py:23-29`.
+  - **P3 정렬 현황**: `stonefish_control`(hybrid/position 노드 → `nodes/`)과 `stonefish_thruster_manager`
+    (`thruster_allocator.py` → `nodes/thruster_allocator_node.py`)를 `stonefish_trajectory_manager`가 이미
+    따르던 `nodes/` 패턴에 맞춰 정렬했다(console_scripts 좌변 실행파일명은 동결, 동작 보존). 잔존 예외:
+    `controllers/velocity_controller_node.py`(dead, `P4_FLAGS.md` 참조)·`controllers/unified_controller_node.py`
+    (orphan)는 의도적으로 미이동.
 - 테스트는 **패키지별 `test/` 디렉토리**, config는 패키지 루트 `config/`, launch는 `launch/`.
 - `__init__.py`는 공개 API를 import해 `__all__`로 재노출하거나(`stonefish_trajectory_manager/__init__.py:28-44`),
   최소한 `__version__`만 둔다(`stonefish_control/__init__.py:15`).
@@ -83,6 +88,11 @@ P1·P2에서 테스트·CI 안전망을 깔았지만 본 코드는 거의 손대
 - **같은 패키지 내부는 상대 import** (`from ..common import X`), 다른 패키지는 절대 import. 근거: `nodes/path_generator_node.py:35-46`.
 - 선택적/무거운 의존성은 `try/except`로 감싼다(예: `casadi`, deprecated `scipy.misc`). 근거: `control_interfaces/vehicle.py:18-30`.
 - ⚠️ slam과 다름: slam은 절대 import + 일부 wildcard를 쓰지만, **sim은 상대 import가 표준**이다. 새 코드는 wildcard import를 쓰지 않는다.
+  - **P3 적용 현황**: `stonefish_control`의 working 노드(`nodes/hybrid_controller_node.py`,
+    `nodes/position_controller_node.py`)의 intra-package import를 절대→상대로 교정했다
+    (`from stonefish_control.controllers.X` → `from ..controllers.X`). dead `velocity_controller_node.py`는
+    복구 시 함께 정리하도록 미교정(`P4_FLAGS.md`). 교정 정확성은 import target-set 정적 비교로 검증
+    (`test/static_import_gate.py`, off-by-one `level` 포착).
 
 ### 2.3 명명
 - 변수·함수·ROS 파라미터: **snake_case**. 내부/비공개는 `_` 접두(`_path_generated`, `_vehicle_pos`).
@@ -113,9 +123,10 @@ P1·P2에서 테스트·CI 안전망을 깔았지만 본 코드는 거의 손대
 ### 2.8 테스트 (P2에서 정립)
 - 테스트는 패키지별 `test/`에 `test_*.py`, 함수는 `test_*`.
 - **import-time 오염(ROS/gtsam)을 피하려고 루트 `conftest.py`의 `load_module` fixture**(`importlib.util.spec_from_file_location`)로 모듈 파일을 직접 로드한다. 패키지 경로 import 금지. 근거: `conftest.py:8-23`.
-- `pytest.ini`의 `testpaths = stonefish_control`로 discovery를 제한(시뮬레이터 래퍼 `stonefish_ros2` 제외).
+- `pytest.ini`의 `testpaths = stonefish_control test`로 discovery를 제한(시뮬레이터 래퍼 `stonefish_ros2` 제외, 루트 `test/`의 characterization은 포함).
 - 기대값은 **수학적 정답**으로 작성한다. 코드 출력과 불일치하면 코드 버그로 보고 `P4_FLAGS.md`에 기록한다(테스트를 코드에 맞추지 않는다).
 - 테스트 추가 시 **live 코드 0줄 변경** 원칙(P2). 코드 변경이 필요한 테스트(지연 import·콜백 추출 등)는 P3 리팩토링으로 따로 다룬다.
+- **P3 동작보존 안전망(rclpy 부재 환경 대응)**: 이 컨테이너엔 rclpy/ROS msgs가 없어 노드·ROS 의존 모듈을 실제 import할 수 없다. 두 방식으로 동작보존을 검증한다 — (a) **정적 게이트** `test/static_import_gate.py`(AST import target-set diff로 절대→상대 변환의 off-by-one 포착, py_compile, console_scripts entry-chain 해석, 모듈 top-level 부작용 0 검사). (b) **동적 fake-node characterization**(`test_characterization_vehicle_params.py`): nav_msgs stub + 합성 부모 패키지로 ROS 의존 모듈을 로드하고, 호출 순서·raise 타이밍·속성 값을 recording fake node로 골든 마스터 동결. ⚠️ 둘 다 정적·국소 검증이라 런타임 심볼 binding(rclpy registry 의미)은 못 덮는다 → `colcon build`+`ros2 launch` 스모크는 P4 sign-off로 미룬다.
 - CI: `.github/workflows/ci.yml`(Python 3.10 고정, `pip install pytest numpy scipy scikit-learn transforms3d` → `pytest -v`).
 
 ---
@@ -123,4 +134,4 @@ P1·P2에서 테스트·CI 안전망을 깔았지만 본 코드는 거의 손대
 ## 3. 적용 메모
 - 이 repo의 SSOT는 이 문서다. `CLAUDE.md`가 생기면 "작업 전 `docs/CONVENTIONS.md` 필독" 포인터 1줄을 둔다(CLAUDE.md만 자동 로드되므로).
 - 라이선스는 **GPL-3.0**(루트 `LICENSE` 기준). 메인테이너: Seungmin Kim <luckkim123@gmail.com>.
-- `P4_FLAGS.md`에 모인 수치/알고리즘 이슈는 P4에서 소화한다(현재: bezier list-concat 버그).
+- `P4_FLAGS.md`에 모인 수치/알고리즘·구조 이슈는 P4에서 소화한다(노드명 충돌, dead/orphan 노드 운명, eager-import, 소스 헤더 라이선스 불일치, god-module 4종 분해, T3/T5 런타임 sign-off 등). P3는 동작보존 가능한 구조/명명/메타데이터/모듈화만 처리했다.
