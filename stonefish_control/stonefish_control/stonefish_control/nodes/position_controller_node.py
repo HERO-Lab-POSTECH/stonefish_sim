@@ -84,7 +84,7 @@ class PID4DOFNode(Node):
             inertia_zz=self.dynamics.inertia_zz,
             max_force=self.max_force,
             max_torque=self.max_torque,
-            integral_limit=self.integral_limit
+            integral_safety_factor=self.integral_safety_factor
         )
 
         # ============================================================
@@ -166,7 +166,10 @@ class PID4DOFNode(Node):
         # Saturation
         self.declare_parameter('max_force', 200.0)
         self.declare_parameter('max_torque', 50.0)
-        self.declare_parameter('integral_limit', [10.0, 10.0, 5.0, 5.0])
+        # integral_limit is auto-derived inside PositionController from
+        # sat_limit / Ki * integral_safety_factor (see position_controller.py:108-115).
+        # Match the package-wide pattern (hybrid/velocity nodes, position_controller.yaml).
+        self.declare_parameter('integral_safety_factor', 2.0)
 
         # Control
         self.declare_parameter('control_rate', 50.0)
@@ -184,7 +187,7 @@ class PID4DOFNode(Node):
         # Saturation
         self.max_force = self.get_parameter('max_force').value
         self.max_torque = self.get_parameter('max_torque').value
-        self.integral_limit = np.array(self.get_parameter('integral_limit').value)
+        self.integral_safety_factor = self.get_parameter('integral_safety_factor').value
 
         # Control
         self.control_rate = self.get_parameter('control_rate').value
