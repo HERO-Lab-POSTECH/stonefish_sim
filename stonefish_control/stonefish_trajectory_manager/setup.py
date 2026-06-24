@@ -18,10 +18,10 @@ setup(
     ],
     install_requires=['setuptools', 'numpy', 'transforms3d'],
     zip_safe=False,
-    maintainer='Stonefish Control Team',
-    maintainer_email='dev@example.com',
+    maintainer='Seungmin Kim',
+    maintainer_email='luckkim123@gmail.com',
     description='Path generation and following for Stonefish UUV simulation',
-    license='Apache-2.0',
+    license='GPL-3.0',
     entry_points={
         'console_scripts': [
             'path_generator_node = stonefish_trajectory_manager.nodes.path_generator_node:main',

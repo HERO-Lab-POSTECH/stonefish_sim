@@ -17,13 +17,13 @@ setup(
     ],
     install_requires=['setuptools'],
     zip_safe=True,
-    maintainer='Your Name',
-    maintainer_email='your_email@example.com',
+    maintainer='Seungmin Kim',
+    maintainer_email='luckkim123@gmail.com',
     description='Thruster allocation manager for Stonefish simulator',
-    license='Apache-2.0',
+    license='GPL-3.0',
     entry_points={
         'console_scripts': [
-            'thruster_allocator = stonefish_thruster_manager.thruster_allocator:main',
+            'thruster_allocator = stonefish_thruster_manager.nodes.thruster_allocator_node:main',
         ],
     },
 )

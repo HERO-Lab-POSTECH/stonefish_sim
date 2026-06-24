@@ -16,15 +16,14 @@ setup(
     ],
     install_requires=['setuptools'],
     zip_safe=True,
-    maintainer='Your Name',
-    maintainer_email='your_email@example.com',
+    maintainer='Seungmin Kim',
+    maintainer_email='luckkim123@gmail.com',
     description='Unified control package for Stonefish simulator',
-    license='Apache-2.0',
+    license='GPL-3.0',
     entry_points={
         'console_scripts': [
-            'hybrid_controller_node = stonefish_control.controllers.hybrid_controller_node:main',
+            'hybrid_controller_node = stonefish_control.nodes.hybrid_controller_node:main',
             'position_controller_node = stonefish_control.nodes.position_controller_node:main',
-            'velocity_controller_node = stonefish_control.controllers.velocity_controller_node:main',
         ],
     },
 )
