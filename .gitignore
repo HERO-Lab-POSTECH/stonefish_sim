@@ -29,3 +29,6 @@ Thumbs.db
 **/build/
 **/install/
 **/log/
+
+# MkDocs build output
+docs/site/site/

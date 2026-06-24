@@ -1,5 +1,7 @@
 # Stonefish Simulation for Marine Robotics
 
+📖 **Full documentation site (Korean): https://hero-lab-postech.github.io/stonefish_sim/**
+
 A ROS2 Humble integration for the Stonefish marine robotics simulator. Provides physics-based simulation for underwater vehicles with realistic sensors and control systems.
 
 ## Requirements
@@ -15,17 +17,70 @@ A ROS2 Humble integration for the Stonefish marine robotics simulator. Provides 
 
 ### Dependencies
 
-```bash
-# ROS2 packages
-sudo apt install ros-humble-desktop ros-humble-tf2-ros ros-humble-image-transport
+#### ROS2 packages (apt)
 
-# Graphics libraries
+The C++ simulator interface (`stonefish_ros2`) and the message packages pull in
+`rclcpp`, `sensor_msgs`, `nav_msgs`, `geometry_msgs`, `visualization_msgs`,
+`std_srvs`, `std_msgs`, `image_transport`, `tf2`, `tf2_ros`, `PCL` /
+`pcl_conversions`, `ament_index_cpp`, and the `rosidl` message generators. The
+Python packages additionally require `rclpy`, `tf2_geometry_msgs`, and
+`ros2launch`.
+
+```bash
+sudo apt update
+sudo apt install \
+  ros-humble-desktop \
+  ros-humble-rclcpp \
+  ros-humble-rclpy \
+  ros-humble-ament-index-cpp \
+  ros-humble-std-msgs \
+  ros-humble-std-srvs \
+  ros-humble-geometry-msgs \
+  ros-humble-nav-msgs \
+  ros-humble-sensor-msgs \
+  ros-humble-visualization-msgs \
+  ros-humble-builtin-interfaces \
+  ros-humble-image-transport \
+  ros-humble-tf2 \
+  ros-humble-tf2-ros \
+  ros-humble-tf2-geometry-msgs \
+  ros-humble-pcl-conversions \
+  ros-humble-pcl-ros \
+  ros-humble-rosidl-default-generators \
+  ros-humble-rosidl-default-runtime
+```
+
+> `ros-humble-desktop` already provides most of these (rclcpp, rclpy, the
+> standard message packages, tf2, image_transport, PCL conversions). They are
+> listed explicitly so the dependency set is unambiguous; installing
+> `ros-humble-desktop` alone is sufficient on a typical workstation.
+
+#### Python packages (pip)
+
+The Python control, thruster-manager, and trajectory-manager packages import
+`numpy`, `scipy`, `transforms3d`, and `PyYAML`. These are also packaged as
+`python3-numpy`, `python3-scipy`, `python3-transforms3d`, and `python3-yaml` via
+apt if you prefer system packages.
+
+```bash
+pip install numpy scipy transforms3d PyYAML
+```
+
+#### System / graphics libraries
+
+Stonefish renders with OpenGL and SDL2, so the following native libraries are
+required to build and run the simulator:
+
+```bash
 sudo apt install libglm-dev libsdl2-dev libfreetype6-dev libopengl-dev
 ```
 
 ## Installation
 
-### 1. Install Stonefish Library
+### 1. Install the Stonefish C++ Library (v1.3.0+)
+
+`stonefish_ros2` calls `find_package(Stonefish REQUIRED 1.3.0)`, so the core
+Stonefish library must be built and installed first:
 
 ```bash
 cd /workspace
@@ -35,11 +90,15 @@ cmake .. -DCMAKE_BUILD_TYPE=Release
 make -j$(nproc) && sudo make install
 ```
 
-### 2. Build ROS2 Workspace
+### 2. Build the ROS2 Workspace
 
 ```bash
 cd /workspace/colcon_ws
 source /opt/ros/humble/setup.bash
+
+# (optional) resolve declared ROS dependencies from the manifests
+rosdep install --from-paths src --ignore-src -r -y
+
 colcon build --symlink-install
 source install/setup.bash
 ```

@@ -1,0 +1,100 @@
+site_name: stonefish_sim 문서
+site_description: 수중 로봇 시뮬레이션·제어·궤적 스택 (ROS2 Humble) — 구조·사용법·파라미터·방법론
+site_author: HERO Lab POSTECH
+site_url: https://hero-lab-postech.github.io/stonefish_sim/
+docs_dir: docs
+use_directory_urls: true
+
+theme:
+  name: material
+  language: ko
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: 다크 모드로 전환
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: 라이트 모드로 전환
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.indexes
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+    - content.tooltips
+  icon:
+    repo: fontawesome/brands/github
+
+extra_css:
+  - assets/stylesheets/extra.css
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.arithmatex:
+      generic: true
+  - tables
+  - attr_list
+  - md_in_html
+  - footnotes
+  - toc:
+      permalink: true
+      toc_depth: 3
+
+extra_javascript:
+  - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js
+
+plugins:
+  - search:
+      lang:
+        - ko
+        - en
+
+nav:
+  - 홈: index.md
+  - 시작하기:
+      - 개요와 빠른 시작: getting-started/index.md
+      - 설치와 빌드: getting-started/installation.md
+      - 시뮬레이션 실행: getting-started/running.md
+  - 아키텍처:
+      - 시스템 구조: architecture/index.md
+      - 노드와 토픽: architecture/nodes-topics.md
+      - 메시지·서비스: architecture/messages.md
+  - 방법론·알고리즘:
+      - 개요: methodology/index.md
+      - 하이브리드 제어기: methodology/control.md
+      - ILOS 경로 추종: methodology/guidance.md
+      - 궤적 생성과 추력 배분: methodology/trajectory-thruster.md
+  - 파라미터 레퍼런스:
+      - 개요와 사용법: parameters/index.md
+      - 제어 게인: parameters/control-gains.md
+      - 경로 추종(ILOS): parameters/path-following.md
+      - 동역학·추력 배분: parameters/dynamics-tam.md
+  - 버전·상태: status.md
