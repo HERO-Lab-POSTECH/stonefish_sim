@@ -16,6 +16,7 @@
 # ROS2 Port: Copyright 2025
 
 from __future__ import print_function
+from dataclasses import dataclass
 import numpy as np
 from nav_msgs.msg import Odometry
 from copy import deepcopy
@@ -28,6 +29,120 @@ try:
     casadi_exists = True
 except ImportError:
     casadi_exists = False
+
+
+@dataclass
+class VehicleParams:
+    """Vehicle physical parameters loaded from ROS2 node parameters.
+
+    Holds the values that ``Vehicle.__init__`` previously read inline from the
+    node's parameter server. Populated by :class:`VehicleParamsLoader`.
+    """
+    mass: float
+    inertial: dict
+    cog: list
+    cob: list
+    body_frame: str
+    volume: float
+    density: float
+    height: float
+    length: float
+    width: float
+
+
+class VehicleParamsLoader:
+    """Loads :class:`VehicleParams` from a ROS2 node's parameter server.
+
+    Extracted verbatim from the former ``Vehicle.__init__`` parameter block to
+    preserve the exact declare/get/has call order, default values, and the
+    raise timing of the eight validation ``ValueError``\\ s (behavior-preserving
+    dependency inversion — characterized by ``test_characterization_vehicle_params``).
+    """
+
+    @staticmethod
+    def load(node):
+        """Declare, read, and validate vehicle parameters on ``node``.
+
+        Args:
+            node: ROS2 node instance for parameter access.
+
+        Returns:
+            VehicleParams: validated physical parameters.
+
+        Raises:
+            ValueError: on invalid mass/cog/cob/volume/density/height/length/width,
+                at the same point in the call sequence as the original ``__init__``.
+        """
+        # Declare and get parameters
+        node.declare_parameter('mass', 0.0)
+        mass = node.get_parameter('mass').value
+        if mass <= 0:
+            raise ValueError('Mass has to be positive')
+
+        # Inertial parameters
+        inertial = dict(ixx=0, iyy=0, izz=0, ixy=0, ixz=0, iyz=0)
+        node.declare_parameter('inertial.ixx', 0.0)
+        node.declare_parameter('inertial.iyy', 0.0)
+        node.declare_parameter('inertial.izz', 0.0)
+        node.declare_parameter('inertial.ixy', 0.0)
+        node.declare_parameter('inertial.ixz', 0.0)
+        node.declare_parameter('inertial.iyz', 0.0)
+
+        for key in inertial:
+            param_name = f'inertial.{key}'
+            if node.has_parameter(param_name):
+                inertial[key] = node.get_parameter(param_name).value
+
+        # Center of gravity
+        node.declare_parameter('cog', [0.0, 0.0, 0.0])
+        cog = node.get_parameter('cog').value
+        if len(cog) != 3:
+            raise ValueError('Invalid center of gravity vector')
+
+        # Center of buoyancy
+        node.declare_parameter('cob', [0.0, 0.0, 0.0])
+        cob = node.get_parameter('cob').value
+        if len(cob) != 3:
+            raise ValueError('Invalid center of buoyancy vector')
+
+        # Body frame name
+        node.declare_parameter('base_link', 'base_link')
+        body_frame = node.get_parameter('base_link').value
+
+        # Volume
+        node.declare_parameter('volume', 0.0)
+        volume = node.get_parameter('volume').value
+        if volume <= 0:
+            raise ValueError('Invalid volume')
+
+        # Fluid density
+        node.declare_parameter('density', 1028.0)
+        density = node.get_parameter('density').value
+        if density <= 0:
+            raise ValueError('Invalid fluid density')
+
+        # Bounding box
+        node.declare_parameter('height', 0.0)
+        node.declare_parameter('length', 0.0)
+        node.declare_parameter('width', 0.0)
+
+        height = node.get_parameter('height').value
+        if height <= 0:
+            raise ValueError('Invalid height')
+
+        length = node.get_parameter('length').value
+        if length <= 0:
+            raise ValueError('Invalid length')
+
+        width = node.get_parameter('width').value
+        if width <= 0:
+            raise ValueError('Invalid width')
+
+        return VehicleParams(
+            mass=mass, inertial=inertial, cog=cog, cob=cob,
+            body_frame=body_frame, volume=volume, density=density,
+            height=height, length=length, width=width,
+        )
 
 
 def cross_product_operator(x):
@@ -63,70 +178,21 @@ class Vehicle(object):
         self._inertial_frame_id = 'world_ned'
         self._body_frame_id = 'base_link'
 
-        # Declare and get parameters
-        self._node.declare_parameter('mass', 0.0)
-        self._mass = self._node.get_parameter('mass').value
-        if self._mass <= 0:
-            raise ValueError('Mass has to be positive')
-
-        # Inertial parameters
-        self._inertial = dict(ixx=0, iyy=0, izz=0, ixy=0, ixz=0, iyz=0)
-        self._node.declare_parameter('inertial.ixx', 0.0)
-        self._node.declare_parameter('inertial.iyy', 0.0)
-        self._node.declare_parameter('inertial.izz', 0.0)
-        self._node.declare_parameter('inertial.ixy', 0.0)
-        self._node.declare_parameter('inertial.ixz', 0.0)
-        self._node.declare_parameter('inertial.iyz', 0.0)
-
-        for key in self._inertial:
-            param_name = f'inertial.{key}'
-            if self._node.has_parameter(param_name):
-                self._inertial[key] = self._node.get_parameter(param_name).value
-
-        # Center of gravity
-        self._node.declare_parameter('cog', [0.0, 0.0, 0.0])
-        self._cog = self._node.get_parameter('cog').value
-        if len(self._cog) != 3:
-            raise ValueError('Invalid center of gravity vector')
-
-        # Center of buoyancy
-        self._node.declare_parameter('cob', [0.0, 0.0, 0.0])
-        self._cob = self._node.get_parameter('cob').value
-        if len(self._cob) != 3:
-            raise ValueError('Invalid center of buoyancy vector')
-
-        # Body frame name
-        self._node.declare_parameter('base_link', 'base_link')
-        self._body_frame = self._node.get_parameter('base_link').value
-
-        # Volume
-        self._node.declare_parameter('volume', 0.0)
-        self._volume = self._node.get_parameter('volume').value
-        if self._volume <= 0:
-            raise ValueError('Invalid volume')
-
-        # Fluid density
-        self._node.declare_parameter('density', 1028.0)
-        self._density = self._node.get_parameter('density').value
-        if self._density <= 0:
-            raise ValueError('Invalid fluid density')
-
-        # Bounding box
-        self._node.declare_parameter('height', 0.0)
-        self._node.declare_parameter('length', 0.0)
-        self._node.declare_parameter('width', 0.0)
-
-        self._height = self._node.get_parameter('height').value
-        if self._height <= 0:
-            raise ValueError('Invalid height')
-
-        self._length = self._node.get_parameter('length').value
-        if self._length <= 0:
-            raise ValueError('Invalid length')
-
-        self._width = self._node.get_parameter('width').value
-        if self._width <= 0:
-            raise ValueError('Invalid width')
+        # Declare, read, and validate physical parameters from the node.
+        # Extracted to VehicleParamsLoader (behavior-preserving dependency inversion):
+        # the loader performs the same declare/get/has calls and raises the same
+        # validation errors at the same point in the sequence.
+        params = VehicleParamsLoader.load(self._node)
+        self._mass = params.mass
+        self._inertial = params.inertial
+        self._cog = params.cog
+        self._cob = params.cob
+        self._body_frame = params.body_frame
+        self._volume = params.volume
+        self._density = params.density
+        self._height = params.height
+        self._length = params.length
+        self._width = params.width
 
         # Calculating the rigid-body mass matrix
         self._M = np.zeros(shape=(6, 6), dtype=float)
