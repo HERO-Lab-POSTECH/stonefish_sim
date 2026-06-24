@@ -56,28 +56,6 @@ Main control algorithms package.
 
 **Location**: `stonefish_control/`
 
-#### 5. **stonefish_control_utils**
-Control utilities and visualization tools.
-
-**Features**:
-- PID parameter optimization
-- Control performance analysis
-- Visualization tools
-
-**Location**: `stonefish_control_utils/`
-
-#### 6. **stonefish_teleop_manager**
-Teleoperation interfaces.
-
-**Planned Features**:
-- Keyboard teleoperation
-- Joystick/gamepad support
-- Haptic feedback (future)
-
-**Status**: Planned
-
-**Location**: `stonefish_teleop_manager/`
-
 ## Quick Start
 
 ### 1. Build
@@ -90,7 +68,6 @@ colcon build --packages-select \
     stonefish_control_msgs \
     stonefish_thruster_manager \
     stonefish_trajectory_manager \
-    stonefish_control_utils \
     stonefish_control
 
 # Or build individually
@@ -378,7 +355,6 @@ Individual packages have their own detailed READMEs:
 - **stonefish_thruster_manager**: See `stonefish_thruster_manager/README.md` (pending)
 - **stonefish_trajectory_manager**: See `stonefish_trajectory_manager/README.md` ✅
 - **stonefish_control**: See `stonefish_control/README.md` (pending)
-- **stonefish_control_utils**: See `stonefish_control_utils/README.md` (pending)
 
 ## Related Packages
 

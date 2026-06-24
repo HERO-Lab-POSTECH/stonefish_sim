@@ -20,8 +20,16 @@
 - **0.1 feedforward_gain 재정당화 (T1.3 후속)**: `position_controller_node.py`의 `feedforward_gain=0.1`은 틀린 `M·velocity` 항을 누르려던 fudge factor였다. `M·a`로 교정된 뒤엔 올바른 feedforward는 gain `1.0`(전체 모델) 또는 의도적 calibration knob(예: `unified_controller.yaml:62`의 `0.8`)을 써야 한다. **0.1을 hybrid 노드로 전파 금지**(워크어라운드 cargo-cult). 가속도 wiring 채택 시 함께 재정당화.
 - **accel_ff 명시 rename (Option B)**: 현재 `PositionController.compute_control`은 `vel_ff`(velocity 모드 setpoint) + `accel_ff`(position 모드 feedforward) 두 인자를 받는다. 더 깔끔한 설계는 mode별 인자를 완전 분리하는 것이나, blast radius(HybridController 위임 + 호출자) 때문에 P4에선 최소 변경(accel_ff 추가)만 했다. 향후 리팩토링 후보.
 
-## P4 후보 (P2 발견)
+## T4.4 측정 결론 (sim P4 실행 중 — 가정 반증, owner 범위 결정 대기)
+P4_FLAGS의 즉시-수정 가정을 측정이 대거 반증함. 4건 중 teleop만 즉시 삭제 확정, 나머지는 latent/의도/설계 사안.
+- **teleop_manager = 즉시 삭제 확정(owner O8)**: `stonefish_control/stonefish_teleop_manager/`는 README.md 1개뿐(package.xml/setup.py 부재 → ament 미인식). README가 "not yet implemented placeholder"로 명시, 코드/launch 참조 0건. = dead stub. 부활은 README 로드맵대로 별도 기능 작업.
+- **Waypoint __hash__ 부재 = latent**: `common/waypoint.py:68` `__eq__` 정의 + `__hash__` 부재 → Python이 `__hash__=None` 설정 → unhashable(set/dict 키 불가). 단 측정 결과 Waypoint를 set/dict 키로 쓰는 LIVE 사용처 **0건**. 현재 미발현. 수정(=`__hash__` 추가 또는 `__eq__` 재검토)은 신규 동작이라 owner 결정.
+- **gravity 9.82 = 의도적 calibration(버그 아님 가능성 높음)**: `dynamics_loader.py:123` default 9.82 + `dynamics_params.yaml` 전체(부력식 197.7N 역산 포함)가 9.82 일관. 표준 9.80665/9.81과 다르나, 실제 부력 평형을 9.82로 맞춘 **하드웨어 보정값** 성격(CLAUDE.md "하드웨어는 미니멀 모델이 못 보는 보정 노브" 원칙). 임의로 9.81로 바꾸면 부력 평형 깨짐. 표준화하려면 부력식 동시 재계산 필요 — owner 결정.
+- **data/ 경로 = C++ 런타임 --data 베이스 의존(설계 사안, O6/O7)**: `.scn`이 `data/robots/.../meshes/*.obj`를 **작업디렉토리 상대 경로**로 참조(package:// 아님). scenarios/(7개 진입 .scn) ↔ data/(로봇 부품 .scn+mesh) 분리, CMakeLists가 둘 다 install. Stonefish C++가 `--data` 베이스 경로로 해석하므로 ROS package 경로화하려면 .scn 다수 + C++ 로더 + 런타임(RTX4070) 검증 동시 필요. 단순 수정 아닌 설계 결정.
+
+## P4 후보 (P2 발견 — T4.4에서 정밀 재측정)
 - `bezier_curve.py::BezierCurve.__init__`: tangents를 list로 받으면 `tangents[0]+tangents[1]`이 list concat(길이 6)이 되어 order=3/4 경로에서 np.dot shape 오류. assert는 len==3 list를 허용하나 내부 연산은 np.array만 정상. 수정안: 생성자에서 tangents/pnts를 np.asarray로 정규화. (동작 변경이라 P4에서 처리)
+  - **T4.4 재측정**: L63-69 for loop이 tangents 원소를 검증만 하고 변환 안 함(np.asarray 미적용). LIVE 호출처 `bezier_curve.py:214`(`generate_cubic_curve`, cs_interpolator:80에서 LIVE)가 `[tangents[i], tangents[i+1]]` 전달. tangents 원소가 np.array면 정상(element-wise), list면 concat 버그. test_bezier_curve.py 통과 중이라 현재 numpy 경로로 동작 추정 → **LIVE 트리거 가능성은 caller가 list를 넘기는지에 달린 latent**. np.asarray 정규화는 방어적으로 옳으나 동작 변경이라 owner 결정. 실제 LIVE 트리거 여부 정밀 확인(generate_cubic_curve 내부 tangents 생성 타입) 선행 권장.
 
 ## P4 후보 (P3.0 컨벤션 조사 발견)
 - **노드명 중복**: `controllers/velocity_controller_node.py:55`와 `nodes/position_controller_node.py:55`가 둘 다 `super().__init__('pid_4dof_controller')`. 동시 실행 시 ROS2 고유 노드명 요구(RMW 강제)를 위반해 노드 등록 충돌. 근거: [rmw validate_node_name.c](https://github.com/ros2/rmw/blob/master/rmw/src/validate_node_name.c). 수정안: 각자 고유 이름(예: `velocity_controller`·`position_controller`)으로 초기화. 동작 변경(노드명 의존 토픽 네임스페이스 영향 가능)이라 P4에서 처리.
