@@ -18,10 +18,10 @@ ILOS guidance는 Lekkas & Fossen(2014)의 적분 LOS 법칙을 따른다. 목표
 | 횡오차 보정 | \( \arctan(-e_y/\Delta) \) | 횡오차 \( e_y \)를 경로 쪽으로 끌어당기는 비례 조향 | `lookahead_distance` \( \Delta \) |
 | 적분 보정 | \( \arctan(\kappa \int e_y\,dt/\Delta) \) | 누적 횡오차를 제거해 정상상태 오프셋(예: 해류 외란)을 보상 | `integral_gain` \( \kappa \) |
 
-여기서 \( e_y \)는 횡오차(cross-track error), \( \Delta \)는 전방주시거리(lookahead distance, `lookahead_distance`, 기본값 `3.0` m), \( \kappa \)는 ILOS 적분게인(`integral_gain`, 기본값 `0.05`)이다.
+여기서 \( e_y \)는 횡오차(cross-track error), \( \Delta \)는 전방주시거리(lookahead distance, `lookahead_distance`, 기본값 `3.0` m), \( \kappa \)는 ILOS 적분게인(`integral_gain`, 기본값 `0.1`, leaky integrator)이다.
 
 !!! note "전방주시거리 \( \Delta \)의 역할"
-    \( \Delta \)가 클수록 횡오차 보정항의 각도가 작아져 조향이 부드러워지고 수렴이 느려진다. 작을수록 공격적으로 경로에 붙지만 진동 위험이 커진다. `adaptive_lookahead`(기본값 `True`)가 켜지면 곡률에 따라 \( \Delta \)를 동적으로 조정한다.
+    \( \Delta \)가 클수록 횡오차 보정항의 각도가 작아져 조향이 부드러워지고 수렴이 느려진다. 작을수록 공격적으로 경로에 붙지만 진동 위험이 커진다. `adaptive_lookahead`(기본값 `False`)를 켜면 곡률에 따라 \( \Delta \)를 동적으로 조정한다.
 
 근거: 유도 수식과 단계는 `ilos_guidance.py`, 파라미터는 `path_following_node.py:46-47`.
 
@@ -56,7 +56,7 @@ flowchart TD
 
 ## 곡률 기반 속도 저감
 
-직선 구간에서는 `cruise_speed`(기본값 `0.5` m/s, 약 1 knot)로 주행하고, 경로 곡률이 큰 커브에서는 속도를 줄여 추종 정밀도를 유지한다. 속도 저감의 강도는 `curvature_gain`(기본값 `2.0`)이 결정하며, 저감된 속도는 `min_speed`(기본값 `0.2` m/s) 아래로는 내려가지 않는다.
+직선 구간에서는 `cruise_speed`(기본값 `1.0` m/s, 약 2 knot)로 주행하고, 경로 곡률이 큰 커브에서는 속도를 줄여 추종 정밀도를 유지한다. 속도 저감의 강도는 `curvature_gain`(기본값 `3.0`)이 결정하며, 저감된 속도는 `min_speed`(기본값 `0.3` m/s) 아래로는 내려가지 않는다.
 
 `curvature_gain`이 클수록 커브에서 더 강하게 감속한다. 곡률이 큰 경로(급격한 선회)일수록 차량이 경로 안쪽으로 잘라먹는 것을 방지하기 위해 속도를 낮춘다.
 
@@ -65,7 +65,7 @@ flowchart TD
 
 ## Adaptive lookahead
 
-`adaptive_lookahead`(기본값 `True`)가 켜지면 전방주시거리 \( \Delta \)를 경로 곡률에 따라 동적으로 조정한다. 직선 구간에서는 \( \Delta \)를 키워 부드럽게 수렴하고, 곡률이 큰 구간에서는 \( \Delta \)를 줄여 경로를 더 정밀하게 따라간다. 고정 \( \Delta \)는 직선과 커브 모두에서 타협된 값을 써야 하지만, adaptive 모드는 구간별로 최적값에 가깝게 적응한다.
+`adaptive_lookahead`(기본값 `False`)를 켜면 전방주시거리 \( \Delta \)를 경로 곡률에 따라 동적으로 조정한다. 직선 구간에서는 \( \Delta \)를 키워 부드럽게 수렴하고, 곡률이 큰 구간에서는 \( \Delta \)를 줄여 경로를 더 정밀하게 따라간다. 고정 \( \Delta \)는 직선과 커브 모두에서 타협된 값을 써야 하지만, adaptive 모드는 구간별로 최적값에 가깝게 적응한다.
 
 ## ALOS vs ILOS
 

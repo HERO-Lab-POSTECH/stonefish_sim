@@ -58,7 +58,7 @@ flowchart TD
 | 파라미터 레퍼런스 | 어떤 파라미터를 바꾸면 어떤 효과가 나는가 | [파라미터 개요](parameters/index.md) |
 
 !!! tip "빠른 시작"
-    전체 폐루프를 한 번에 띄우려면 `ros2 launch stonefish_ros2 bringup.launch.py vehicle_name:=bluerov2 scenario:=bluerov2_infrastructure`를 사용한다. 이 명령은 시뮬레이터·제어·경로·추력 매니저를 함께 기동한다. 설치 절차와 단계별 실행은 [시작하기](getting-started/index.md)를 참고하라.
+    전체 폐루프를 한 번에 띄우려면 `ros2 launch stonefish_ros2 bringup.launch.py vehicle:=bluerov2`를 사용한다. 이 명령은 시뮬레이터·제어·경로·추력 매니저를 함께 기동한다. 설치 절차와 단계별 실행은 [시작하기](getting-started/index.md)를 참고하라.
 
 !!! note "좌표계 규약"
     이 스택은 NED 좌표계(REP-103 `_ned` 접미사)를 기준으로 동작한다. 쿼터니언은 내부에서 `[w, x, y, z]`, ROS 인터페이스에서 `[x, y, z, w]` 순서를 쓴다. 자세한 규약은 [아키텍처](architecture/index.md)에서 다룬다.

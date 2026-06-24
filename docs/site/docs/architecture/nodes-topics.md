@@ -20,7 +20,7 @@
 !!! note "전체 기동"
     `bringup.launch.py`는 내부적으로 simulator + control + path + thruster_manager를 함께 띄운다.
     ```bash
-    ros2 launch stonefish_ros2 bringup.launch.py vehicle_name:=bluerov2 scenario:=bluerov2_infrastructure
+    ros2 launch stonefish_ros2 bringup.launch.py vehicle:=bluerov2
     ```
 
 ## Publish 토픽
