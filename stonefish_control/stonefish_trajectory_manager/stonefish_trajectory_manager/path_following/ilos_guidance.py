@@ -619,27 +619,12 @@ class ILOSGuidance:
 
         return max_curvature
 
-    def compute_guidance(self, dt):
-        """Compute ILOS guidance command (hybrid velocity + position architecture).
-
-        Args:
-            dt: Time step (s)
+    def _compute_lookahead_geometry(self, dt):
+        """Steps 0-3: adaptive lookahead distance, lookahead point, path tangent.
 
         Returns:
-            tuple: (desired_position, desired_heading, desired_velocities)
-                desired_position: [x, y, z] lookahead point (m, NED world frame)
-                desired_heading: ψ_d (rad, world NED frame)
-                desired_velocities: [u, v, w, r] (m/s, m/s, m/s, rad/s, FRD body frame)
-
-        Note:
-            This is a HYBRID architecture combining:
-            - Position control: lookahead point for outer loop stability
-            - Velocity control: desired velocities for path tracking
-            Both are commanded simultaneously for optimal performance.
+            tuple: (p_lookahead, p_current, tangent, tangent_norm, chi_p)
         """
-        if self._path_poses is None or len(self._path_poses) == 0:
-            return self._desired_pos, self._desired_yaw, self._desired_velocity
-
         # 0. Adaptive Lookahead (curvature-based, double-filtered for smoothness)
         # High curvature = shorter lookahead for tighter control
         # Low curvature = longer lookahead for stability
@@ -703,6 +688,14 @@ class ILOSGuidance:
 
         chi_p = np.arctan2(tangent[1], tangent[0])
 
+        return p_lookahead, p_current, tangent, tangent_norm, chi_p
+
+    def _compute_heading_command(self, chi_p, dt):
+        """Steps 4-6: cross-track error, ILOS integral update, heading command.
+
+        Returns:
+            tuple: (chi_d, e_y)
+        """
         # 4. Calculate cross-track error e_y
         # Use interpolated closest point (continuous)
         p_closest = self._interpolate_from_parameter(self._path_parameter_s)
@@ -765,15 +758,14 @@ class ILOSGuidance:
 
         chi_d = angle_wrap(chi_d)
 
-        # 7. Check mode transition (ALIGN → FOLLOW)
-        heading_error = abs(angle_wrap(chi_d - self._vehicle_yaw))
+        return chi_d, e_y
 
-        if self._mode == PathFollowingMode.ALIGN:
-            # ALIGN mode: check if heading alignment is complete
-            if heading_error < self._heading_align_threshold:
-                # Transition to FOLLOW mode
-                self._mode = PathFollowingMode.FOLLOW
+    def _compute_desired_speed(self, p_lookahead):
+        """Steps 8-9.5: curvature preview + velocity profiler → desired speed.
 
+        Returns:
+            float: desired_speed
+        """
         # 8. Estimate curvature for velocity profiling (with extended preview)
         # Must look far enough ahead to slow down before curves
         preview_time = 4.0  # Look 4 seconds ahead
@@ -812,10 +804,14 @@ class ILOSGuidance:
         # Store for debugging/logging
         self._current_desired_speed = desired_speed
 
-        # 10. Desired position (lookahead point on path)
-        self._desired_pos = p_lookahead
-        self._desired_yaw = chi_d
+        return desired_speed
 
+    def _compute_body_velocities(self, e_y, tangent, p_lookahead, desired_speed, dt):
+        """Step 11: FRD body-frame velocities (sway, heave, yaw rate).
+
+        Returns:
+            tuple: (v_lateral, w_d, r_d)
+        """
         # 11. Desired velocity (FRD body frame)
         # Surge: desired speed
         # Sway: lateral correction for cross-track error (Lekkas & Fossen 2014)
@@ -920,6 +916,58 @@ class ILOSGuidance:
         else:
             # Vertical path, no yaw rate
             r_d = 0.0
+
+        return v_lateral, w_d, r_d
+
+    def compute_guidance(self, dt):
+        """Compute ILOS guidance command (hybrid velocity + position architecture).
+
+        Args:
+            dt: Time step (s)
+
+        Returns:
+            tuple: (desired_position, desired_heading, desired_velocities)
+                desired_position: [x, y, z] lookahead point (m, NED world frame)
+                desired_heading: ψ_d (rad, world NED frame)
+                desired_velocities: [u, v, w, r] (m/s, m/s, m/s, rad/s, FRD body frame)
+
+        Note:
+            This is a HYBRID architecture combining:
+            - Position control: lookahead point for outer loop stability
+            - Velocity control: desired velocities for path tracking
+            Both are commanded simultaneously for optimal performance.
+        """
+        if self._path_poses is None or len(self._path_poses) == 0:
+            return self._desired_pos, self._desired_yaw, self._desired_velocity
+
+        # 0-3. Lookahead geometry (adaptive lookahead, lookahead point, path tangent)
+        p_lookahead, p_current, tangent, tangent_norm, chi_p = (
+            self._compute_lookahead_geometry(dt)
+        )
+
+        # 4-6. Cross-track error, integral update, ILOS heading command
+        chi_d, e_y = self._compute_heading_command(chi_p, dt)
+
+        # 7. Check mode transition (ALIGN → FOLLOW)
+        heading_error = abs(angle_wrap(chi_d - self._vehicle_yaw))
+
+        if self._mode == PathFollowingMode.ALIGN:
+            # ALIGN mode: check if heading alignment is complete
+            if heading_error < self._heading_align_threshold:
+                # Transition to FOLLOW mode
+                self._mode = PathFollowingMode.FOLLOW
+
+        # 8-9.5. Curvature preview + velocity profiler → desired speed
+        desired_speed = self._compute_desired_speed(p_lookahead)
+
+        # 10. Desired position (lookahead point on path)
+        self._desired_pos = p_lookahead
+        self._desired_yaw = chi_d
+
+        # 11. Body-frame velocities (sway, heave, yaw rate)
+        v_lateral, w_d, r_d = self._compute_body_velocities(
+            e_y, tangent, p_lookahead, desired_speed, dt
+        )
 
         # 12. ALIGN mode: Slow 3D path tracking for safe path entry
         if self._mode == PathFollowingMode.ALIGN:
