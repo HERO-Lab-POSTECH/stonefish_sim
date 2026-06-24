@@ -1,3 +1,8 @@
+## ④ 고도화 제안 (P4 진행 중 도출 — owner 채택 결정 필요, P4 미구현)
+- **가속도 feedforward end-to-end wiring (T1.3 후속)**: T1.3에서 `PositionController`의 position 모드 feedforward 계약을 `M·a`(힘=질량×가속도)로 교정했다(이전 `M·velocity`=운동량은 차원 오류). 그러나 이 가속도를 *공급*하려면 데이터 흐름 wiring이 필요하다 — 현재 (a) `path_following_node.py`가 `msg.acceleration`을 채우지 않고 `msg.velocity`만 publish, (b) `hybrid_controller_node.py:106-113` cmd_callback이 `msg.acceleration`을 안 읽음. `TrajectoryPoint.msg`는 `geometry_msgs/Accel acceleration` 필드를 이미 보유하므로 메시지 계약 변경은 불필요. **이 wiring은 신규 동작(④고도화)이라 owner 채택 결정 필요** — 미구현 시 position 모드 feedforward는 0(architect 확인: LIVE 경로에서 원래도 position 진입 시 velocity=0이라 동작 변경 없음). 구현 시 RTX4070 런타임 sign-off로 궤적 추종 개선 확인.
+- **0.1 feedforward_gain 재정당화 (T1.3 후속)**: `position_controller_node.py`의 `feedforward_gain=0.1`은 틀린 `M·velocity` 항을 누르려던 fudge factor였다. `M·a`로 교정된 뒤엔 올바른 feedforward는 gain `1.0`(전체 모델) 또는 의도적 calibration knob(예: `unified_controller.yaml:62`의 `0.8`)을 써야 한다. **0.1을 hybrid 노드로 전파 금지**(워크어라운드 cargo-cult). 가속도 wiring 채택 시 함께 재정당화.
+- **accel_ff 명시 rename (Option B)**: 현재 `PositionController.compute_control`은 `vel_ff`(velocity 모드 setpoint) + `accel_ff`(position 모드 feedforward) 두 인자를 받는다. 더 깔끔한 설계는 mode별 인자를 완전 분리하는 것이나, blast radius(HybridController 위임 + 호출자) 때문에 P4에선 최소 변경(accel_ff 추가)만 했다. 향후 리팩토링 후보.
+
 ## P4 후보 (P2 발견)
 - `bezier_curve.py::BezierCurve.__init__`: tangents를 list로 받으면 `tangents[0]+tangents[1]`이 list concat(길이 6)이 되어 order=3/4 경로에서 np.dot shape 오류. assert는 len==3 list를 허용하나 내부 연산은 np.array만 정상. 수정안: 생성자에서 tangents/pnts를 np.asarray로 정규화. (동작 변경이라 P4에서 처리)
 
