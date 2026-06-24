@@ -114,6 +114,10 @@ int main(int argc, char **argv)
 	
     // Start simulation
     std::shared_ptr<StonefishNode> node(new StonefishNode(scenarioPath, dataPath, s, h, rate));
+    // INVARIANT: SingleThreadedExecutor — all subscription callbacks run sequentially.
+    // ROS2SimulationManager's shared-state maps (servoSetpoints_, subs_/pubs_/srvs_) rely on
+    // this invariant for lock-free access. Do NOT switch to MultiThreadedExecutor without
+    // adding synchronization (e.g. mutex) around every shared-state access.
     rclcpp::spin(node);
     return 0;
 }

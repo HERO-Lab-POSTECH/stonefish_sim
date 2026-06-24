@@ -55,6 +55,11 @@
 #include "stonefish_msgs/srv/sonar_settings2.hpp"
 #include "image_transport/image_transport.hpp"
 
+// QoS NOTE: All create_subscription/create_publisher calls in this file use the default
+// reliable KeepLast profile (depth 10 for actuators/comms; sensor pubs use ceil(updateFreq)).
+// High-rate sensor topics could benefit from rclcpp::SensorDataQoS() (best_effort);
+// deferred -- see P4_FLAGS.md §T4.5.
+
 #include <Stonefish/core/Robot.h>
 #include <Stonefish/entities/AnimatedEntity.h>
 #include <Stonefish/entities/animation/ManualTrajectory.h>

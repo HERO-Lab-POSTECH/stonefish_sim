@@ -1,3 +1,27 @@
+## T4.5 C++ 동시성·QoS 표준정합 제안 (P4 문서화만, RTX4070 sign-off 대상)
+
+이 섹션의 제안은 모두 **현재 동작 변경 없음** — 코드 주석으로 불변식을 명시(T4.5)했으며,
+아래 변경은 RTX4070 런타임 검증 후 owner 채택 결정이 필요하다.
+
+1. **센서 토픽 SensorDataQoS(best_effort) 미적용**: `ROS2ScenarioParser.cpp`의 모든
+   `create_subscription`/`create_publisher`가 depth=10 기본 QoS(reliable, KeepLast)를 사용한다.
+   ROS2 표준은 고빈도 센서 토픽에 `rclcpp::SensorDataQoS()`(best_effort, KeepLast(5))를
+   권장한다 — reliable은 재전송으로 지연·대역폭 낭비를 유발할 수 있다.
+   변경 시 consumer(EKF/SLAM 노드 등)도 호환 QoS로 동시 수정 필요, RTX4070 런타임 검증 필수.
+
+2. **robot 이름 중복 시 subs_/pubs_ 맵 silent overwrite**: `ROS2ScenarioParser.cpp`의 키가
+   `robot->getName() + "/thrusters"` 등 로봇 이름 prefix라서, 시나리오 XML에 동일 이름의
+   로봇이 두 개 정의되면 두 번째가 첫 번째를 조용히 덮어쓴다(현재 경고 없음).
+   제안: 키 삽입 전 `subs_.count(key) > 0`을 체크해 중복 시 `RCLCPP_WARN` 발행.
+   다중 robot 시나리오에서 진단 가능성을 높이는 방어적 개선이나, 동작 변경이라 owner 결정.
+
+3. **단일스레드 spin이 시뮬레이션 step과 콜백을 직렬화**: 현재 `rclcpp::spin(node)`
+   (SingleThreadedExecutor)는 시뮬레이션 step 처리와 모든 ROS2 콜백을 하나의 스레드에서
+   순차 실행한다. 고빈도 토픽·고부하 시나리오에서 콜백 처리가 시뮬 스텝을 지연시킬 수 있다.
+   `MultiThreadedExecutor` + `MutuallyExclusiveCallbackGroup` 도입으로 분리 가능하나,
+   `servoSetpoints_`·`subs_`/`pubs_`/`srvs_` 등 공유 상태 전체에 동기화(mutex) 추가가
+   필요한 비자명한 재설계 — 별도 사이클로 처리.
+
 ## VelocityProfiler 잔재 (T2.2 부분 — interpolator 내부 분기는 Phase 3로)
 - **dangling `__all__` 엔트리 제거 완료(T2.2)**: `path_generator/__init__.py:49`의 `'VelocityProfiler'`는 import되지 않는데 `__all__`에 등재돼 `from path_generator import *` 시 AttributeError를 내는 버그였다(class VelocityProfiler가 repo 전체에 부재). 제거함.
 - **interpolator 내부 dead 분기는 Phase 3로 이연**: `cs_interpolator.py`(14곳)·`lipb_interpolator.py`(15곳)에 `_velocity_profiler`/`_use_velocity_profiler` 상태·조건 분기가 광범위 분포. `if self._use_velocity_profiler:`(config 0건이라 항상 False) 안에서 미정의 `VelocityProfiler(...)`를 호출(cs:159, lipb:257) → 활성화 시 NameError(latent-dead). 29곳에 걸친 제거는 LIVE 보간 모듈 수술이라 무방비 제거 시 회귀 위험 큼. Phase 3 god-method 정리(lipb `init_interpolator`는 god-method) 시 characterization 골든 보호 하에 함께 제거. 현재는 unreachable(use_velocity_profiler config 0건)이라 active bug 아님.
