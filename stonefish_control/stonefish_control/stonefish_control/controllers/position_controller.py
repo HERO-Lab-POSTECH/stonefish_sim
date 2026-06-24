@@ -28,6 +28,8 @@ import numpy as np
 from typing import Tuple, Optional
 from scipy.spatial.transform import Rotation
 
+from ..control_interfaces.data_types import angle_wrap
+
 
 class PositionController:
     """
@@ -317,8 +319,12 @@ class PositionController:
 
     @staticmethod
     def _angle_wrap(angle: float) -> float:
-        """Wrap angle to [-π, π]"""
-        return (angle + np.pi) % (2 * np.pi) - np.pi
+        """Wrap angle to [-π, π].
+
+        Delegates to the package SSOT ``control_interfaces.data_types.angle_wrap``
+        (identical modulo algorithm) to avoid a duplicated implementation.
+        """
+        return angle_wrap(angle)
 
     def get_status(self) -> dict:
         """Get controller status for monitoring"""
