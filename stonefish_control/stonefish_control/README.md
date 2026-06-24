@@ -112,31 +112,33 @@ Combines velocity and position controllers with mode switching.
 
 ### Launch Files
 
-#### controller.launch.py
+#### control.launch.py
 
-Main launch file for all controller types.
+Launches the hybrid controller only (no simulator, no path nodes). Pair it with
+`path.launch.py` and a simulator bringup, or use `stonefish_ros2 bringup.launch.py`
+to start all three together.
 
 **Parameters**:
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `vehicle_name` | string | `bluerov2` | Vehicle namespace |
+| `use_sim_time` | bool | `false` | Use /clock simulation time (set true when the simulator runs) |
 | `controller_config` | string | (auto) | Path to hybrid controller YAML config |
 | `dynamics_config` | string | (auto) | Path to vehicle dynamics YAML |
-| `start_simulator` | bool | `false` | Start Stonefish simulator automatically |
 
 **Examples**:
 
 ```bash
-# Launch hybrid controller (only controller type available)
-ros2 launch stonefish_control controller.launch.py
+# Launch the hybrid controller
+ros2 launch stonefish_control control.launch.py
 
-# With simulator
-ros2 launch stonefish_control controller.launch.py \
-    start_simulator:=true
+# With simulation time (simulator started separately, e.g. via bringup.launch.py)
+ros2 launch stonefish_control control.launch.py \
+    use_sim_time:=true
 
 # Custom config
-ros2 launch stonefish_control controller.launch.py \
+ros2 launch stonefish_control control.launch.py \
     controller_config:=/path/to/custom_controller.yaml \
     dynamics_config:=/path/to/custom_dynamics.yaml
 ```
@@ -303,7 +305,7 @@ vehicle_dynamics:
 ros2 launch stonefish_ros2 bluerov2.launch.py
 
 # Terminal 2: Hybrid controller (position mode at startup)
-ros2 launch stonefish_control controller.launch.py
+ros2 launch stonefish_control control.launch.py
 
 # Terminal 3: Send pose command
 ros2 topic pub /bluerov2/cmd_pose stonefish_control_msgs/msg/TrajectoryPoint \
@@ -317,10 +319,10 @@ ros2 topic pub /bluerov2/cmd_pose stonefish_control_msgs/msg/TrajectoryPoint \
 ros2 launch stonefish_ros2 bluerov2.launch.py
 
 # Terminal 2: Hybrid controller
-ros2 launch stonefish_control controller.launch.py
+ros2 launch stonefish_control control.launch.py
 
-# Terminal 3: Path following (publishes cmd_pose and mode switches)
-ros2 launch stonefish_trajectory_manager path_following.launch.py \
+# Terminal 3: Path stack (generator + following; publishes cmd_pose and mode switches)
+ros2 launch stonefish_trajectory_manager path.launch.py \
     waypoint_file:=config/example_waypoints.yaml \
     vehicle_name:=bluerov2
 ```
@@ -415,7 +417,7 @@ stonefish_control/
 │       ├── position_controller_node.py  # Position controller ROS2 node
 │       └── hybrid_controller_node.py    # Hybrid controller ROS2 node
 ├── launch/
-│   └── controller.launch.py           # Main launch file
+│   └── control.launch.py              # Hybrid controller launch
 ├── config/
 │   └── bluerov2/
 │       ├── position_controller.yaml   # Position PID config

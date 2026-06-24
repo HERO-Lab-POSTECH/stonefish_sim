@@ -367,8 +367,8 @@ cat > scenarios/my_robot_test.scn << 'EOF'
 EOF
 
 # Launch simulation
-ros2 launch stonefish_ros2 simulator_gpu.launch.py \
-    scenario_desc:=/workspace/colcon_ws/src/stonefish_description/scenarios/my_robot_test.scn
+ros2 launch stonefish_ros2 simulator.launch.py \
+    scenario_desc:=$(ros2 pkg prefix stonefish_description)/share/stonefish_description/scenarios/my_robot_test.scn
 ```
 
 ## Installation
@@ -422,16 +422,16 @@ ros2 launch stonefish_ros2 bluerov2.launch.py
 ### Launch with Custom Scenario
 
 ```bash
-ros2 launch stonefish_ros2 simulator_gpu.launch.py \
-    scenario_desc:=/workspace/colcon_ws/src/stonefish_description/scenarios/bluerov2_seabed.scn
+ros2 launch stonefish_ros2 simulator.launch.py \
+    scenario_desc:=$(ros2 pkg prefix stonefish_description)/share/stonefish_description/scenarios/bluerov2_seabed.scn
 ```
 
 ### Specify Simulation Data Directory
 
 ```bash
-ros2 launch stonefish_ros2 simulator_gpu.launch.py \
-    simulation_data:=/workspace/colcon_ws/src/stonefish_description \
-    scenario_desc:=scenarios/bluerov2_infrastructure.scn
+ros2 launch stonefish_ros2 simulator.launch.py \
+    simulation_data:=$(ros2 pkg prefix stonefish_description)/share/stonefish_description \
+    scenario_desc:=$(ros2 pkg prefix stonefish_description)/share/stonefish_description/scenarios/bluerov2_infrastructure.scn
 ```
 
 ### Python Launch API
@@ -449,7 +449,7 @@ def generate_launch_description():
     simulator = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([
             FindPackageShare('stonefish_ros2'),
-            '/launch/simulator_gpu.launch.py'
+            '/launch/simulator.launch.py'
         ]),
         launch_arguments={
             'simulation_data': PathJoinSubstitution([pkg_share, '']),

@@ -53,8 +53,8 @@ ros2 launch stonefish_ros2 bluerov2.launch.py
 # With thruster manager
 ros2 launch stonefish_ros2 bluerov2.launch.py start_thruster_manager:=true
 
-# With position controller
-ros2 launch stonefish_control controller.launch.py controller_type:=position
+# With the controller
+ros2 launch stonefish_control control.launch.py
 ```
 
 ## Package Structure

@@ -73,12 +73,15 @@ ros2 launch stonefish_ros2 bluerov2.launch.py start_thruster_manager:=false
 
 ### Generic Simulator Launch
 
+A single `simulator.launch.py` runs either the GPU or the headless build,
+selected by the `gpu:=true|false` argument.
+
 #### GPU-Accelerated (Recommended)
 
 ```bash
-ros2 launch stonefish_ros2 simulator_gpu.launch.py \
-    simulation_data:=/workspace/colcon_ws/src/stonefish_description \
-    scenario_desc:=/workspace/colcon_ws/src/stonefish_description/scenarios/bluerov2_seabed.scn \
+ros2 launch stonefish_ros2 simulator.launch.py \
+    simulation_data:=$(ros2 pkg prefix stonefish_description)/share/stonefish_description \
+    scenario_desc:=$(ros2 pkg prefix stonefish_description)/share/stonefish_description/scenarios/bluerov2_seabed.scn \
     simulation_rate:=100.0 \
     rendering_quality:=high
 ```
@@ -86,8 +89,8 @@ ros2 launch stonefish_ros2 simulator_gpu.launch.py \
 #### No-GPU (Headless)
 
 ```bash
-ros2 launch stonefish_ros2 simulator_nogpu.launch.py \
-    scenario_description:=/workspace/colcon_ws/src/stonefish_description/scenarios/bluerov2_empty.scn \
+ros2 launch stonefish_ros2 simulator.launch.py gpu:=false \
+    scenario_desc:=$(ros2 pkg prefix stonefish_description)/share/stonefish_description/scenarios/bluerov2_empty.scn \
     simulation_rate:=100.0
 ```
 
@@ -119,9 +122,12 @@ ros2 launch stonefish_ros2 bluerov2.launch.py \
     simulation_rate:=200.0
 ```
 
-### simulator_gpu.launch.py
+### simulator.launch.py
 
-GPU-accelerated simulator with rendering.
+Stonefish simulator (leaf launch). The `gpu` argument selects the rendered GPU
+build (`gpu:=true`, default) or the headless build (`gpu:=false`). The window /
+rendering arguments apply to the GPU build only. Replaces the former
+`simulator_gpu.launch.py` / `simulator_nogpu.launch.py` pair.
 
 **Arguments**:
 
@@ -130,13 +136,14 @@ GPU-accelerated simulator with rendering.
 | `simulation_data` | string | (required) | Package share directory path |
 | `scenario_desc` | string | (required) | Absolute path to scenario file |
 | `simulation_rate` | float | `100.0` | Simulation update rate (Hz) |
-| `window_res_x` | int | `960` | Window width (pixels) |
-| `window_res_y` | int | `1080` | Window height (pixels) |
-| `rendering_quality` | string | `high` | Rendering quality: low/medium/high |
+| `gpu` | bool | `true` | `true` = rendered GPU build, `false` = headless build |
+| `window_res_x` | int | `960` | Window width (pixels, GPU build only) |
+| `window_res_y` | int | `1056` | Window height (pixels, GPU build only) |
+| `rendering_quality` | string | `high` | Rendering quality: low/medium/high (GPU build only) |
 
-**Example**:
+**Example (GPU)**:
 ```bash
-ros2 launch stonefish_ros2 simulator_gpu.launch.py \
+ros2 launch stonefish_ros2 simulator.launch.py \
     simulation_data:=$(ros2 pkg prefix stonefish_description)/share/stonefish_description \
     scenario_desc:=$(ros2 pkg prefix stonefish_description)/share/stonefish_description/scenarios/bluerov2_infrastructure.scn \
     rendering_quality:=medium \
@@ -144,21 +151,10 @@ ros2 launch stonefish_ros2 simulator_gpu.launch.py \
     window_res_y:=1080
 ```
 
-### simulator_nogpu.launch.py
-
-Headless simulator without rendering (faster).
-
-**Arguments**:
-
-| Argument | Type | Default | Description |
-|----------|------|---------|-------------|
-| `scenario_description` | string | (required) | Absolute path to scenario file |
-| `simulation_rate` | float | `100.0` | Simulation update rate (Hz) |
-
-**Example**:
+**Example (headless)**:
 ```bash
-ros2 launch stonefish_ros2 simulator_nogpu.launch.py \
-    scenario_description:=/workspace/colcon_ws/src/stonefish_description/scenarios/bluerov2_empty.scn \
+ros2 launch stonefish_ros2 simulator.launch.py gpu:=false \
+    scenario_desc:=$(ros2 pkg prefix stonefish_description)/share/stonefish_description/scenarios/bluerov2_empty.scn \
     simulation_rate:=500.0
 ```
 
@@ -503,10 +499,11 @@ stonefish_ros2/
 │   ├── ROS2SimulationManager.cpp
 │   └── ROSSimulatorApp.cpp        # Main simulator application
 ├── launch/                        # Launch files
-│   ├── bluerov2.launch.py
-│   ├── blueboat.launch.py
-│   ├── simulator_gpu.launch.py
-│   └── simulator_nogpu.launch.py
+│   ├── bringup.launch.py          # Top-level: simulator + control
+│   ├── bluerov2.launch.py         # Vehicle wrapper (BlueROV2)
+│   ├── blueboat.launch.py         # Vehicle wrapper (BlueBoat)
+│   ├── vehicle.launch.py          # Parameterized vehicle bringup
+│   └── simulator.launch.py        # Simulator leaf (gpu:=true|false)
 ├── CMakeLists.txt
 ├── package.xml
 └── README.md
@@ -548,7 +545,7 @@ The `bluerov2.launch.py` publishes a static TF: `base_link` → `base_link_frd`
 
 **Solution**: Ensure `simulation_data` argument points to package share directory:
 ```bash
-ros2 launch stonefish_ros2 simulator_gpu.launch.py \
+ros2 launch stonefish_ros2 simulator.launch.py \
     simulation_data:=$(ros2 pkg prefix stonefish_description)/share/stonefish_description \
     scenario_desc:=...
 ```

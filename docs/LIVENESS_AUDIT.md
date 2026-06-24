@@ -15,14 +15,14 @@
 | `control_interfaces/dp_controller_base.py` | 2 (`__init__.py:23` eager + dead `dp_pid_controller_base.py:20`) | 0 | NO | **dead** | DELETE |
 | `control_interfaces/dp_pid_controller_base.py` | 1 (`__init__.py:24` eager만) | 0 | NO | **dead** | DELETE — pure leaf |
 | `controllers/position_controller.py` | 3 (`controllers/__init__.py:1`·`hybrid_controller.py:9`·`position_controller_node.py:36`) | 0 | YES (hybrid 체인) | **LIVE** | KEEP |
-| `controllers/hybrid_controller.py` | 2 (`controllers/__init__.py:2`·`hybrid_controller_node.py:11`) | 0 | YES (`controller.launch.py:92-99` + `path_following.launch.py:109-116`) | **LIVE** | KEEP |
+| `controllers/hybrid_controller.py` | 2 (`controllers/__init__.py:2`·`hybrid_controller_node.py:11`) | 0 | YES (`control.launch.py:61-68`) | **LIVE** | KEEP |
 | `controllers/unified_controller.py` | 1 (dead `unified_controller_node.py:32`만) | 0 | NO | **dead** | DELETE — orphan 서브트리 |
 | `controllers/unified_controller_node.py` | 0 | 0 | NO (console_scripts·launch 모두 없음) | **dead** | DELETE — orphan 노드 |
 | `controllers/velocity_controller_node.py` | 0 | 0 | NO | **dead(broken)** — 존재하지 않는 `pid_4dof` import(L36) | DELETE — char test G2/G3/G4가 dead 동결 |
 | `nodes/position_controller_node.py` | 0 (console_scripts 엔트리, `setup.py:26`) | 0 | **NO** (엔트리·yaml 존재하나 launch 참조 0건) | **catalogue-only** | KEEP (엔트리는 의도적 catalogue) — ★T1.1 크래시는 고치되 "LIVE 차단" 아님 |
-| `nodes/hybrid_controller_node.py` | 0 (console_scripts 엔트리, `setup.py:25`) | 0 | YES (`controller.launch.py` + `path_following.launch.py`) | **LIVE** | KEEP — 도달성 루트 |
-| `trajectory/nodes/path_following_node.py` | 1 (`nodes/__init__.py:2`) + 엔트리 | 0 | YES (`path_following.launch.py:99-106`) | **LIVE** | KEEP — 도달성 루트 |
-| `trajectory/nodes/path_generator_node.py` | 1 (`nodes/__init__.py:1`) + 엔트리 | 0 | YES (`path_following.launch.py:84-96` + `path_generator.launch.py:112-125`) | **LIVE** | KEEP — 도달성 루트 |
+| `nodes/hybrid_controller_node.py` | 0 (console_scripts 엔트리, `setup.py:25`) | 0 | YES (`control.launch.py:61-68`) | **LIVE** | KEEP — 도달성 루트 |
+| `trajectory/nodes/path_following_node.py` | 1 (`nodes/__init__.py:2`) + 엔트리 | 0 | YES (`path.launch.py:106-113`) | **LIVE** | KEEP — 도달성 루트 |
+| `trajectory/nodes/path_generator_node.py` | 1 (`nodes/__init__.py:1`) + 엔트리 | 0 | YES (`path.launch.py:86-104`) | **LIVE** | KEEP — 도달성 루트 |
 | `trajectory/path_following/ilos_guidance.py` | 3 (`__init__.py:1`·`alos_guidance.py:44`·`path_following_node.py:42`) | 0 | YES (인스턴스화 `path_following_node.py:140`) | **LIVE** | KEEP |
 | `trajectory/path_following/alos_guidance.py` | 2 (`__init__.py:3`·`path_following_node.py:42`) | 0 | YES (인스턴스화 `path_following_node.py:136`, 기본 guidance) | **LIVE** | KEEP |
 | `trajectory/path_following/los_guidance.py` | 1 (`__init__.py:2`만) | 0 | NO (path_following_node는 ILOS/ALOS만) | **dead** | DELETE — ★계획에 없던 발견 |
@@ -37,10 +37,10 @@
 `control_interfaces/dynamics_loader.py` + `control_interfaces/data_types.py`. 이 둘만 live control_interfaces 서브모듈. 패키지 `__init__.py` eager 블록을 lazy화(T0.7)해야 `vehicle.py`/`dp_controller_base.py`/`dp_pid_controller_base.py` 삭제가 `from ..control_interfaces import DynamicsLoader`(live 노드 2개 의존)를 깨지 않음. `data_types.py`는 테스트가 pin한 `angle_wrap` SSOT(L214) 보유.
 
 ### O13 verdict — path_following/path_generator = **LIVE** → T1.4 argmin **in-scope (frozen 아님)**
-근거: 둘 다 실제 console_scripts 엔트리 + 동작하는 launch+config 연결. `path_following_node`=`path_following.launch.py:99-106` + `path_following.yaml`(`/**` wildcard라 항상 로드). `path_generator_node`=`path_following.launch.py:84-96`(+`path_generator.yaml`) AND `path_generator.launch.py:112-125`(inline params + `config/examples/krit_lawnmower.yaml`). 3축 일치.
+근거: 둘 다 실제 console_scripts 엔트리 + 동작하는 launch+config 연결. `path_following_node`=`path.launch.py:106-113` + `path_following.yaml`(`/**` wildcard라 항상 로드). `path_generator_node`=`path.launch.py:86-104`(`path_generator.yaml` + inline params + 기본 `config/examples/krit_lawnmower.yaml`). 3축 일치.
 
 ### hybrid path = LIVE certify (Phase 1 전제 충족)
-`hybrid_controller_node` = **유일하게 launch되는 컨트롤러**. `controller.launch.py:92-99` + `path_following.launch.py:109-116`. 전체 체인 `hybrid_controller_node → hybrid_controller.py → position_controller.py → data_types.py + control_interfaces.__init__(dynamics_loader)`. ⚠️ **H4 caveat**(liveness 실패 아님): launch가 런타임 노드명을 `hybrid_controller`로 덮어써 non-wildcard yaml 키 `hybrid_controller_4dof`와 불일치 → PID 게인이 조용히 `declare_parameter` 기본값으로 fallback. LIVE-but-config-broken(T1.2 수리 대상, LIVE verdict는 불변).
+`hybrid_controller_node` = **유일하게 launch되는 컨트롤러**. `control.launch.py:61-68`. 전체 체인 `hybrid_controller_node → hybrid_controller.py → position_controller.py → data_types.py + control_interfaces.__init__(dynamics_loader)`. ⚠️ **H4 caveat**(liveness 실패 아님): launch가 런타임 노드명을 `hybrid_controller`로 덮어써 non-wildcard yaml 키 `hybrid_controller_4dof`와 불일치 → PID 게인이 조용히 `declare_parameter` 기본값으로 fallback. LIVE-but-config-broken(T1.2 수리 대상, LIVE verdict는 불변).
 
 ### ★position_controller_node = **catalogue-only/latent-dead (NOT LIVE)** — 계획 가정 반증
 `grep position_controller *.launch.py` = EXIT 1 → **어떤 launch에서도 참조 안 됨**. 엔트리·소스·`position_controller.yaml`은 존재하나 never launched. → **T1.1 생성자 크래시는 진짜이고 고쳐야 하나**(setup.py 등록 엔트리가 깨진 채면 안 됨), 분류는 "유일 LIVE 경로 차단"이 아니라 **"catalogue 엔트리의 기동불가"**. 긴급도 LIVE→catalogue-only 정정.

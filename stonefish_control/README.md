@@ -107,17 +107,15 @@ ros2 launch stonefish_thruster_manager thruster_manager.launch.py \
 #### Path Following
 
 ```bash
-# Generate and visualize path
-ros2 launch stonefish_trajectory_manager path_generator.launch.py \
-    waypoint_file:=/workspace/colcon_ws/src/stonefish_control/stonefish_trajectory_manager/config/example_waypoints.yaml \
-    interpolation_method:=lipb
-
-# Path following with LOS guidance
-ros2 launch stonefish_trajectory_manager path_following.launch.py \
+# Path stack: generate the path + run LOS path following
+# (path.launch.py bundles path_generator_node + path_following_node)
+ros2 launch stonefish_trajectory_manager path.launch.py \
     waypoint_file:=/workspace/colcon_ws/src/stonefish_control/stonefish_trajectory_manager/config/example_waypoints.yaml \
     vehicle_name:=bluerov2 \
-    lookahead_distance:=2.5 \
-    robot_max_speed:=1.0
+    interpolation_method:=lipb
+
+# For closed-loop driving, also run the controller (control.launch.py) and the
+# simulator (ros2 launch stonefish_ros2 bringup.launch.py brings up all three).
 ```
 
 ### 4. Send Control Commands
@@ -187,8 +185,11 @@ ros2 topic echo /bluerov2/setpoint/pwm
 # Terminal 1: Start simulation
 ros2 launch stonefish_ros2 bluerov2.launch.py
 
-# Terminal 2: Launch path following
-ros2 launch stonefish_trajectory_manager path_following.launch.py \
+# Terminal 2: Launch the controller (needed for closed-loop)
+ros2 launch stonefish_control control.launch.py vehicle_name:=bluerov2
+
+# Terminal 3: Launch the path stack (generator + following)
+ros2 launch stonefish_trajectory_manager path.launch.py \
     vehicle_name:=bluerov2
 
 # Monitor progress
