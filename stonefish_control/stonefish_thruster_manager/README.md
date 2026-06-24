@@ -375,13 +375,14 @@ Expected output:
 stonefish_thruster_manager/
 ├── stonefish_thruster_manager/
 │   ├── __init__.py
-│   ├── thruster_manager.py        # TAM loader and allocation logic
-│   ├── thruster_allocator.py      # ROS2 node
-│   └── models/
-│       ├── thruster.py            # Thruster model base class
-│       └── thruster_proportional.py  # Linear thrust model
+│   ├── thruster_manager.py             # TAM loader and allocation logic
+│   └── nodes/
+│       ├── __init__.py
+│       └── thruster_allocator_node.py  # ROS2 node
 ├── launch/
-│   └── thruster_manager.launch.py # Launch file
+│   └── thruster_manager.launch.py      # Launch file
+├── test/
+│   └── test_thruster_manager.py
 ├── package.xml
 ├── setup.py
 └── README.md
