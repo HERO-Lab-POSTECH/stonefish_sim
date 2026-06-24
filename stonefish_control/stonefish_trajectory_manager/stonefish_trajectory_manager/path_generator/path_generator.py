@@ -156,7 +156,10 @@ class PathGenerator(object):
             return 0
         if self._cur_s == 1:
             return len(self._s) - 1
-        v = np.array(self._s - self._cur_s)
+        # Nearest waypoint = smallest *absolute* distance along the path.
+        # (T1.4: argmin of the signed difference always picked the earliest
+        # waypoint, since _s is monotonically increasing from 0.)
+        v = np.abs(np.array(self._s) - self._cur_s)
         idx = np.argmin(v)
         return idx
 
