@@ -235,7 +235,11 @@ bool ROS2ScenarioParser::ParseRobot(XMLElement* element)
     
     //Robot info
     const char* name = nullptr;
-    element->QueryStringAttribute("name", &name);
+    if(element->QueryStringAttribute("name", &name) != XML_SUCCESS || name == nullptr)
+    {
+        RCLCPP_ERROR(nh_->get_logger(), "Scenario parser: <robot> missing required 'name' attribute!");
+        return false;
+    }
     std::string nameStr(name);
     Robot* robot = getSimulationManager()->getRobot(nameStr);
 
@@ -426,13 +430,21 @@ bool ROS2ScenarioParser::ParseAnimated(XMLElement* element)
 
     //Get name
     const char* name = nullptr;
-    element->QueryStringAttribute("name", &name);
+    if(element->QueryStringAttribute("name", &name) != XML_SUCCESS || name == nullptr)
+    {
+        RCLCPP_ERROR(nh_->get_logger(), "Scenario parser: <animated> missing required 'name' attribute!");
+        return false;
+    }
     std::string nameStr(name);
 
     //Get type of trajectory
-    const char* type;
+    const char* type = nullptr;
     XMLElement* item = element->FirstChildElement("trajectory");
-    item->QueryStringAttribute("type", &type);
+    if(item == nullptr || item->QueryStringAttribute("type", &type) != XML_SUCCESS || type == nullptr)
+    {
+        RCLCPP_ERROR(nh_->get_logger(), "Scenario parser: <animated name='%s'> missing <trajectory type='...'>!", nameStr.c_str());
+        return false;
+    }
     std::string typeStr(type);
 
     if(typeStr == "manual") //Position of animated body set by a message
@@ -861,7 +873,11 @@ bool ROS2ScenarioParser::ParseContact(XMLElement* element)
     
     //Contact info
     const char* name = nullptr;
-    element->QueryStringAttribute("name", &name);
+    if(element->QueryStringAttribute("name", &name) != XML_SUCCESS || name == nullptr)
+    {
+        RCLCPP_ERROR(nh_->get_logger(), "Scenario parser: <contact> missing required 'name' attribute!");
+        return false;
+    }
     std::string contactName = std::string(name);
 
     //Publishing info
