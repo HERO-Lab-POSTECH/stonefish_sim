@@ -16,7 +16,7 @@ setup(
         (os.path.join('share', package_name, 'config', 'examples'), glob('config/examples/*.yaml')),
         (os.path.join('share', package_name, 'rviz'), glob('rviz/*.rviz')),
     ],
-    install_requires=['setuptools', 'numpy', 'transforms3d'],
+    install_requires=['setuptools', 'numpy', 'scipy', 'transforms3d', 'PyYAML'],
     zip_safe=False,
     maintainer='Seungmin Kim',
     maintainer_email='luckkim123@gmail.com',
