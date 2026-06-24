@@ -422,6 +422,12 @@ class WPTrajectoryGenerator(object):
                     self._mode_logged = True
 
                 if self._advancement_mode == 'velocity_damped' and self._last_pnt is not None:
+                    # REFACTOR GUARD: cross_track_error (computed below) and damping are read
+                    # by the [DAMPING] debug print at the end of this block. If this block is
+                    # ever extracted into a helper (e.g. _compute_velocity_damping), the helper
+                    # MUST return both `damping` and `cross_track_error` (or keep the print
+                    # inside the helper) — otherwise the print raises NameError on the first
+                    # damped step. A prior decomposition attempt was reverted for exactly this.
                     # CRITICAL FIX: Use cross-track error, NOT total position error!
                     # Total position error causes vicious cycle:
                     #   Robot behind → high error → strong damping → slower → falls further behind
