@@ -9,7 +9,11 @@
 #   - Path following → velocity mode
 #   - Last waypoint → position mode
 
-hybrid_controller_4dof:
+# Wildcard node-name match: binds regardless of the launch `name=` override
+# (repo convention, cf. path_following.yaml / path_generator.yaml). Without this
+# the non-wildcard key did not match the launch runtime name 'hybrid_controller'
+# and all PID gains silently fell back to declare_parameter defaults (T1.2/H4).
+/**:
   ros__parameters:
     # General
     vehicle_name: 'bluerov2'
