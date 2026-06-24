@@ -5,8 +5,8 @@ ROS2는 yaml 파라미터 블록을 노드의 *런타임* 이름(launch의 name=
 다르고 wildcard('/**')도 아니면, 파라미터가 조용히 declare_parameter 기본값으로
 fallback한다(게인 미로딩).
 
-T1.2: hybrid_controller_node 생성자명은 'hybrid_controller_4dof'이나 controller.launch.py
-와 path_following.launch.py가 name='hybrid_controller'로 덮어쓰고, hybrid_controller.yaml
+T1.2: hybrid_controller_node 생성자명은 'hybrid_controller_4dof'이나 control.launch.py
+가 name='hybrid_controller'로 덮어쓰고, hybrid_controller.yaml
 키는 'hybrid_controller_4dof:'(non-wildcard) → 매칭 실패, position_mode.max_force가
 800→200(4×)로 silent 저하.
 
@@ -32,9 +32,8 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 # (launch 파일, 패키지 config 디렉토리) — launch가 PathJoinSubstitution으로 yaml 경로를
 # 합성하므로, yaml 파일명만 추출해 이 디렉토리에서 찾는다.
 _LAUNCH_FILES = [
-    REPO_ROOT / "stonefish_control/stonefish_control/launch/controller.launch.py",
-    REPO_ROOT / "stonefish_control/stonefish_trajectory_manager/launch/path_following.launch.py",
-    REPO_ROOT / "stonefish_control/stonefish_trajectory_manager/launch/path_generator.launch.py",
+    REPO_ROOT / "stonefish_control/stonefish_control/launch/control.launch.py",
+    REPO_ROOT / "stonefish_control/stonefish_trajectory_manager/launch/path.launch.py",
 ]
 
 # config yaml 탐색 루트(패키지별)
