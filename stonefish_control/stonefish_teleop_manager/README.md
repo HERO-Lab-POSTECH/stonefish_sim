@@ -119,4 +119,4 @@ For questions or feature requests, please open an issue on GitHub.
 
 ## License
 
-Apache 2.0
+GPL-3.0

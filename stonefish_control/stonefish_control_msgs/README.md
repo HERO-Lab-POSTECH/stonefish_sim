@@ -375,6 +375,6 @@ Example: Position `[0, 0, 2.0]` = 2 meters underwater at origin
 
 ## License
 
-Apache 2.0
+GPL-3.0
 
 Based on UUV Simulator (Copyright 2016 The UUV Simulator Authors)
