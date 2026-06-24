@@ -56,28 +56,6 @@ Main control algorithms package.
 
 **Location**: `stonefish_control/`
 
-#### 5. **stonefish_control_utils**
-Control utilities and visualization tools.
-
-**Features**:
-- PID parameter optimization
-- Control performance analysis
-- Visualization tools
-
-**Location**: `stonefish_control_utils/`
-
-#### 6. **stonefish_teleop_manager**
-Teleoperation interfaces.
-
-**Planned Features**:
-- Keyboard teleoperation
-- Joystick/gamepad support
-- Haptic feedback (future)
-
-**Status**: Planned
-
-**Location**: `stonefish_teleop_manager/`
-
 ## Quick Start
 
 ### 1. Build
@@ -90,7 +68,6 @@ colcon build --packages-select \
     stonefish_control_msgs \
     stonefish_thruster_manager \
     stonefish_trajectory_manager \
-    stonefish_control_utils \
     stonefish_control
 
 # Or build individually
@@ -130,17 +107,15 @@ ros2 launch stonefish_thruster_manager thruster_manager.launch.py \
 #### Path Following
 
 ```bash
-# Generate and visualize path
-ros2 launch stonefish_trajectory_manager path_generator.launch.py \
-    waypoint_file:=/workspace/colcon_ws/src/stonefish_control/stonefish_trajectory_manager/config/example_waypoints.yaml \
-    interpolation_method:=lipb
-
-# Path following with LOS guidance
-ros2 launch stonefish_trajectory_manager path_following.launch.py \
+# Path stack: generate the path + run LOS path following
+# (path.launch.py bundles path_generator_node + path_following_node)
+ros2 launch stonefish_trajectory_manager path.launch.py \
     waypoint_file:=/workspace/colcon_ws/src/stonefish_control/stonefish_trajectory_manager/config/example_waypoints.yaml \
     vehicle_name:=bluerov2 \
-    lookahead_distance:=2.5 \
-    robot_max_speed:=1.0
+    interpolation_method:=lipb
+
+# For closed-loop driving, also run the controller (control.launch.py) and the
+# simulator (ros2 launch stonefish_ros2 bringup.launch.py brings up all three).
 ```
 
 ### 4. Send Control Commands
@@ -210,8 +185,11 @@ ros2 topic echo /bluerov2/setpoint/pwm
 # Terminal 1: Start simulation
 ros2 launch stonefish_ros2 bluerov2.launch.py
 
-# Terminal 2: Launch path following
-ros2 launch stonefish_trajectory_manager path_following.launch.py \
+# Terminal 2: Launch the controller (needed for closed-loop)
+ros2 launch stonefish_control control.launch.py vehicle_name:=bluerov2
+
+# Terminal 3: Launch the path stack (generator + following)
+ros2 launch stonefish_trajectory_manager path.launch.py \
     vehicle_name:=bluerov2
 
 # Monitor progress
@@ -378,7 +356,6 @@ Individual packages have their own detailed READMEs:
 - **stonefish_thruster_manager**: See `stonefish_thruster_manager/README.md` (pending)
 - **stonefish_trajectory_manager**: See `stonefish_trajectory_manager/README.md` ✅
 - **stonefish_control**: See `stonefish_control/README.md` (pending)
-- **stonefish_control_utils**: See `stonefish_control_utils/README.md` (pending)
 
 ## Related Packages
 
@@ -403,15 +380,14 @@ Individual packages have their own detailed READMEs:
 
 ## License
 
-**Apache License 2.0**
+**GPL-3.0-or-later**
 
-Original UUV Simulator code:
-- Copyright (c) 2016-2019 The UUV Simulator Authors
-- Licensed under Apache License 2.0
+Copyright holders (preserved per file in SPDX headers):
+- Original UUV Simulator code: Copyright (c) 2016-2019 The UUV Simulator Authors
+- ROS2 port and enhancements: Copyright 2025 HERO Lab, POSTECH
 
-ROS2 port and enhancements:
-- Copyright 2025 HERO Lab, POSTECH
-- Licensed under Apache License 2.0
+The UUV Simulator code was originally Apache-2.0; Apache-2.0 is one-way
+compatible with GPL-3.0, and the package is distributed under GPL-3.0-or-later.
 
 ---
 

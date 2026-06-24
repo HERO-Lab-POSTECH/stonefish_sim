@@ -378,11 +378,8 @@ colcon build --packages-select stonefish_trajectory_manager
 ### Testing
 
 ```bash
-# Test path generator
-ros2 launch stonefish_trajectory_manager path_generator.launch.py
-
-# Test path following (requires simulator)
-ros2 launch stonefish_trajectory_manager path_following.launch.py
+# Test the path stack: generator + following (following loop requires a simulator)
+ros2 launch stonefish_trajectory_manager path.launch.py
 ```
 
 ---

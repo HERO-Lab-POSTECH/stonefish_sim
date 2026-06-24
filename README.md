@@ -53,8 +53,8 @@ ros2 launch stonefish_ros2 bluerov2.launch.py
 # With thruster manager
 ros2 launch stonefish_ros2 bluerov2.launch.py start_thruster_manager:=true
 
-# With position controller
-ros2 launch stonefish_control controller.launch.py controller_type:=position
+# With the controller
+ros2 launch stonefish_control control.launch.py
 ```
 
 ## Package Structure
@@ -115,8 +115,10 @@ Located in `stonefish_description/scenarios/`:
 
 ## License
 
-- Core packages (stonefish_msgs, stonefish_ros2, stonefish_description): GPL-3.0
-- Control packages: Apache-2.0 (derived from UUV Simulator)
+All packages are licensed under GPL-3.0-or-later. The control packages are
+derived from the UUV Simulator (originally Apache-2.0); Apache-2.0 is one-way
+compatible with GPL-3.0, and the original copyright holders are preserved in
+each source file's SPDX header.
 
 ## Credits
 

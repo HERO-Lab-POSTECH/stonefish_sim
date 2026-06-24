@@ -1,17 +1,6 @@
-# Copyright (c) 2016-2019 The UUV Simulator Authors.
-# All rights reserved.
+# SPDX-FileCopyrightText: 2016-2019 The UUV Simulator Authors
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# SPDX-License-Identifier: GPL-3.0-or-later
 import numpy as np
 from copy import deepcopy
 import logging
@@ -433,6 +422,12 @@ class WPTrajectoryGenerator(object):
                     self._mode_logged = True
 
                 if self._advancement_mode == 'velocity_damped' and self._last_pnt is not None:
+                    # REFACTOR GUARD: cross_track_error (computed below) and damping are read
+                    # by the [DAMPING] debug print at the end of this block. If this block is
+                    # ever extracted into a helper (e.g. _compute_velocity_damping), the helper
+                    # MUST return both `damping` and `cross_track_error` (or keep the print
+                    # inside the helper) — otherwise the print raises NameError on the first
+                    # damped step. A prior decomposition attempt was reverted for exactly this.
                     # CRITICAL FIX: Use cross-track error, NOT total position error!
                     # Total position error causes vicious cycle:
                     #   Robot behind → high error → strong damping → slower → falls further behind

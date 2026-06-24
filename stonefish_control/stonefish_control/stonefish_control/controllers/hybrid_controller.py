@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-# Copyright (c) 2025 Stonefish Control Contributors
-# Licensed under the Apache License, Version 2.0
+# SPDX-FileCopyrightText: 2025 Stonefish Control Contributors
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 """Hybrid Controller - switches between velocity and position modes"""
 

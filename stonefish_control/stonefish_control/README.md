@@ -9,8 +9,7 @@ This package provides 4DOF (X, Y, Z, Yaw) controllers for underactuated marine v
 **Key Features**:
 - **Position Controller**: Precise position hold with anti-windup PID
 - **Hybrid Controller**: Switches between velocity and position modes
-- **Velocity Controller**: Fast velocity tracking for path following
-- **Feedforward support**: Optional velocity feedforward from path planners
+- **Feedforward support**: Optional acceleration feedforward from path planners
 - **Anti-windup**: Back-calculation method prevents integral windup
 
 ## Architecture
@@ -18,7 +17,7 @@ This package provides 4DOF (X, Y, Z, Yaw) controllers for underactuated marine v
 ```
 Waypoint/Setpoint
     ↓
-Controller (Position/Hybrid/Velocity)
+Controller (Position/Hybrid)
     ↓ publishes geometry_msgs/WrenchStamped
 Thruster Manager (TAM allocation)
     ↓ publishes std_msgs/Float64MultiArray
@@ -63,13 +62,13 @@ source install/setup.bash
 
 **Control Law**:
 ```
-τ = Kp·e + Kd·(-v) + Ki·∫e + M·v_ff
+τ = Kp·e + Kd·(-v) + Ki·∫e + M·a_ff
 ```
 
 Where:
 - `e` = Position error (world frame → body frame)
 - `v` = Current velocity (body frame)
-- `v_ff` = Feedforward velocity (optional)
+- `a_ff` = Feedforward acceleration (position mode only)
 - `M` = Mass matrix (for feedforward scaling)
 
 **Features**:
@@ -94,7 +93,7 @@ Combines velocity and position controllers with mode switching.
 - **Position Mode**: Precise position hold (zero drift, high stability)
 
 **Mode Switching**:
-- Controlled by `set_mode()` service or parameter
+- Controlled by the `control_mode` (`std_msgs/String`) topic, or `initial_mode` parameter at startup
 - Automatic reset of integral terms on mode switch
 - Typical usage: Velocity mode during path following → Position mode at waypoint arrival
 
@@ -109,66 +108,37 @@ Combines velocity and position controllers with mode switching.
 
 ---
 
-### 3. Velocity Controller
-
-PID controller optimized for velocity tracking.
-
-**Control Law**:
-```
-τ = Kp·e_vel + Kd·a + Ki·∫e_vel
-```
-
-Where:
-- `e_vel` = Velocity error
-- `a` = Acceleration (numerical derivative)
-
-**Features**:
-- High gains for fast response
-- Lower integral safety factor (prevents windup during aggressive maneuvers)
-- Suitable for path following with LOS guidance
-
-**Use Cases**:
-- Fast path tracking
-- Velocity-based teleoperation
-- Dynamic maneuvers
-
----
-
 ## Usage
 
 ### Launch Files
 
-#### controller.launch.py
+#### control.launch.py
 
-Main launch file for all controller types.
+Launches the hybrid controller only (no simulator, no path nodes). Pair it with
+`path.launch.py` and a simulator bringup, or use `stonefish_ros2 bringup.launch.py`
+to start all three together.
 
 **Parameters**:
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `vehicle_name` | string | `bluerov2` | Vehicle namespace |
-| `controller_type` | string | `hybrid` | Controller type: `position`, `hybrid`, `velocity` |
-| `controller_config` | string | (auto) | Path to controller YAML config |
+| `use_sim_time` | bool | `false` | Use /clock simulation time (set true when the simulator runs) |
+| `controller_config` | string | (auto) | Path to hybrid controller YAML config |
 | `dynamics_config` | string | (auto) | Path to vehicle dynamics YAML |
-| `start_simulator` | bool | `false` | Start Stonefish simulator automatically |
 
 **Examples**:
 
 ```bash
-# Position controller only
-ros2 launch stonefish_control controller.launch.py \
-    vehicle_name:=bluerov2 \
-    controller_type:=position
+# Launch the hybrid controller
+ros2 launch stonefish_control control.launch.py
 
-# Hybrid controller (default)
-ros2 launch stonefish_control controller.launch.py
-
-# With simulator
-ros2 launch stonefish_control controller.launch.py \
-    start_simulator:=true
+# With simulation time (simulator started separately, e.g. via bringup.launch.py)
+ros2 launch stonefish_control control.launch.py \
+    use_sim_time:=true
 
 # Custom config
-ros2 launch stonefish_control controller.launch.py \
+ros2 launch stonefish_control control.launch.py \
     controller_config:=/path/to/custom_controller.yaml \
     dynamics_config:=/path/to/custom_dynamics.yaml
 ```
@@ -201,8 +171,7 @@ ros2 launch stonefish_control controller.launch.py \
 | Topic | Type | Description |
 |-------|------|-------------|
 | `/{vehicle_name}/odometry` | `nav_msgs/Odometry` | Current vehicle state |
-| `/{vehicle_name}/cmd_pose` | `geometry_msgs/PoseStamped` | Desired pose (position mode) |
-| `/{vehicle_name}/cmd_vel` | `geometry_msgs/Twist` | Desired velocity (velocity mode) |
+| `/{vehicle_name}/cmd_pose` | `stonefish_control_msgs/TrajectoryPoint` | Desired pose + velocity (position and velocity fields) |
 | `/{vehicle_name}/control_mode` | `std_msgs/String` | Mode switch command: `"velocity"` or `"position"` |
 
 #### Published
@@ -210,41 +179,6 @@ ros2 launch stonefish_control controller.launch.py \
 | Topic | Type | Description |
 |-------|------|-------------|
 | `/{vehicle_name}/thruster_manager/input_stamped` | `geometry_msgs/WrenchStamped` | 6DOF control wrench |
-| `/{vehicle_name}/controller/current_mode` | `std_msgs/String` | Active control mode |
-
----
-
-## Services
-
-All controllers provide these services:
-
-| Service | Type | Description |
-|---------|------|-------------|
-| `/{vehicle_name}/{controller_name}/get_pid_params` | `stonefish_control_msgs/GetPIDParams` | Retrieve current PID gains |
-| `/{vehicle_name}/{controller_name}/set_pid_params` | `stonefish_control_msgs/SetPIDParams` | Update PID gains dynamically |
-| `/{vehicle_name}/{controller_name}/reset` | `stonefish_control_msgs/ResetController` | Reset controller state |
-| `/{vehicle_name}/{controller_name}/hold` | `stonefish_control_msgs/Hold` | Hold current position |
-
-**Example**:
-
-```bash
-# Get current gains
-ros2 service call /bluerov2/position_controller/get_pid_params \
-    stonefish_control_msgs/srv/GetPIDParams
-
-# Update gains
-ros2 service call /bluerov2/position_controller/set_pid_params \
-    stonefish_control_msgs/srv/SetPIDParams \
-    "{kp: [300.0, 300.0, 400.0, 200.0], kd: [150.0, 150.0, 200.0, 100.0], ki: [10.0, 10.0, 20.0, 5.0]}"
-
-# Reset controller
-ros2 service call /bluerov2/position_controller/reset \
-    stonefish_control_msgs/srv/ResetController
-
-# Hold position
-ros2 service call /bluerov2/position_controller/hold \
-    stonefish_control_msgs/srv/Hold
-```
 
 ---
 
@@ -277,7 +211,7 @@ ros2 service call /bluerov2/position_controller/hold \
 | `initial_mode` | string | `velocity` | Starting mode: `velocity` or `position` |
 | **Velocity Mode** | | | |
 | `velocity_mode.Kp` | float[4] | `[200, 200, 250, 150]` | Velocity mode proportional gains |
-| `velocity_mode.Kd` | float[4] | `[0, 100, 100, 80]` | Velocity mode derivative gains |
+| `velocity_mode.Kd` | float[4] | `[0, 100, 120, 80]` | Velocity mode derivative gains |
 | `velocity_mode.Ki` | float[4] | `[50, 50, 60, 10]` | Velocity mode integral gains |
 | `velocity_mode.Kb` | float[4] | `[0.8, 0.8, 0.8, 0.8]` | Velocity mode anti-windup gains |
 | `velocity_mode.max_force` | float | `800.0` | Velocity mode force limit (N) |
@@ -288,8 +222,8 @@ ros2 service call /bluerov2/position_controller/hold \
 | `position_mode.Kd` | float[4] | `[150, 150, 200, 100]` | Position mode derivative gains |
 | `position_mode.Ki` | float[4] | `[10, 10, 20, 5]` | Position mode integral gains |
 | `position_mode.Kb` | float[4] | `[0.8, 0.8, 0.8, 0.8]` | Position mode anti-windup gains |
-| `position_mode.max_force` | float | `800.0` | Position mode force limit (N) |
-| `position_mode.max_torque` | float | `160.0` | Position mode torque limit (Nm) |
+| `position_mode.max_force` | float | `200.0` | Position mode force limit (N) |
+| `position_mode.max_torque` | float | `50.0` | Position mode torque limit (Nm) |
 | `position_mode.integral_safety_factor` | float | `2.0` | Position mode integral safety |
 
 ---
@@ -370,12 +304,12 @@ vehicle_dynamics:
 # Terminal 1: Simulator
 ros2 launch stonefish_ros2 bluerov2.launch.py
 
-# Terminal 2: Position controller
-ros2 launch stonefish_control controller.launch.py controller_type:=position
+# Terminal 2: Hybrid controller (position mode at startup)
+ros2 launch stonefish_control control.launch.py
 
 # Terminal 3: Send pose command
-ros2 topic pub /bluerov2/cmd_pose geometry_msgs/msg/PoseStamped \
-  "{header: {frame_id: 'world_ned'}, pose: {position: {x: 5.0, y: 0.0, z: 2.0}}}" --once
+ros2 topic pub /bluerov2/cmd_pose stonefish_control_msgs/msg/TrajectoryPoint \
+  "{pose: {position: {x: 5.0, y: 0.0, z: 2.0}, orientation: {w: 1.0}}}" --once
 ```
 
 ### With Path Following
@@ -385,10 +319,10 @@ ros2 topic pub /bluerov2/cmd_pose geometry_msgs/msg/PoseStamped \
 ros2 launch stonefish_ros2 bluerov2.launch.py
 
 # Terminal 2: Hybrid controller
-ros2 launch stonefish_control controller.launch.py controller_type:=hybrid
+ros2 launch stonefish_control control.launch.py
 
-# Terminal 3: Path following (publishes cmd_pose and mode switches)
-ros2 launch stonefish_trajectory_manager path_following.launch.py \
+# Terminal 3: Path stack (generator + following; publishes cmd_pose and mode switches)
+ros2 launch stonefish_trajectory_manager path.launch.py \
     waypoint_file:=config/example_waypoints.yaml \
     vehicle_name:=bluerov2
 ```
@@ -401,10 +335,8 @@ ros2 launch stonefish_trajectory_manager path_following.launch.py \
 
 ```bash
 # Move to 5m North, 2m depth
-ros2 topic pub /bluerov2/cmd_pose geometry_msgs/msg/PoseStamped \
-  "{header: {frame_id: 'world_ned'}, \
-    pose: {position: {x: 5.0, y: 0.0, z: 2.0}, \
-           orientation: {x: 0, y: 0, z: 0, w: 1}}}" --once
+ros2 topic pub /bluerov2/cmd_pose stonefish_control_msgs/msg/TrajectoryPoint \
+  "{pose: {position: {x: 5.0, y: 0.0, z: 2.0}, orientation: {w: 1.0}}}" --once
 ```
 
 ### Monitor Control Output
@@ -477,23 +409,19 @@ stonefish_control/
 ├── stonefish_control/
 │   ├── controllers/
 │   │   ├── position_controller.py     # Position PID controller
-│   │   ├── hybrid_controller.py       # Hybrid mode controller
-│   │   └── velocity_controller_node.py  # Velocity controller node
+│   │   └── hybrid_controller.py       # Hybrid mode controller
 │   ├── control_interfaces/
-│   │   ├── dp_controller_base.py      # Base class for controllers
-│   │   ├── dp_pid_controller_base.py  # PID controller base
-│   │   ├── vehicle.py                 # Vehicle model
+│   │   ├── data_types.py              # Shared data types + angle_wrap SSOT
 │   │   └── dynamics_loader.py         # Dynamics parameter loader
 │   └── nodes/
 │       ├── position_controller_node.py  # Position controller ROS2 node
 │       └── hybrid_controller_node.py    # Hybrid controller ROS2 node
 ├── launch/
-│   └── controller.launch.py           # Main launch file
+│   └── control.launch.py              # Hybrid controller launch
 ├── config/
 │   └── bluerov2/
 │       ├── position_controller.yaml   # Position PID config
-│       ├── hybrid_controller.yaml     # Hybrid controller config
-│       └── velocity_controller.yaml   # Velocity controller config
+│       └── hybrid_controller.yaml     # Hybrid controller config
 ├── package.xml
 ├── setup.py
 └── README.md
@@ -522,14 +450,14 @@ stonefish_control/
 
 ### Implementation
 
-- Based on UUV Simulator framework (Apache 2.0 license)
+- Based on UUV Simulator framework (originally Apache-2.0; relicensed GPL-3.0)
 - Adapted for ROS2 Humble and Stonefish simulator
 
 ---
 
 ## License
 
-Apache 2.0
+GPL-3.0-or-later
 
 Based on UUV Simulator (Copyright 2016 The UUV Simulator Authors)
 

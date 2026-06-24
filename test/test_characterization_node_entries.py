@@ -24,8 +24,7 @@ TRAJ = 'stonefish_control/stonefish_trajectory_manager/stonefish_trajectory_mana
 _CONTROL_ENTRIES = {
     'hybrid_controller_node': 'stonefish_control.nodes.hybrid_controller_node:main',
     'position_controller_node': 'stonefish_control.nodes.position_controller_node:main',
-    # velocity는 T2에서 console_scripts 엔트리 삭제됨(dead 파일은 잔류, P4_FLAGS 참조).
-    # dead 상태는 test_g2_velocity_node_is_dead가 별도로 동결.
+    # velocity/unified dead 컨트롤러는 P4 T2.2에서 삭제됨(test_g2_dead_controllers_deleted가 동결).
 }
 _THRUSTER_ENTRY = {
     # T3에서 thruster_allocator → nodes/thruster_allocator_node 로 rename(좌변 thruster_allocator 동결)
@@ -50,14 +49,18 @@ def test_g1_thruster_entry_chain_resolves():
         assert g.top_level_main_symbol(f), f'{name}: top-level main 없음'
 
 
-def test_g2_velocity_node_is_dead():
-    """G2: velocity_controller_node가 dead 상태임을 resolution-based로 동결.
+def test_g2_dead_controllers_deleted():
+    """G2: dead 컨트롤러(velocity/unified)가 P4 T2.2에서 삭제됐음을 동결.
 
-    pid_4dof 모듈이 디스크에 없으므로 velocity 노드는 ros2 run 시 ImportError로 죽는다.
-    누가 pid_4dof.py를 만들면(= 노드를 un-dead = 토픽그래프 변경 = P4 사건) 이 테스트가 RED.
+    velocity_controller_node(broken: pid_4dof 부재)와 unified_controller(+node, orphan)는
+    상속자·console_scripts·launch 참조 0으로 dead 판정(docs/LIVENESS_AUDIT.md) 후 삭제됐다.
+    누가 다시 만들면(= 부활 = 토픽그래프 변경) 이 테스트가 RED.
     """
-    target = g.module_to_file('stonefish_control.controllers.pid_4dof')
-    assert target is None, 'pid_4dof가 존재함 — velocity가 더는 dead가 아님(P4 사건)'
+    for rel in ('controllers/velocity_controller_node.py',
+                'controllers/unified_controller.py',
+                'controllers/unified_controller_node.py'):
+        assert not (g.REPO_ROOT / CTRL / rel).exists(), \
+            f'{rel}가 다시 존재함 — dead 컨트롤러 부활(P4 사건)'
 
 
 def test_g2_dynamics_loader_pid4dof_is_docstring_only():
@@ -83,7 +86,6 @@ def test_g3_node_modules_have_no_toplevel_dynamic_refs():
     nodes = [
         f'{CTRL}/nodes/position_controller_node.py',
         f'{CTRL}/nodes/hybrid_controller_node.py',
-        f'{CTRL}/controllers/velocity_controller_node.py',
         f'{THR}/nodes/thruster_allocator_node.py',
     ]
     for rel in nodes:
@@ -112,7 +114,6 @@ def test_g5_node_modules_py_compile():
     nodes = [
         f'{CTRL}/nodes/position_controller_node.py',
         f'{CTRL}/nodes/hybrid_controller_node.py',
-        f'{CTRL}/controllers/velocity_controller_node.py',
         f'{THR}/nodes/thruster_allocator_node.py',
     ]
     for rel in nodes:

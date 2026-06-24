@@ -20,7 +20,6 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/Int32Stamped.msg"
   "msg/NEDPose.msg"
   "msg/ThrusterState.msg"
-  "srv/SetMode.srv"
   "srv/SetOceanCurrent.srv"
   "srv/SetWaveHeight.srv"
   "srv/SetWindVelocity.srv"
@@ -33,5 +32,7 @@ if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   ament_lint_auto_find_test_dependencies()
 endif()
+
+ament_export_dependencies(rosidl_default_runtime)
 
 ament_package()

@@ -102,7 +102,7 @@ bare assertion 금지 — 각 항목에 대조한 공식 패키지 URL을 명시
 | .msg/.srv snake_case 필드명 (전수) | rosidl 강제 | https://github.com/ros2/rosidl/pull/25 |
 | `DVL.msg`/`DVLBeam.msg` UUV 출처 재사용 | sensor_msgs/Imu 패턴 동일 | https://github.com/ros2/common_interfaces/blob/rolling/sensor_msgs/msg/Imu.msg ; https://github.com/uuvsimulator/uuv_simulator |
 | `INS.msg`/`NEDPose.msg` NED 좌표계 | REP 103 `_ned` secondary frame 허용 | https://github.com/ros-infrastructure/rep/blob/master/rep-0103.rst |
-| `controller.launch.py` 등 모든 launch generate_launch_description() | turtlebot3/webots 공식 패턴 일치 | https://github.com/ROBOTIS-GIT/turtlebot3_simulations/.../turtlebot3_world.launch.py |
+| `control.launch.py` 등 모든 launch generate_launch_description() | turtlebot3/webots 공식 패턴 일치 | https://github.com/ROBOTIS-GIT/turtlebot3_simulations/.../turtlebot3_world.launch.py |
 | `launch/` root-level 배치 | nav2_bringup/turtlebot3_bringup 동일 | https://github.com/ros-navigation/navigation2/tree/main/nav2_bringup/launch |
 | `config/bluerov2/` vehicle subdir | UR description의 `config/<variant>/` 동일 | https://github.com/UniversalRobots/Universal_Robots_ROS2_Description/tree/humble/config |
 | console_scripts entry_points (전 패키지) | demo_nodes_py 동일 패턴 | https://github.com/ros2/demos/blob/humble/demo_nodes_py/setup.py |

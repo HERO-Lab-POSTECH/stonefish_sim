@@ -1,25 +1,14 @@
 #!/usr/bin/env python3
-# Copyright 2025
+# SPDX-FileCopyrightText: 2025 Seungmin Kim
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 """Launch file for thruster allocator node."""
 
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
-from launch_ros.substitutions import FindPackageShare
 
 
 def generate_launch_description():
@@ -61,6 +50,12 @@ def generate_launch_description():
         description='Maximum thrust force per thruster [N]'
     )
 
+    use_sim_time_arg = DeclareLaunchArgument(
+        'use_sim_time',
+        default_value='false',
+        description='Use /clock simulation time; set true when the simulator runs.'
+    )
+
     # Create node
     thruster_allocator_node = Node(
         package='stonefish_thruster_manager',
@@ -75,6 +70,7 @@ def generate_launch_description():
             'update_rate': LaunchConfiguration('update_rate'),
             'timeout': LaunchConfiguration('timeout'),
             'max_thrust': LaunchConfiguration('max_thrust'),
+            'use_sim_time': LaunchConfiguration('use_sim_time'),
         }],
         remappings=[
             ('~/input', 'thruster_manager/input'),
@@ -89,5 +85,6 @@ def generate_launch_description():
         update_rate_arg,
         timeout_arg,
         max_thrust_arg,
+        use_sim_time_arg,
         thruster_allocator_node,
     ])

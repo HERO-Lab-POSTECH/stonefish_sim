@@ -148,6 +148,9 @@ namespace sf
         std::shared_ptr<image_transport::ImageTransport> it_;
         std::unique_ptr<tf2_ros::TransformBroadcaster> tf_;
         std::shared_ptr<ROS2Interface> interface_;
+        // Accessed from subscription callbacks; safe under the single-threaded executor invariant
+        // (see stonefish_simulator.cpp). Keys are entity-derived names (robot-name-prefixed for
+        // robot actuators); duplicate keys would silently overwrite an existing entry.
         std::map<std::string, rclcpp::ServiceBase::SharedPtr> srvs_;
         std::map<std::string, rclcpp::PublisherBase::SharedPtr> pubs_;
         std::map<std::string, rclcpp::SubscriptionBase::SharedPtr> subs_;

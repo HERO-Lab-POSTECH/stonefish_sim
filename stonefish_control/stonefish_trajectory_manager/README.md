@@ -67,12 +67,13 @@ source install/setup.bash
 
 ## Quick Start
 
-### 1. Path Generator (Standalone)
+### 1. Path Stack (Generator + Following)
 
-Generate and visualize paths from waypoints:
+Generate, visualize, and follow paths from waypoints. `path.launch.py` runs
+`path_generator_node` + `path_following_node` together (plus the world_ned->map TF):
 
 ```bash
-ros2 launch stonefish_trajectory_manager path_generator.launch.py \
+ros2 launch stonefish_trajectory_manager path.launch.py \
     waypoint_file:=/path/to/waypoints.yaml \
     interpolation_method:=lipb \
     sample_step:=0.01
@@ -84,32 +85,38 @@ ros2 launch stonefish_trajectory_manager path_generator.launch.py \
 
 ### 2. Path Following (with BlueROV2)
 
-Follow generated paths using Simple LOS guidance:
+Follow generated paths using Simple LOS guidance. `path.launch.py` runs the
+path-following node alongside the generator; LOS tuning (lookahead, acceptance
+radius, speed) lives in `config/path_following.yaml`:
 
 ```bash
-ros2 launch stonefish_trajectory_manager path_following.launch.py \
+ros2 launch stonefish_trajectory_manager path.launch.py \
     waypoint_file:=/path/to/waypoints.yaml \
-    vehicle_name:=bluerov2 \
-    lookahead_distance:=2.5 \
-    acceptance_radius:=0.5
+    vehicle_name:=bluerov2
 ```
 
 **Subscribes**: `/{vehicle_name}/odometry`
 **Publishes**: `/{vehicle_name}/cmd_pose` (for position controller)
 
-### 3. Complete Mission (Simulator + Path Following)
+### 3. Complete Mission (Simulator + Control + Path)
 
-Run full system:
+Run the full system with one command (simulator + control + path):
+
+```bash
+ros2 launch stonefish_ros2 bringup.launch.py vehicle:=bluerov2
+```
+
+Or start the components in separate terminals:
 
 ```bash
 # Terminal 1: Simulator
 ros2 launch stonefish_ros2 bluerov2.launch.py
 
 # Terminal 2: Controller
-ros2 launch stonefish_control controller.launch.py controller_type:=position
+ros2 launch stonefish_control control.launch.py vehicle_name:=bluerov2
 
-# Terminal 3: Path following
-ros2 launch stonefish_trajectory_manager path_following.launch.py \
+# Terminal 3: Path stack (generator + following)
+ros2 launch stonefish_trajectory_manager path.launch.py \
     waypoint_file:=config/example_waypoints.yaml \
     vehicle_name:=bluerov2
 ```
@@ -189,9 +196,9 @@ waypoints:
 ### Setup
 
 1. Start Stonefish simulator
-2. Launch path generator:
+2. Launch the path stack (includes the path generator):
    ```bash
-   ros2 launch stonefish_trajectory_manager path_generator.launch.py
+   ros2 launch stonefish_trajectory_manager path.launch.py
    ```
 3. Open RViz
 4. **Fixed Frame**: `world` (keep as-is)
@@ -259,11 +266,10 @@ The LOS path following system includes **automatic velocity profiling** based on
 ### Example
 
 ```bash
-ros2 launch stonefish_trajectory_manager path_following.launch.py \
-    waypoint_file:=config/example_square_path.yaml \
-    robot_max_speed:=1.5 \
-    max_lateral_accel:=0.3 \
-    min_speed_factor:=0.3
+# Set robot_max_speed / max_lateral_accel / min_speed_factor in
+# config/path_following.yaml, then launch the path stack:
+ros2 launch stonefish_trajectory_manager path.launch.py \
+    waypoint_file:=config/example_square_path.yaml
 ```
 
 **Result**:
@@ -327,8 +333,7 @@ stonefish_trajectory_manager/
 │   ├── path_following_node.py
 │   └── _legacy/         # Deprecated nodes
 ├── launch/              # Launch files
-│   ├── path_generator.launch.py
-│   └── path_following.launch.py
+│   └── path.launch.py   # path_generator_node + path_following_node + TF
 └── config/              # Example waypoint files
 ```
 
@@ -336,54 +341,35 @@ stonefish_trajectory_manager/
 
 ## Launch Files
 
-### path_generator.launch.py
+### path.launch.py
 
-Standalone path generator for visualization and testing.
-
-**Parameters**:
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `waypoint_file` | string | (required) | Path to waypoint YAML file |
-| `interpolation_method` | string | `lipb` | Interpolation: `linear`, `lipb`, `cubic` |
-| `sample_step` | float | `0.01` | Path resolution (smaller = more points) |
-| `publish_rate` | float | `1.0` | Visualization update rate (Hz) |
-
-**Example**:
-```bash
-ros2 launch stonefish_trajectory_manager path_generator.launch.py \
-    waypoint_file:=/workspace/config/mission1.yaml \
-    interpolation_method:=cubic \
-    sample_step:=0.005
-```
-
----
-
-### path_following.launch.py
-
-LOS guidance-based path following.
+Runs the path stack: `path_generator_node` + `path_following_node` (LOS guidance)
+plus the world_ned->map static TF. Launches no simulator and no controller — pair
+it with `control.launch.py` and a simulator bringup, or use
+`stonefish_ros2 bringup.launch.py` to start all three at once.
 
 **Parameters**:
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `waypoint_file` | string | (required) | Path to waypoint YAML file |
+| `waypoint_file` | string | (auto) | Path to waypoint YAML file |
 | `vehicle_name` | string | `bluerov2` | Vehicle namespace |
-| `interpolation_method` | string | `lipb` | Path interpolation method |
-| `lookahead_distance` | float | `2.5` | LOS lookahead distance (m) |
-| `acceptance_radius` | float | `0.5` | Waypoint acceptance radius (m) |
-| `robot_max_speed` | float | `1.0` | Maximum speed (m/s) |
-| `max_lateral_accel` | float | `0.3` | Max lateral acceleration (m/s²) |
-| `min_speed_factor` | float | `0.3` | Min speed as factor of max (0-1) |
-| `update_rate` | float | `20.0` | Guidance update rate (Hz) |
+| `use_sim_time` | bool | `false` | Use /clock simulation time (set true when the simulator runs) |
+| `interpolation_method` | string | `lipb` | Interpolation: `linear`, `lipb`, `cubic`, `cs` |
+| `publish_rate` | float | `1.0` | Marker publish rate (Hz) |
+| `sample_step` | float | `0.01` | Path resolution (smaller = more points) |
+| `initial_waypoint_distance_threshold` | float | `0.5` | Distance threshold to add robot position as WP0 (m) |
+
+LOS tuning (lookahead distance, acceptance radius, robot max speed, lateral
+acceleration, min speed factor, update rate) lives in `config/path_following.yaml`.
 
 **Example**:
 ```bash
-ros2 launch stonefish_trajectory_manager path_following.launch.py \
+ros2 launch stonefish_trajectory_manager path.launch.py \
     waypoint_file:=config/square_path.yaml \
     vehicle_name:=bluerov2 \
-    robot_max_speed:=1.5 \
-    lookahead_distance:=3.0
+    interpolation_method:=cubic \
+    sample_step:=0.005
 ```
 
 ---
@@ -453,7 +439,7 @@ ros2 service call /path_following_node/reset_trajectory \
 - Lekkas, A. M., & Fossen, T. I. (2014). "Line-of-Sight Guidance for Path Following of Marine Vehicles"
 
 ### Path Generation
-- Based on UUV Simulator framework (Apache 2.0 license)
+- Based on UUV Simulator framework (originally Apache-2.0; relicensed GPL-3.0)
 - LIPB: Log-Interpolated Polynomial Bezier curves
 - Cubic Spline: Hermite spline interpolation
 
@@ -461,7 +447,7 @@ ros2 service call /path_following_node/reset_trajectory \
 
 ## License
 
-Apache 2.0
+GPL-3.0-or-later
 
 Based on UUV Simulator (Copyright 2016 The UUV Simulator Authors)
 

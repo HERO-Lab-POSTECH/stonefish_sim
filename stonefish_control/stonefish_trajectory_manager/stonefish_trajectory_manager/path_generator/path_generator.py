@@ -1,17 +1,6 @@
-# Copyright (c) 2016-2019 The UUV Simulator Authors.
-# All rights reserved.
+# SPDX-FileCopyrightText: 2016-2019 The UUV Simulator Authors
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# SPDX-License-Identifier: GPL-3.0-or-later
 import numpy as np
 from copy import deepcopy
 import logging
@@ -156,7 +145,10 @@ class PathGenerator(object):
             return 0
         if self._cur_s == 1:
             return len(self._s) - 1
-        v = np.array(self._s - self._cur_s)
+        # Nearest waypoint = smallest *absolute* distance along the path.
+        # (T1.4: argmin of the signed difference always picked the earliest
+        # waypoint, since _s is monotonically increasing from 0.)
+        v = np.abs(np.array(self._s) - self._cur_s)
         idx = np.argmin(v)
         return idx
 

@@ -139,97 +139,9 @@ Thruster Manager
 
 | Service | Description | Request | Response |
 |---------|-------------|---------|----------|
-| `GetPIDParams.srv` | Retrieve current PID gains | (empty) | `kp[]`, `kd[]`, `ki[]` |
-| `SetPIDParams.srv` | Update PID gains dynamically | `kp[]`, `kd[]`, `ki[]` | `success` |
-| `ResetController.srv` | Reset controller state (clear integrals) | (empty) | `success` |
-| `Hold.srv` | Hold current position | (empty) | `success` |
 | `ResetTrajectory.srv` | Reset trajectory following | (empty) | `success`, `message` |
 
 ### Service Details
-
-#### GetPIDParams.srv
-
-Retrieve current PID gains from controller.
-
-**Request**: Empty
-
-**Response**:
-```
-float64[] kp  # Proportional gains [6] or [4]
-float64[] kd  # Derivative gains
-float64[] ki  # Integral gains
-```
-
-**Example**:
-```bash
-ros2 service call /bluerov2/hybrid_controller/get_pid_params stonefish_control_msgs/srv/GetPIDParams
-```
-
----
-
-#### SetPIDParams.srv
-
-Dynamically update PID gains during runtime.
-
-**Request**:
-```
-float64[] kp  # New proportional gains
-float64[] kd  # New derivative gains
-float64[] ki  # New integral gains
-```
-
-**Response**:
-```
-bool success  # True if update succeeded
-```
-
-**Example**:
-```bash
-ros2 service call /bluerov2/hybrid_controller/set_pid_params stonefish_control_msgs/srv/SetPIDParams \
-  "{kp: [300.0, 300.0, 400.0, 200.0], kd: [150.0, 150.0, 200.0, 100.0], ki: [10.0, 10.0, 20.0, 5.0]}"
-```
-
----
-
-#### ResetController.srv
-
-Reset controller internal state (clear integral terms, error history).
-
-**Request**: Empty
-
-**Response**:
-```
-bool success
-```
-
-**Usage**: After large disturbances, mode switching, or manual intervention
-
-**Example**:
-```bash
-ros2 service call /bluerov2/hybrid_controller/reset stonefish_control_msgs/srv/ResetController
-```
-
----
-
-#### Hold.srv
-
-Command the vehicle to hold its current position.
-
-**Request**: Empty
-
-**Response**:
-```
-bool success
-```
-
-**Behavior**: Captures current pose as setpoint and switches to position hold mode
-
-**Example**:
-```bash
-ros2 service call /bluerov2/position_controller/hold stonefish_control_msgs/srv/Hold
-```
-
----
 
 #### ResetTrajectory.srv
 
@@ -278,7 +190,6 @@ source install/setup.bash
 
 ```python
 from stonefish_control_msgs.msg import Waypoint, WaypointSet, GuidanceCommand
-from stonefish_control_msgs.srv import SetPIDParams, ResetController
 
 # Create waypoint
 waypoint = Waypoint()
@@ -302,7 +213,6 @@ cmd.path_progress = 0.5  # 50% complete
 
 ```cpp
 #include "stonefish_control_msgs/msg/waypoint.hpp"
-#include "stonefish_control_msgs/srv/set_pid_params.hpp"
 
 // Create waypoint
 auto waypoint = stonefish_control_msgs::msg::Waypoint();
@@ -312,12 +222,6 @@ waypoint.point.z = 2.0;
 waypoint.heading = 0.0;
 waypoint.use_fixed_heading = false;
 waypoint.max_forward_speed = 1.0;
-
-// Service request
-auto request = std::make_shared<stonefish_control_msgs::srv::SetPIDParams::Request>();
-request->kp = {300.0, 300.0, 400.0, 200.0};
-request->kd = {150.0, 150.0, 200.0, 100.0};
-request->ki = {10.0, 10.0, 20.0, 5.0};
 ```
 
 ---
@@ -333,11 +237,7 @@ stonefish_control_msgs/
 │   ├── WaypointSet.msg        # Waypoint collection
 │   └── GuidanceCommand.msg    # Guidance output
 ├── srv/
-│   ├── GetPIDParams.srv       # Get PID gains
-│   ├── SetPIDParams.srv       # Set PID gains
-│   ├── ResetController.srv    # Reset controller state
-│   ├── ResetTrajectory.srv    # Reset trajectory
-│   └── Hold.srv               # Position hold command
+│   └── ResetTrajectory.srv    # Reset trajectory
 ├── CMakeLists.txt
 ├── package.xml
 └── README.md

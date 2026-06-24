@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-# Copyright (c) 2025 Stonefish Control Contributors
-# Licensed under the Apache License, Version 2.0
+# SPDX-FileCopyrightText: 2025 Stonefish Control Contributors
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 """
 4DOF Underactuated PID Controller for UUV with Passive Roll/Pitch Stability
@@ -36,12 +37,12 @@ class PositionController:
     4DOF PID Controller for Underactuated UUV
 
     Control Law:
-        τ = Kp·e_pos + Kd·(-v_body) + Ki·∫e_pos + M·v_ff
+        τ = Kp·e_pos + Kd·(-v_body) + Ki·∫e_pos + M·a_ff
 
     Where:
         e_pos: Position error in body frame [x, y, z, yaw]
         v_body: Body frame velocity [u, v, w, r]
-        v_ff: Feedforward velocity (from path following)
+        a_ff: Feedforward acceleration (position mode only)
         M: Mass matrix (for feedforward scaling)
 
     Anti-Windup:
@@ -134,7 +135,8 @@ class PositionController:
         pose_curr: np.ndarray,
         vel_curr: np.ndarray,
         dt: float,
-        vel_ff: Optional[np.ndarray] = None
+        vel_ff: Optional[np.ndarray] = None,
+        accel_ff: Optional[np.ndarray] = None
     ) -> Tuple[np.ndarray, dict]:
         """
         Compute 4DOF control forces/torques
@@ -146,9 +148,13 @@ class PositionController:
             pose_curr: Current pose [x, y, z, roll, pitch, yaw] (World NED, rad)
             vel_curr: Current velocity [u, v, w, p, q, r] (Body FRD)
             dt: Time step (s)
-            vel_ff: Optional feedforward/desired velocity [u, v, w, r] (Body FRD)
-                - Position mode: Feedforward velocity (scaled by feedforward_gain in node)
+            vel_ff: Velocity argument, mode-dependent [u, v, w, r] (Body FRD)
                 - Velocity mode: Desired velocity setpoint
+                - Position mode: unused for feedforward (see accel_ff) — kept for
+                  backward-compatible call signature
+            accel_ff: Optional feedforward acceleration [u̇, v̇, ẇ, ṙ] (Body FRD),
+                POSITION MODE ONLY. F_ff = M·a (Newton's 2nd law). None = no
+                feedforward. (T1.3: corrects the prior M·velocity dimensional error.)
 
         Returns:
             tau_6dof: Control wrench [Fx, Fy, Fz, 0, 0, Mz] (Body FRD)
@@ -231,12 +237,12 @@ class PositionController:
         # 5. Feedforward (optional, POSITION MODE ONLY)
         # ============================================================
         ff_term = np.zeros(4)
-        if self.control_mode == 'position' and vel_ff is not None:
-            # Feedforward: F_ff = M × v_ff (POSITION MODE)
-            # vel_ff is already scaled by feedforward_gain in pid_4dof_node
-            # M × v_ff approximates the force needed to achieve desired velocity
-            # Note: Proper implementation would use acceleration, not velocity
-            ff_term = self.M @ vel_ff  # Scaling already applied in node
+        if self.control_mode == 'position' and accel_ff is not None:
+            # Feedforward: F_ff = M·a (POSITION MODE, Newton's 2nd law).
+            # accel_ff is a body-frame acceleration [u̇, v̇, ẇ, ṙ]; M·a yields the
+            # force/torque needed to produce that acceleration. (T1.3: was M·velocity,
+            # which is momentum, not force — a dimensional error.)
+            ff_term = self.M @ accel_ff
         # VELOCITY MODE: No feedforward (vel_ff contains desired velocities, not feedforward)
 
         # ============================================================

@@ -72,6 +72,8 @@ int main(int argc, char **argv)
 
     // Start simulation
     std::shared_ptr<StonefishConsoleNode> node(new StonefishConsoleNode(scenarioPath, dataPath, rate));
+    // INVARIANT: SingleThreadedExecutor — callbacks are sequential; shared state is lock-free safe.
+    // See stonefish_simulator.cpp for the full invariant note.
     rclcpp::spin(node);
     node->Shutdown();
     return 0;

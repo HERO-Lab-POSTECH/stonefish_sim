@@ -322,7 +322,7 @@ Stonefish Simulator
 ros2 launch stonefish_ros2 bluerov2.launch.py
 
 # Terminal 2: Controller
-ros2 launch stonefish_control controller.launch.py controller_type:=position
+ros2 launch stonefish_control control.launch.py
 
 # Thruster manager is automatically started by bluerov2.launch.py
 ```
@@ -437,4 +437,4 @@ ros2 launch stonefish_thruster_manager thruster_manager.launch.py \
 
 ## License
 
-Apache 2.0
+GPL-3.0-or-later

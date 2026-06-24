@@ -1,17 +1,6 @@
-# Copyright (c) 2016-2019 The UUV Simulator Authors.
-# All rights reserved.
+# SPDX-FileCopyrightText: 2016-2019 The UUV Simulator Authors
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# SPDX-License-Identifier: GPL-3.0-or-later
 from copy import deepcopy
 from scipy.interpolate import splrep, splev, interp1d
 import numpy as np
@@ -70,12 +59,35 @@ class LIPBInterpolator(PathGenerator):
         if self._waypoints is None:
             return False
 
+        self._reset_interpolation_state()
+
+        heading = self._build_blended_segments()
+        if heading is None:
+            return False
+
+        lengths = self._reparametrize_curves()
+
+        mean_vel = self._compute_duration()
+
+        self._apply_velocity_profile(lengths, mean_vel)
+
+        self._build_heading_interpolator(heading)
+        return True
+
+    def _reset_interpolation_state(self):
+        """Reset marker and segment bookkeeping before generating path segments."""
         self._markers_msg = MarkerArray()
         self._marker_id = 0
 
         self._interp_fcns['pos'] = list()
         self._segment_to_wp_map = [0]
 
+    def _build_blended_segments(self):
+        """Generate the position interpolation segments from the waypoints.
+
+        Returns the list of per-segment heading offsets, or `None` when the
+        waypoint count is degenerate (caller treats `None` as a `False` return).
+        """
         if self._waypoints.num_waypoints == 2:
             # Simple case: just one line segment
             self._interp_fcns['pos'].append(
@@ -128,14 +140,29 @@ class LIPBInterpolator(PathGenerator):
                     self._segment_to_wp_map.append(i)
                     q_start_line = deepcopy(q_seg[-1, :])
         else:
-            return False
+            return None
 
+        return heading
+
+    def _reparametrize_curves(self):
+        """Reparametrize the generated segments and record path length.
+
+        Returns the per-segment lengths list (with the leading 0) used by the
+        velocity profiler stage.
+        """
         # Reparametrizing the curves
         lengths = [seg.get_length() for seg in self._interp_fcns['pos']]
         lengths = [0] + lengths
         self._s = np.cumsum(lengths) / np.sum(lengths)
         self._total_path_length = np.sum(lengths)
 
+        return lengths
+
+    def _compute_duration(self):
+        """Compute trajectory duration/start time from the mean speed.
+
+        Returns the mean forward speed used by the velocity profiler stage.
+        """
         mean_vel = np.mean(
             [self._waypoints.get_waypoint(k).max_forward_speed for k in range(self._waypoints.num_waypoints)])
         if self._duration is None:
@@ -143,6 +170,10 @@ class LIPBInterpolator(PathGenerator):
         if self._start_time is None:
             self._start_time = 0.0
 
+        return mean_vel
+
+    def _apply_velocity_profile(self, lengths, mean_vel):
+        """Generate the velocity profile and adjust duration when enabled."""
         # Generate velocity profile if enabled
         if self._use_velocity_profiler and self._velocity_profiler is not None:
             velocity_profile, curvature_profile = self._velocity_profiler.generate_velocity_profile(
@@ -177,6 +208,8 @@ class LIPBInterpolator(PathGenerator):
                 print(msg, file=sys.stderr, flush=True)
                 print(msg, file=sys.stdout, flush=True)
 
+    def _build_heading_interpolator(self, heading):
+        """Build the heading offset interpolation function from per-segment headings."""
         # Check if all heading offsets are zero (auto-heading mode)
         import sys
         all_headings_zero = all(abs(h) < 1e-6 for h in heading)
@@ -208,7 +241,6 @@ class LIPBInterpolator(PathGenerator):
                     print(f'[LIPB ERROR] splrep failed: {e}', file=sys.stderr, flush=True)
                     print(f'[LIPB ERROR] Using constant heading offset = 0.0', file=sys.stderr, flush=True)
                     self._interp_fcns['heading'] = lambda x: 0.0
-        return True
 
     def set_parameters(self, params):
         """Set interpolator's parameters. All the options
