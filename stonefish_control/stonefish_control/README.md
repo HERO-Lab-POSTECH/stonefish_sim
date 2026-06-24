@@ -214,40 +214,6 @@ ros2 launch stonefish_control controller.launch.py \
 
 ---
 
-## Services
-
-All controllers provide these services:
-
-| Service | Type | Description |
-|---------|------|-------------|
-| `/{vehicle_name}/{controller_name}/get_pid_params` | `stonefish_control_msgs/GetPIDParams` | Retrieve current PID gains |
-| `/{vehicle_name}/{controller_name}/set_pid_params` | `stonefish_control_msgs/SetPIDParams` | Update PID gains dynamically |
-| `/{vehicle_name}/{controller_name}/reset` | `stonefish_control_msgs/ResetController` | Reset controller state |
-| `/{vehicle_name}/{controller_name}/hold` | `stonefish_control_msgs/Hold` | Hold current position |
-
-**Example**:
-
-```bash
-# Get current gains
-ros2 service call /bluerov2/position_controller/get_pid_params \
-    stonefish_control_msgs/srv/GetPIDParams
-
-# Update gains
-ros2 service call /bluerov2/position_controller/set_pid_params \
-    stonefish_control_msgs/srv/SetPIDParams \
-    "{kp: [300.0, 300.0, 400.0, 200.0], kd: [150.0, 150.0, 200.0, 100.0], ki: [10.0, 10.0, 20.0, 5.0]}"
-
-# Reset controller
-ros2 service call /bluerov2/position_controller/reset \
-    stonefish_control_msgs/srv/ResetController
-
-# Hold position
-ros2 service call /bluerov2/position_controller/hold \
-    stonefish_control_msgs/srv/Hold
-```
-
----
-
 ## Parameters
 
 ### Position Controller

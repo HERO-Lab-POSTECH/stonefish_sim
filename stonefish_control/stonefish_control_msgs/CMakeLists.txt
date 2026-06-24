@@ -26,12 +26,8 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/WaypointSet.msg"
   "msg/GuidanceCommand.msg"
 
-  # Active Services
-  "srv/GetPIDParams.srv"
-  "srv/SetPIDParams.srv"
-  "srv/ResetController.srv"
+  # Services
   "srv/ResetTrajectory.srv"
-  "srv/Hold.srv"
 
   DEPENDENCIES
   std_msgs

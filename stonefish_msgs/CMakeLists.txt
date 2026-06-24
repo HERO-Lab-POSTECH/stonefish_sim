@@ -20,7 +20,6 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/Int32Stamped.msg"
   "msg/NEDPose.msg"
   "msg/ThrusterState.msg"
-  "srv/SetMode.srv"
   "srv/SetOceanCurrent.srv"
   "srv/SetWaveHeight.srv"
   "srv/SetWindVelocity.srv"

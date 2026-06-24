@@ -134,22 +134,6 @@ float64[] torque                          # Actual torque [N⋅m]
 
 ## Service Definitions
 
-### SetMode.srv
-
-Generic mode setting service.
-
-**Request**:
-```
-string data                               # Mode name or parameter string
-```
-
-**Response**:
-```
-bool success                              # True if mode was set successfully
-```
-
-**Usage**: Switching operational modes or configurations
-
 ### SetOceanCurrent.srv
 
 Control ocean current parameters at runtime.
@@ -441,7 +425,6 @@ stonefish_msgs/
 │   ├── NEDPose.msg
 │   └── ThrusterState.msg
 └── srv/                        # Service definitions
-    ├── SetMode.srv
     ├── SetOceanCurrent.srv     # New: Ocean current control
     ├── SetWaveHeight.srv       # New: Wave height control
     ├── SetWindVelocity.srv     # New: Wind velocity control
