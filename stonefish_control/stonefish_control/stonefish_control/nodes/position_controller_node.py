@@ -33,8 +33,8 @@ from stonefish_control_msgs.msg import TrajectoryPoint
 from scipy.spatial.transform import Rotation
 
 # Import PID controller and dynamics loader
-from stonefish_control.controllers.position_controller import PositionController
-from stonefish_control.control_interfaces import DynamicsLoader
+from ..controllers.position_controller import PositionController
+from ..control_interfaces import DynamicsLoader
 
 
 class PID4DOFNode(Node):

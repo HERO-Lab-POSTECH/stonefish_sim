@@ -8,8 +8,8 @@ from geometry_msgs.msg import WrenchStamped
 from stonefish_control_msgs.msg import TrajectoryPoint
 from std_msgs.msg import String
 from scipy.spatial.transform import Rotation
-from stonefish_control.controllers.hybrid_controller import HybridController
-from stonefish_control.control_interfaces import DynamicsLoader
+from ..controllers.hybrid_controller import HybridController
+from ..control_interfaces import DynamicsLoader
 
 class HybridController4DOFNode(Node):
     def __init__(self):

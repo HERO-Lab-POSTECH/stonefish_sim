@@ -29,7 +29,7 @@ from pathlib import Path
 from geometry_msgs.msg import Wrench, WrenchStamped
 from std_msgs.msg import Float64MultiArray
 
-from .thruster_manager import ThrusterManager
+from ..thruster_manager import ThrusterManager
 
 
 class ThrusterAllocatorNode(Node):
