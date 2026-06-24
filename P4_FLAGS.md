@@ -1,3 +1,7 @@
+## VelocityProfiler 잔재 (T2.2 부분 — interpolator 내부 분기는 Phase 3로)
+- **dangling `__all__` 엔트리 제거 완료(T2.2)**: `path_generator/__init__.py:49`의 `'VelocityProfiler'`는 import되지 않는데 `__all__`에 등재돼 `from path_generator import *` 시 AttributeError를 내는 버그였다(class VelocityProfiler가 repo 전체에 부재). 제거함.
+- **interpolator 내부 dead 분기는 Phase 3로 이연**: `cs_interpolator.py`(14곳)·`lipb_interpolator.py`(15곳)에 `_velocity_profiler`/`_use_velocity_profiler` 상태·조건 분기가 광범위 분포. `if self._use_velocity_profiler:`(config 0건이라 항상 False) 안에서 미정의 `VelocityProfiler(...)`를 호출(cs:159, lipb:257) → 활성화 시 NameError(latent-dead). 29곳에 걸친 제거는 LIVE 보간 모듈 수술이라 무방비 제거 시 회귀 위험 큼. Phase 3 god-method 정리(lipb `init_interpolator`는 god-method) 시 characterization 골든 보호 하에 함께 제거. 현재는 unreachable(use_velocity_profiler config 0건)이라 active bug 아님.
+
 ## C++ 잔여 null-deref (T1.5 후속 — pre-existing, code-reviewer 발견)
 - **robot null-deref (ParseRobot)**: `ROS2ScenarioParser.cpp:254` `robot->getActuator(...)`가 `Robot* robot = getSimulationManager()->getRobot(nameStr)`(L244) 결과를 null 체크 없이 deref. `<robot name="X">`가 미등록 엔티티명이면 getRobot이 null 반환 가능 → segfault(T1.5와 동일 class, 한 줄 아래). pre-existing이라 T1.5 scope 밖(surgical 유지)으로 inline 미수정. fix: L244 후 `if(robot == nullptr) { RCLCPP_ERROR(...); return false; }`. ParseAnimated는 안전(L459 getEntity→L460 null 체크 존재).
 

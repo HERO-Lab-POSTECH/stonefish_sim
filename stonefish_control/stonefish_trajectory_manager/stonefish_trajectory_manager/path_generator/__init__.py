@@ -26,7 +26,6 @@ Helper Classes:
 - PathGenerator: Base class for all interpolators
 - LineSegment: Line segment representation (used internally)
 - BezierCurve: Bezier curve utilities (used by LIPB and cubic spline)
-- VelocityProfiler: Optional curvature-based velocity profiling
 
 Coordinate System: NED (North-East-Down)
 Frame ID: world_ned
@@ -46,5 +45,4 @@ __all__ = [
     'LinearInterpolator',
     'CSInterpolator',
     'LIPBInterpolator',
-    'VelocityProfiler'
 ]
