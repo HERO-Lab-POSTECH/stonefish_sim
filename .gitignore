@@ -24,3 +24,8 @@ Thumbs.db
 # OMC/OMP agent work artifacts
 .omc/
 .omp/
+
+# colcon artifacts in any subdir (P3 cleanup)
+**/build/
+**/install/
+**/log/
