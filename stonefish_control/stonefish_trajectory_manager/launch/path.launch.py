@@ -19,11 +19,47 @@ Usage:
     ros2 launch stonefish_trajectory_manager path.launch.py waypoint_file:=/path/to/wps.yaml use_sim_time:=true
 """
 
+import os
+import tempfile
+
+from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument
+from launch.actions import DeclareLaunchArgument, OpaqueFunction
+from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
+
+
+def _rviz_setup(context, *args, **kwargs):
+    """Create the rviz2 node, rewriting the config's 'bluerov2' tokens to the
+    requested vehicle_name in a temp copy when needed (nav2 ReplaceString
+    equivalent, no extra dependency). At the default vehicle the shipped config
+    is loaded untouched. Runs under OpaqueFunction so vehicle_name is resolved.
+    """
+    vehicle_name = LaunchConfiguration('vehicle_name').perform(context)
+    use_sim_time = LaunchConfiguration('use_sim_time').perform(context)
+    rviz_config = os.path.join(
+        get_package_share_directory('stonefish_trajectory_manager'),
+        'rviz', 'path_visualization.rviz')
+    if vehicle_name and vehicle_name != 'bluerov2':
+        with open(rviz_config) as f:
+            rewritten = f.read().replace('bluerov2', vehicle_name)
+        tmp = tempfile.NamedTemporaryFile(
+            mode='w', prefix=f'path_visualization_{vehicle_name}_',
+            suffix='.rviz', delete=False)
+        tmp.write(rewritten)
+        tmp.close()
+        rviz_config = tmp.name
+    return [Node(
+        package='rviz2',
+        executable='rviz2',
+        name='rviz2',
+        output='screen',
+        arguments=['-d', rviz_config],
+        parameters=[{'use_sim_time': use_sim_time.lower() == 'true'}],
+        condition=IfCondition(LaunchConfiguration('rviz')),
+    )]
 
 
 def generate_launch_description():
@@ -59,6 +95,9 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'initial_waypoint_distance_threshold', default_value='0.5',
             description='Distance threshold to add the robot position as WP0 (m).'),
+        DeclareLaunchArgument(
+            'rviz', default_value='false',
+            description='Launch RViz with the trajectory visualization config.'),
     ]
 
     path_generator_config = PathJoinSubstitution([
@@ -113,5 +152,6 @@ def generate_launch_description():
     )
 
     return LaunchDescription(
-        args + [tf_world_ned_to_map, path_generator_node, path_following_node]
+        args + [tf_world_ned_to_map, path_generator_node, path_following_node,
+                OpaqueFunction(function=_rviz_setup)]
     )
