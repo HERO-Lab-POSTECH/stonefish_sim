@@ -477,12 +477,9 @@ stonefish_control/
 ├── stonefish_control/
 │   ├── controllers/
 │   │   ├── position_controller.py     # Position PID controller
-│   │   ├── hybrid_controller.py       # Hybrid mode controller
-│   │   └── velocity_controller_node.py  # Velocity controller node
+│   │   └── hybrid_controller.py       # Hybrid mode controller
 │   ├── control_interfaces/
-│   │   ├── dp_controller_base.py      # Base class for controllers
-│   │   ├── dp_pid_controller_base.py  # PID controller base
-│   │   ├── vehicle.py                 # Vehicle model
+│   │   ├── data_types.py              # Shared data types + angle_wrap SSOT
 │   │   └── dynamics_loader.py         # Dynamics parameter loader
 │   └── nodes/
 │       ├── position_controller_node.py  # Position controller ROS2 node
@@ -492,8 +489,7 @@ stonefish_control/
 ├── config/
 │   └── bluerov2/
 │       ├── position_controller.yaml   # Position PID config
-│       ├── hybrid_controller.yaml     # Hybrid controller config
-│       └── velocity_controller.yaml   # Velocity controller config
+│       └── hybrid_controller.yaml     # Hybrid controller config
 ├── package.xml
 ├── setup.py
 └── README.md
