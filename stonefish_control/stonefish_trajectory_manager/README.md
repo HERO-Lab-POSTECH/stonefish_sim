@@ -453,7 +453,7 @@ ros2 service call /path_following_node/reset_trajectory \
 - Lekkas, A. M., & Fossen, T. I. (2014). "Line-of-Sight Guidance for Path Following of Marine Vehicles"
 
 ### Path Generation
-- Based on UUV Simulator framework (Apache 2.0 license)
+- Based on UUV Simulator framework (originally Apache-2.0; relicensed GPL-3.0)
 - LIPB: Log-Interpolated Polynomial Bezier curves
 - Cubic Spline: Hermite spline interpolation
 
@@ -461,7 +461,7 @@ ros2 service call /path_following_node/reset_trajectory \
 
 ## License
 
-Apache 2.0
+GPL-3.0-or-later
 
 Based on UUV Simulator (Copyright 2016 The UUV Simulator Authors)
 

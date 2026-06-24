@@ -379,15 +379,14 @@ Individual packages have their own detailed READMEs:
 
 ## License
 
-**Apache License 2.0**
+**GPL-3.0-or-later**
 
-Original UUV Simulator code:
-- Copyright (c) 2016-2019 The UUV Simulator Authors
-- Licensed under Apache License 2.0
+Copyright holders (preserved per file in SPDX headers):
+- Original UUV Simulator code: Copyright (c) 2016-2019 The UUV Simulator Authors
+- ROS2 port and enhancements: Copyright 2025 HERO Lab, POSTECH
 
-ROS2 port and enhancements:
-- Copyright 2025 HERO Lab, POSTECH
-- Licensed under Apache License 2.0
+The UUV Simulator code was originally Apache-2.0; Apache-2.0 is one-way
+compatible with GPL-3.0, and the package is distributed under GPL-3.0-or-later.
 
 ---
 

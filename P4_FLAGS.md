@@ -1,3 +1,6 @@
+## hybrid position_mode max_force/torque: yaml ↔ code default 불일치 (release 발견, latent)
+`hybrid_controller_node.py:66-67`의 declare_parameter default는 `position_mode.max_force=200.0`/`max_torque=50.0`인데, `config/bluerov2/hybrid_controller.yaml:56-57`은 position_mode를 `800.0`/`160.0`(velocity_mode와 동일값)으로 override한다. yaml이 우선하므로 bluerov2 런타임 실제값은 800/160 — 즉 position 모드 포화한계가 velocity 모드와 같아져 "position=정밀(낮은 한계)" 설계 의도와 어긋날 수 있다. README는 코드 default(200/50)를 문서화하도록 교정했으나(release), 어느 값이 진짜 의도인지(yaml 800을 default로 내릴지, default 200을 yaml에도 반영할지)는 owner/런타임(RTX4070) 판단 필요. 동작 변경이라 release에선 미수정.
+
 ## T4.5 C++ 동시성·QoS 표준정합 제안 (P4 문서화만, RTX4070 sign-off 대상)
 
 이 섹션의 제안은 모두 **현재 동작 변경 없음** — 코드 주석으로 불변식을 명시(T4.5)했으며,

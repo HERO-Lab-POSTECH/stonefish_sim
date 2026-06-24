@@ -437,4 +437,4 @@ ros2 launch stonefish_thruster_manager thruster_manager.launch.py \
 
 ## License
 
-Apache 2.0
+GPL-3.0-or-later

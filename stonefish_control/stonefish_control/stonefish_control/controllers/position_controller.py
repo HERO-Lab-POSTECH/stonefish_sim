@@ -37,12 +37,12 @@ class PositionController:
     4DOF PID Controller for Underactuated UUV
 
     Control Law:
-        τ = Kp·e_pos + Kd·(-v_body) + Ki·∫e_pos + M·v_ff
+        τ = Kp·e_pos + Kd·(-v_body) + Ki·∫e_pos + M·a_ff
 
     Where:
         e_pos: Position error in body frame [x, y, z, yaw]
         v_body: Body frame velocity [u, v, w, r]
-        v_ff: Feedforward velocity (from path following)
+        a_ff: Feedforward acceleration (position mode only)
         M: Mass matrix (for feedforward scaling)
 
     Anti-Windup:
