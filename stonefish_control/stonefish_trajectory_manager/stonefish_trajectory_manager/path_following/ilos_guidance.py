@@ -149,16 +149,16 @@ class ILOSGuidance:
         self._max_heave_velocity = max_heave_velocity
 
         # Previous errors for derivative calculation
-        self._prev_ey = 0.0
+        self._prev_ey = 0.0        # [deprecated §4: cross-track 제거됨, 초기화만 잔존]
         self._prev_ez = 0.0
 
         # Phase 1: Integral states for lateral/depth PID
-        self._integral_ey_lateral = 0.0  # Lateral I term (separate from ILOS integral)
+        self._integral_ey_lateral = 0.0  # [deprecated §4: cross-track 제거됨, 초기화만 잔존]
         self._integral_ez = 0.0          # Depth I term
 
         # Phase 1.3: Low-pass filter for derivative noise reduction
         self._filter_tau = derivative_filter_tau  # Time constant (s)
-        self._de_y_filtered = 0.0  # Filtered lateral derivative
+        self._de_y_filtered = 0.0  # [deprecated §4: cross-track 제거됨, 초기화만 잔존]
         self._de_z_filtered = 0.0  # Filtered depth derivative
 
         # Curvature filtering (prevent heading/lookahead oscillation)
@@ -187,7 +187,7 @@ class ILOSGuidance:
         self._arc_lengths = None  # Cumulative arc-length for each path point
 
         # ILOS integral state
-        self._integral_ey = 0.0  # Cross-track error integral
+        self._integral_ey = 0.0  # [deprecated §4: cross-track 제거됨, 초기화만 잔존]
 
         # Guidance outputs
         self._desired_pos = np.zeros(3)
@@ -710,16 +710,8 @@ class ILOSGuidance:
         self._cross_track_error = e_y
         self._max_cte = max(self._max_cte, abs(e_y))
 
-        # 5. Update integral with anti-windup and leaky integration (FOLLOW mode only)
-        # Leaky integrator: prevents accumulation from transient errors (curves)
-        # while still responding to constant disturbances (currents)
-        # Formula: integral = decay * integral + e_y * dt
-        if self._mode == PathFollowingMode.FOLLOW:
-            decay = 0.995  # ~0.5% decay per step → ~1s time constant at 20Hz
-            self._integral_ey = decay * self._integral_ey + e_y * dt
-            self._integral_ey = np.clip(self._integral_ey,
-                                         -self._integral_limit,
-                                         self._integral_limit)
+        # 5. [축소 §4] _integral_ey 갱신 제거: cross-track heading 채널 제거됨.
+        # cascade outer가 e_y 보정을 전담하므로 ILOS heading 적분은 불필요.
 
         # 6. ILOS heading command (mode-dependent)
         if self._mode == PathFollowingMode.ALIGN:
@@ -750,11 +742,9 @@ class ILOSGuidance:
             )
             curvature_ff = self._curvature_ff_gain * self._signed_curvature_filtered
 
-            # ILOS heading without curvature_ff (simpler, more stable)
-            # curvature_ff causes curve exit overshoot - disabled for now
-            chi_d = chi_p \
-                    + np.arctan(-e_y / self._lookahead_distance) \
-                    - np.arctan(self._integral_gain * self._integral_ey / self._lookahead_distance)
+            # [축소 §4] cross-track heading 채널 제거: 순수 path-tangent.
+            # e_y 보정은 cascade outer가 전담 → ILOS heading은 χ_p만 출력.
+            chi_d = chi_p
 
         chi_d = angle_wrap(chi_d)
 
@@ -818,41 +808,9 @@ class ILOSGuidance:
         # Heave: from path slope
         # Yaw rate: from curvature
 
-        # Lateral correction velocity (sway) - PID control for cross-track error
-        # P term: proportional to error (immediate response)
-        # I term: eliminates steady-state error from constant currents (Phase 1.2)
-        # D term: damping to reduce oscillations and overshoot
-        # Formula: v_lateral = -K_p * e_y - K_i * ∫e_y dt - K_d * (de_y/dt)
-        # Reference: Fossen (2011), Lekkas & Fossen (2014)
-
-        # Derivative with low-pass filter (Phase 1.3)
-        de_y_raw = (e_y - self._prev_ey) / dt if dt > 1e-6 else 0.0
-        alpha = dt / (self._filter_tau + dt)  # Low-pass filter coefficient
-        self._de_y_filtered = alpha * de_y_raw + (1 - alpha) * self._de_y_filtered
-
-        # Integral with anti-windup (Phase 1.2) - FOLLOW mode only
-        if self._mode == PathFollowingMode.FOLLOW:
-            self._integral_ey_lateral += e_y * dt
-            self._integral_ey_lateral = np.clip(
-                self._integral_ey_lateral,
-                -self._integral_limit,
-                self._integral_limit
-            )
-
-        # PID control (positive e_y = right of path → need negative v to go left)
-        # FRD body frame: +Y is starboard (right), -Y is port (left)
-        # Sign convention: e_y > 0 (right of path) → v_lateral < 0 (go left in body frame)
-        v_lateral = (
-            -self._lateral_gain * e_y
-            - self._lateral_ki * self._integral_ey_lateral
-            - self._lateral_kd * self._de_y_filtered
-        )
-
-        # Apply velocity saturation
-        v_lateral = np.clip(v_lateral, -self._max_lateral_velocity, self._max_lateral_velocity)
-
-        # Update previous error
-        self._prev_ey = e_y
+        # [축소 §4] cross-track sway 채널 제거: cascade outer가 e_pos_body[1]을 전담.
+        # desired_velocity[1]=0 → ILOS는 측방 보정을 하지 않는다(이중보정 제거).
+        v_lateral = 0.0
 
         # Heave velocity: Path-based + Depth error correction
         # Two components:
@@ -975,7 +933,7 @@ class ILOSGuidance:
             # This allows gradual depth change along path (NOT vertical drop)
             # p_lookahead already assigned to _desired_pos (line 428), so keep it
             desired_speed = 0.3  # Slow approach speed (m/s) - literature-based safe entry
-            # v_lateral: Keep CTE correction (lateral tracking)
+            # [축소] v_lateral은 이미 0 (sway 채널 제거). w_d/r_d는 유지.
             # w_d: Keep path-based heave (gradual Z change along path)
             # r_d: Keep yaw rate (heading alignment)
 
@@ -1087,19 +1045,19 @@ class ILOSGuidance:
     def reset(self):
         """Reset guidance state."""
         self._path_parameter_s = 0.0  # Arc-length parameter
-        self._integral_ey = 0.0       # ILOS heading integral
+        self._integral_ey = 0.0       # [deprecated §4: cross-track 제거됨, 초기화만 잔존]
         self._path_finished = False
         self._max_cte = 0.0
         self._desired_pos = np.zeros(3)
         self._desired_yaw = 0.0
         self._desired_velocity = np.zeros(4)
         self._mode = PathFollowingMode.ALIGN
-        self._prev_ey = 0.0
+        self._prev_ey = 0.0            # [deprecated §4: cross-track 제거됨, 초기화만 잔존]
         self._prev_ez = 0.0
         # Phase 1: Reset lateral/depth PID integrals and filters
-        self._integral_ey_lateral = 0.0
+        self._integral_ey_lateral = 0.0  # [deprecated §4: cross-track 제거됨, 초기화만 잔존]
         self._integral_ez = 0.0
-        self._de_y_filtered = 0.0
+        self._de_y_filtered = 0.0        # [deprecated §4: cross-track 제거됨, 초기화만 잔존]
         self._de_z_filtered = 0.0
         # Adaptive lookahead filters
         self._lookahead_filtered = self._lookahead_distance_base
