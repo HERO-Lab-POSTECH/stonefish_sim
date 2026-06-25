@@ -142,7 +142,8 @@ class ILOSGuidance:
         self._curvature_ff_gain = curvature_ff_gain  # Heading feedforward from curvature
 
         # [P6] 곡률 sway feedforward 게인 (≈m/Kp_inner=20.131/200≈0.1 s).
-        # v_sway_ff = -sway_ff_gain · v² · κ_signed 로 코너 원심력 선제 상쇄.
+        # v_sway_ff = +sway_ff_gain · v² · κ_signed 로 코너 원심력 선제 상쇄.
+        # (구현 부호: _estimate_signed_curvature는 우회전→κ>0 → +sway=오른쪽=안쪽.)
         self._sway_ff_gain = sway_ff_gain
 
         # Velocity profiling parameters
