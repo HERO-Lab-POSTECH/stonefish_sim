@@ -103,7 +103,16 @@ class CascadeController:
         e_pos_world = pose_des[0:3] - pose_curr[0:3]
         e_pos_body = R.T @ e_pos_world                    # F2와 동일
         e_yaw = angle_wrap(pose_des[3] - yaw)
-        e_outer = np.array([e_pos_body[0], e_pos_body[1], e_pos_body[2], e_yaw])
+
+        # [결함 C] yaw 정렬 전 sway 위치명령 차단 (cos 게이트, sway 채널만).
+        # body sway가 world cross-track으로 기여하는 성분이 정확히 cos(e_yaw).
+        # yaw가 90°↑ 틀린 채 sway를 내면 차량을 코너 바깥으로 밀어 동그란
+        # overshoot가 생긴다. max(.,0)으로 e_yaw>90°의 역방향 명령을 막는다.
+        # surge·heave·yaw·vel_ff는 무관 — sway 채널에만 작용.
+        yaw_gate = max(np.cos(e_yaw), 0.0)
+        e_outer = np.array([
+            e_pos_body[0], e_pos_body[1] * yaw_gate, e_pos_body[2], e_yaw
+        ])
 
         v_sp = self.Kp_outer * e_outer                    # P-only
 
