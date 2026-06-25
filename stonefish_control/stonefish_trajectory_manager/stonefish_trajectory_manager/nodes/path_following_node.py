@@ -174,8 +174,8 @@ class PathFollowing4DOFNode(Node):
             10
         )
 
-        # Control mode state (hybrid: velocity + position)
-        self.current_control_mode = 'hybrid'
+        # Control mode state (cascade: velocity + position)
+        self.current_control_mode = 'cascade'
 
         # Service: Reset trajectory
         self._reset_service = self.create_service(
@@ -375,8 +375,8 @@ class PathFollowing4DOFNode(Node):
         # Check path completion
         path_finished = self.guidance.is_path_finished()
 
-        # Switch control mode: hybrid during path following, position when finished
-        new_mode = 'position' if path_finished else 'hybrid'
+        # Switch control mode: cascade during path following, position when finished
+        new_mode = 'position' if path_finished else 'cascade'
         if new_mode != self.current_control_mode:
             self.current_control_mode = new_mode
             mode_msg = String()
