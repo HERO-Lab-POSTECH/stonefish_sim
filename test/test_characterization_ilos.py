@@ -379,3 +379,14 @@ def test_near_end_minimum_speed_floor_applied(load_module):
     # Oracle: surge=0.1 (speed_factor = 0.5/5.0 = 0.1 → exactly at 10% floor)
     assert vel[0] == pytest.approx(0.1, abs=1e-9), \
         'S7: surge must be 0.1 (10% floor of cruise_speed when lookahead is small)'
+
+
+# ── S8: 곡률 sway feedforward (P6) ─────────────────────────────────────────────
+
+def test_sway_ff_gain_param_stored(load_module):
+    """sway_ff_gain 생성자 파라미터가 _sway_ff_gain에 저장된다 (기본 0.1)."""
+    mod = load_module(_ILOS_PATH, 'char_ilos')
+    g = mod.ILOSGuidance(sway_ff_gain=0.25)
+    assert g._sway_ff_gain == 0.25
+    g_default = mod.ILOSGuidance()
+    assert g_default._sway_ff_gain == 0.1, 'sway_ff_gain 기본값은 0.1 (≈m/Kp_inner)'

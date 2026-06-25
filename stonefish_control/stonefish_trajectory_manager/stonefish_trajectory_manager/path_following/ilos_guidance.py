@@ -79,7 +79,8 @@ class ILOSGuidance:
                  max_lateral_velocity=None, max_heave_velocity=None,
                  adaptive_lookahead=True,
                  curvature_preview_enabled=True, curvature_preview_samples=8,
-                 curvature_ff_gain=None):
+                 curvature_ff_gain=None,
+                 sway_ff_gain=0.1):
         """Initialize ILOS guidance.
 
         Primary Parameters (tune these):
@@ -139,6 +140,10 @@ class ILOSGuidance:
         self._curvature_preview_enabled = curvature_preview_enabled
         self._curvature_preview_samples = curvature_preview_samples
         self._curvature_ff_gain = curvature_ff_gain  # Heading feedforward from curvature
+
+        # [P6] 곡률 sway feedforward 게인 (≈m/Kp_inner=20.131/200≈0.1 s).
+        # v_sway_ff = -sway_ff_gain · v² · κ_signed 로 코너 원심력 선제 상쇄.
+        self._sway_ff_gain = sway_ff_gain
 
         # Velocity profiling parameters
         self._cruise_speed = cruise_speed
