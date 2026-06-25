@@ -121,8 +121,8 @@ def test_v_sp_clamped_after_ff(CascadeController):
 
 
 def test_y_error_single_channel_sway(CascadeController):
-    """B4: e_pos_body=[0,1,0](오른쪽 1m) → sway setpoint 음수. ILOS sway=0과 합쳐
-    이중보정 없음을 회귀 고정. yaw=0이므로 body y == world y."""
+    """B4: e_pos_body=[0,1,0](des가 +Y 1m) → sway setpoint 양수(+0.5=Kp_outer[1]·1).
+    ILOS sway=0과 합쳐 이중보정 없음을 회귀 고정. yaw=0이므로 body y == world y."""
     c = _make_cascade(CascadeController, Kp_outer=np.array([1.0, 0.5, 1.0, 1.0]))
     pose_des = np.array([0.0, 1.0, 0.0, 0.0])      # path point 1m to +Y (world)
     pose_curr = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
