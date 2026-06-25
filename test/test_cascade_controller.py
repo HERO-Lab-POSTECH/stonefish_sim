@@ -334,17 +334,21 @@ def test_hybrid_set_mode_accepts_cascade():
 # ── 결함 C: outer yaw 게이팅 (Task 2) ───────────────────────────────────────
 
 
-def test_yaw_gate_full_when_aligned(CascadeController):
-    """C1: e_yaw=0이면 yaw_gate=1 — sway 위치오차 기여가 게이트 전과 동일."""
+def test_yaw_gate_partial_at_45deg(CascadeController):
+    """C1: e_yaw=π/4이면 yaw_gate=cos(π/4)≈0.707 — sway 위치오차가 게이트로 스케일된다.
+
+    게이트가 제거되면 e_outer[1]=2.0, 게이트 적용 시 2.0*cos(π/4)≈1.4142 → 두 값이
+    달라 regression guard로 유효하다(e_yaw=0 케이스는 gate=1이라 차이 없음).
+    """
     c = _make_cascade(CascadeController)
-    # 차량 yaw=0(정렬), lookahead가 body-right(+y_body=+y_world)로 2m
-    pose_des = np.array([0.0, 2.0, 0.0, 0.0])      # yaw_des=0 → e_yaw=0
+    # 차량 yaw=0, lookahead가 body-right(+y_body=+y_world)로 2m, yaw_des=π/4 → e_yaw=π/4
+    pose_des = np.array([0.0, 2.0, 0.0, np.pi / 4])
     pose_curr = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
     vel_curr = np.zeros(6)
     _, dbg = c.compute_control(pose_des, pose_curr, vel_curr, dt=0.1)
-    # e_outer[1] = sway 위치오차 = 2.0 (gate=cos(0)=1 적용 후에도 2.0)
-    assert dbg['e_outer'][1] == pytest.approx(2.0, abs=1e-9), \
-        'e_yaw=0 → yaw_gate=1 → sway 위치오차 2.0 무변'
+    # e_outer[1] = 2.0 * cos(π/4) ≈ 1.4142 (게이트 제거 시 2.0이라 FAIL)
+    assert dbg['e_outer'][1] == pytest.approx(2.0 * np.cos(np.pi / 4), abs=1e-9), \
+        'e_yaw=π/4 → yaw_gate=cos(π/4)≈0.707 → sway 위치오차 2.0*0.707≈1.4142'
 
 
 def test_yaw_gate_zero_at_90deg(CascadeController):
