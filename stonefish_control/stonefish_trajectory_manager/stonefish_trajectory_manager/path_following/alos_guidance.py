@@ -70,7 +70,8 @@ class ALOSGuidance(ILOSGuidance):
         derivative_filter_tau=0.1,
         max_lateral_velocity=None, max_heave_velocity=None,
         adaptive_lookahead=True,
-        curvature_preview_enabled=True, curvature_preview_samples=8
+        curvature_preview_enabled=True, curvature_preview_samples=8,
+        sway_ff_gain=0.1
     ):
         """Initialize ALOS guidance.
 
@@ -80,6 +81,9 @@ class ALOSGuidance(ILOSGuidance):
         ALOS-specific:
             adaptation_gain: Sideslip adaptation rate γ (0.05-0.2)
             beta_limit: Max sideslip estimate (rad), ~30° = 0.52
+
+        Shared with ILOS:
+            sway_ff_gain: Curvature sway feedforward gain (same as parent ILOS)
         """
         # Initialize parent ILOS (integral_gain will be ignored)
         super().__init__(
@@ -101,7 +105,8 @@ class ALOSGuidance(ILOSGuidance):
             max_heave_velocity=max_heave_velocity,
             adaptive_lookahead=adaptive_lookahead,
             curvature_preview_enabled=curvature_preview_enabled,
-            curvature_preview_samples=curvature_preview_samples
+            curvature_preview_samples=curvature_preview_samples,
+            sway_ff_gain=sway_ff_gain
         )
 
         # ALOS-specific parameters

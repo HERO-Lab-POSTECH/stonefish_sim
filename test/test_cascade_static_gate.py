@@ -75,7 +75,10 @@ def test_ilos_integral_ez_preserved():
 
 
 def test_ilos_sway_pid_removed():
-    """sway PID 산식(-lateral_gain * e_y ...)이 제거됨 (소스 문자열)."""
+    """sway PID 산식(-lateral_gain * e_y ...)이 제거됨 (소스 문자열).
+
+    [P6] sway PID feedback 부활 금지 — cross-track feedback은 cascade 단독(이중보정 방지).
+    """
     src = _ILOS.read_text()
     assert '-self._lateral_gain * e_y' not in src and \
            '- self._lateral_gain * e_y' not in src, \
@@ -106,3 +109,36 @@ def test_hybrid_node_mode_callback_accepts_cascade():
     """hybrid_controller_node mode_callback 화이트리스트에 'cascade'가 포함됨(F5b)."""
     src = _HYBRID_NODE.read_text()
     assert "'cascade'" in src, "hybrid_controller_node가 'cascade'를 수용하지 않음"
+
+
+def test_ilos_sway_feedforward_present():
+    """[P6] 곡률 sway feedforward(_sway_ff_gain · v² · κ)가 _compute_body_velocities 산식에 실제 참조된다 (AST).
+
+    문자열 검색이 아닌 AST로 확인하여 생성자 저장·주석만 남기고 산식에서
+    제거되는 false-pass를 막는다.
+    """
+    tree = _ilos_tree()
+
+    # _compute_body_velocities 함수 노드를 찾는다.
+    body_vel_func = None
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef) and node.name == '_compute_body_velocities':
+            body_vel_func = node
+            break
+    assert body_vel_func is not None, \
+        '_compute_body_velocities 함수가 ilos_guidance.py에서 사라짐'
+
+    # 함수 본문에서 self._sway_ff_gain 참조(Attribute)를 확인한다.
+    def _has_self_attr(func_node, attr_name):
+        for n in ast.walk(func_node):
+            if (isinstance(n, ast.Attribute)
+                    and n.attr == attr_name
+                    and isinstance(n.value, ast.Name)
+                    and n.value.id == 'self'):
+                return True
+        return False
+
+    assert _has_self_attr(body_vel_func, '_sway_ff_gain'), \
+        '_compute_body_velocities 산식에서 _sway_ff_gain을 소비하지 않음 (P6 회귀)'
+    assert _has_self_attr(body_vel_func, '_signed_curvature_filtered'), \
+        '_compute_body_velocities 산식에서 _signed_curvature_filtered를 소비하지 않음 (P6 회귀)'

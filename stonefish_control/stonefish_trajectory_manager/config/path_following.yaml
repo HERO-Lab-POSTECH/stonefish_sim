@@ -48,3 +48,7 @@
     # [deprecated §4] sway 출력이 0이 되어 미사용(키만 유지).
     max_lateral_velocity: 0.5
     max_heave_velocity: 0.4
+
+    # [P6] 곡률 sway feedforward 게인 (≈m/Kp_inner≈0.1 s). 코너 원심력 선제 상쇄.
+    # 0이면 비활성(직선만). 실기 튜닝 대상.
+    sway_ff_gain: 0.1

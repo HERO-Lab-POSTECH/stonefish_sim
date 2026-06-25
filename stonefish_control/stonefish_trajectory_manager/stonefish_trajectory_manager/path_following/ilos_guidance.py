@@ -79,7 +79,8 @@ class ILOSGuidance:
                  max_lateral_velocity=None, max_heave_velocity=None,
                  adaptive_lookahead=True,
                  curvature_preview_enabled=True, curvature_preview_samples=8,
-                 curvature_ff_gain=None):
+                 curvature_ff_gain=None,
+                 sway_ff_gain=0.1):
         """Initialize ILOS guidance.
 
         Primary Parameters (tune these):
@@ -139,6 +140,11 @@ class ILOSGuidance:
         self._curvature_preview_enabled = curvature_preview_enabled
         self._curvature_preview_samples = curvature_preview_samples
         self._curvature_ff_gain = curvature_ff_gain  # Heading feedforward from curvature
+
+        # [P6] 곡률 sway feedforward 게인 (≈m/Kp_inner=20.131/200≈0.1 s).
+        # v_sway_ff = +sway_ff_gain · v² · κ_signed 로 코너 원심력 선제 상쇄.
+        # (구현 부호: _estimate_signed_curvature는 우회전→κ>0 → +sway=오른쪽=안쪽.)
+        self._sway_ff_gain = sway_ff_gain
 
         # Velocity profiling parameters
         self._cruise_speed = cruise_speed
@@ -817,9 +823,16 @@ class ILOSGuidance:
         # Heave: from path slope
         # Yaw rate: from curvature
 
-        # [축소 §4] cross-track sway 채널 제거: cascade outer가 e_pos_body[1]을 전담.
-        # desired_velocity[1]=0 → ILOS는 측방 보정을 하지 않는다(이중보정 제거).
-        v_lateral = 0.0
+        # [P6] 곡률 sway feedforward: 코너 원심력 선제 상쇄 (FOLLOW만).
+        # v_sway_ff = +sway_ff_gain · v² · κ_signed.
+        # ※구현 부호 관례: _estimate_signed_curvature는 우회전→κ>0(+), 좌회전→κ<0(-).
+        #   (docstring L503-505는 반대로 적혀있으나 구현이 SSOT). 우회전 κ>0 → +sway=오른쪽=안쪽 ✓.
+        # feedback(e_y 보정)은 cascade outer가 전담 — 여기는 예측만(이중보정 아님).
+        if self._mode == PathFollowingMode.FOLLOW:
+            v_lateral = (self._sway_ff_gain * desired_speed * desired_speed
+                         * self._signed_curvature_filtered)
+        else:
+            v_lateral = 0.0
 
         # Heave velocity: Path-based + Depth error correction
         # Two components:
