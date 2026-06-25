@@ -106,3 +106,23 @@ def test_hybrid_node_mode_callback_accepts_cascade():
     """hybrid_controller_node mode_callback 화이트리스트에 'cascade'가 포함됨(F5b)."""
     src = _HYBRID_NODE.read_text()
     assert "'cascade'" in src, "hybrid_controller_node가 'cascade'를 수용하지 않음"
+
+
+def test_ilos_sway_feedforward_present():
+    """[P6] 곡률 sway feedforward(_sway_ff_gain)가 v_lateral 산식에 존재한다."""
+    src = _ILOS.read_text()
+    assert '_sway_ff_gain' in src, \
+        'sway feedforward 게인이 사라짐 (P6 코너 보정 회귀)'
+    assert 'self._signed_curvature_filtered' in src, \
+        'sway ff가 signed 곡률을 소비해야 함 (부호=안쪽 방향)'
+
+
+def test_ilos_sway_pid_feedback_still_removed():
+    """[P6 불변] sway PID feedback(-lateral_gain*e_y)은 여전히 부재 (이중보정 금지).
+
+    feedforward(예측, v²κ) 추가는 OK이나 feedback PID 부활은 cascade와 이중보정.
+    """
+    src = _ILOS.read_text()
+    assert '-self._lateral_gain * e_y' not in src and \
+           '- self._lateral_gain * e_y' not in src, \
+        'sway PID feedback이 잔존 (cross-track feedback은 cascade 단독)'
