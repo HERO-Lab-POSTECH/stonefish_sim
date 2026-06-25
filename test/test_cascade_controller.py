@@ -331,6 +331,64 @@ def test_hybrid_set_mode_accepts_cascade():
             sys.modules.pop(name, None)
 
 
+# ── 결함 C: outer yaw 게이팅 (Task 2) ───────────────────────────────────────
+
+
+def test_yaw_gate_partial_at_45deg(CascadeController):
+    """C1: e_yaw=π/4이면 yaw_gate=cos(π/4)≈0.707 — sway 위치오차가 게이트로 스케일된다.
+
+    게이트가 제거되면 e_outer[1]=2.0, 게이트 적용 시 2.0*cos(π/4)≈1.4142 → 두 값이
+    달라 regression guard로 유효하다(e_yaw=0 케이스는 gate=1이라 차이 없음).
+    """
+    c = _make_cascade(CascadeController)
+    # 차량 yaw=0, lookahead가 body-right(+y_body=+y_world)로 2m, yaw_des=π/4 → e_yaw=π/4
+    pose_des = np.array([0.0, 2.0, 0.0, np.pi / 4])
+    pose_curr = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+    vel_curr = np.zeros(6)
+    _, dbg = c.compute_control(pose_des, pose_curr, vel_curr, dt=0.1)
+    # e_outer[1] = 2.0 * cos(π/4) ≈ 1.4142 (게이트 제거 시 2.0이라 FAIL)
+    assert dbg['e_outer'][1] == pytest.approx(2.0 * np.cos(np.pi / 4), abs=1e-9), \
+        'e_yaw=π/4 → yaw_gate=cos(π/4)≈0.707 → sway 위치오차 2.0*0.707≈1.4142'
+
+
+def test_yaw_gate_zero_at_90deg(CascadeController):
+    """C2: e_yaw=π/2이면 yaw_gate=0 — sway 위치오차 기여가 0으로 차단된다."""
+    c = _make_cascade(CascadeController)
+    # yaw_des - yaw_curr = π/2
+    pose_des = np.array([0.0, 2.0, 0.0, np.pi / 2])
+    pose_curr = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+    vel_curr = np.zeros(6)
+    _, dbg = c.compute_control(pose_des, pose_curr, vel_curr, dt=0.1)
+    assert dbg['e_outer'][1] == pytest.approx(0.0, abs=1e-9), \
+        'e_yaw=π/2 → yaw_gate=cos(π/2)=0 → sway 위치오차 0'
+
+
+def test_yaw_gate_clamped_nonneg_at_180deg(CascadeController):
+    """C3: e_yaw=π이면 cos=-1이지만 max(.,0)으로 게이트=0 (역방향 명령 차단)."""
+    c = _make_cascade(CascadeController)
+    pose_des = np.array([0.0, 2.0, 0.0, np.pi])
+    pose_curr = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+    vel_curr = np.zeros(6)
+    _, dbg = c.compute_control(pose_des, pose_curr, vel_curr, dt=0.1)
+    assert dbg['e_outer'][1] == pytest.approx(0.0, abs=1e-9), \
+        'e_yaw=π → max(cos(π),0)=0 → sway 위치오차 0 (음수 차단)'
+
+
+def test_yaw_gate_does_not_affect_surge_yaw_depth(CascadeController):
+    """C4: yaw 게이트는 sway에만 작용 — surge·heave·yaw 채널 무영향."""
+    c = _make_cascade(CascadeController)
+    # surge·heave 위치오차 있고 e_yaw=π/2 (sway만 게이트돼야)
+    # yaw_curr=0이므로 R=I → e_pos_body = e_pos_world = [3,2,1]
+    pose_des = np.array([3.0, 2.0, 1.0, np.pi / 2])
+    pose_curr = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+    vel_curr = np.zeros(6)
+    _, dbg = c.compute_control(pose_des, pose_curr, vel_curr, dt=0.1)
+    assert dbg['e_outer'][0] == pytest.approx(3.0, abs=1e-9), 'surge 무게이트'
+    assert dbg['e_outer'][2] == pytest.approx(1.0, abs=1e-9), 'heave 무게이트'
+    assert dbg['e_outer'][3] == pytest.approx(np.pi / 2, abs=1e-9), 'yaw 무게이트'
+    assert dbg['e_outer'][1] == pytest.approx(0.0, abs=1e-9), 'sway만 게이트→0'
+
+
 def test_hybrid_velocity_position_unchanged():
     """하위호환: velocity/position 라우팅이 여전히 동작(cascade 추가가 기존 경로 불변)."""
     hyb_mod, to_clean = _make_hybrid()
