@@ -124,6 +124,7 @@ class PathFollowing4DOFNode(Node):
             adaptive_lookahead=adaptive_lookahead,
             # Let auto-calculation handle the rest (or override if specified)
             heading_align_threshold=heading_align_threshold,
+            sway_ff_gain=sway_ff_gain,  # [P6] curvature sway feedforward — shared by ALOS and ILOS
         )
 
         if use_alos:
@@ -131,7 +132,6 @@ class PathFollowing4DOFNode(Node):
             self.get_logger().info('Using ALOS guidance (adaptive sideslip)')
         else:
             guidance_params['integral_gain'] = integral_gain
-            guidance_params['sway_ff_gain'] = sway_ff_gain
             self.guidance = ILOSGuidance(**guidance_params)
             self.get_logger().info('Using ILOS guidance (integral correction)')
 
