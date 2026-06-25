@@ -71,6 +71,9 @@ class PathFollowing4DOFNode(Node):
         # Adaptive lookahead option
         self.declare_parameter('adaptive_lookahead', True)  # Adaptive lookahead based on curvature
 
+        # [P6] Sway feedforward gain for curvature compensation
+        self.declare_parameter('sway_ff_gain', 0.1)
+
         # Get parameters
         self.vehicle_name = self.get_parameter('vehicle_name').value
         update_rate = self.get_parameter('update_rate').value
@@ -91,6 +94,7 @@ class PathFollowing4DOFNode(Node):
         heading_align_threshold = np.deg2rad(heading_align_threshold_deg)
         use_alos = self.get_parameter('use_alos').value
         adaptive_lookahead = self.get_parameter('adaptive_lookahead').value
+        sway_ff_gain = self.get_parameter('sway_ff_gain').value
 
         # State
         self._path_received = False
@@ -127,6 +131,7 @@ class PathFollowing4DOFNode(Node):
             self.get_logger().info('Using ALOS guidance (adaptive sideslip)')
         else:
             guidance_params['integral_gain'] = integral_gain
+            guidance_params['sway_ff_gain'] = sway_ff_gain
             self.guidance = ILOSGuidance(**guidance_params)
             self.get_logger().info('Using ILOS guidance (integral correction)')
 
