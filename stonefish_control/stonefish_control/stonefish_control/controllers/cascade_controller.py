@@ -10,7 +10,7 @@ Architecture:
 핵심 설계(설계 SSOT §1~§3):
     - outer: 순수 비례(P-only). 적분은 inner 한 곳만(cascade integrator windup 차단).
     - inner: 속도오차 PI(+선택 D) + back-calculation anti-windup(F1과 동일 메커니즘).
-    - vel_ff: ILOS path-tangent feedforward 속도 [u, 0, w_d, r]. sway(인덱스1)=0.
+    - vel_ff: ILOS feedforward 속도 [u, v_sway_ff, w_d, r]. sway(인덱스1)=곡률 ff(P6부터 비0).
     - v_sp clamp는 ff 합산 후 적용(inner 포화 사전차단).
 
 Frame:

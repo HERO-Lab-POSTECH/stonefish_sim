@@ -890,8 +890,8 @@ class ILOSGuidance:
         # Yaw rate from curvature (kinematic relationship: r = v · κ_signed)
         # [결함 A] _current_curvature(부호 없는 max-preview)는 회전 방향을 모른다.
         # _signed_curvature_filtered(부호 있음, FOLLOW에서 매 틱 갱신)를 사용해
-        # 좌/우회전에 맞는 yaw rate feedforward를 낸다. FRD에서 r>0=좌회전.
-        # 부호 관례(SSOT 실측): 좌회전 κ_signed<0. r = v·κ_signed.
+        # 좌/우회전에 맞는 yaw rate feedforward를 낸다. FRD에서 r>0=우회전(starboard).
+        # 부호 관례(SSOT 실측): 우회전 κ_signed>0, 좌회전 κ_signed<0. r = v·κ_signed.
         if tangent_xy_norm > 1e-6:
             # Horizontal speed component (affected by curvature)
             speed_xy = desired_speed * tangent_xy_norm
