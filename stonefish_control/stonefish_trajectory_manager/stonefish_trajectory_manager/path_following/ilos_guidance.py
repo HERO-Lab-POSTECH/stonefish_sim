@@ -4,20 +4,24 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 """
-ILOS (Integral Line-of-Sight) Guidance for 4DOF Path Following
+Path-tangent Heading + Depth Guidance for 4DOF Path Following
 
-Implements ILOS guidance law with integral action for sideslip compensation.
-Based on Lekkas & Fossen (2014).
+[축소 §4] 원래 ILOS (Integral Line-of-Sight, Lekkas & Fossen 2014) 가이던스의
+cross-track 보정(heading arctan 항 + sway 적분)을 제거하고 path-tangent heading만
+출력하도록 축소했다. cross-track 보정은 별도 CascadeController(outer position-P →
+inner velocity-PI)가 단일 채널로 전담한다(이중보정 제거). 클래스명 ILOSGuidance는
+호환을 위해 유지하나, 잔존 적분 항은 depth 채널(_integral_ez) 하나뿐이다.
 
 Key Features:
-- Integral cross-track error compensation
-- 4DOF output (surge, sway, heave, yaw)
-- Curvature-based velocity profiling
+- Path-tangent heading 출력 (χ_d = χ_p, FOLLOW 모드)
+- Depth integral 보정 유지 (_integral_ez)
+- 4DOF output (surge, sway=0, heave, yaw) — sway는 cascade outer로 이관
+- Curvature-based velocity profiling (_signed_curvature_filtered → speed profiler)
 - Frame: desired_pose (NED world), desired_velocity (FRD body)
 
 Reference:
 - Lekkas & Fossen (2014). "Integral LOS Path Following for Curved Paths
-  Based on a Monotone Cubic Hermite Spline Parametrization"
+  Based on a Monotone Cubic Hermite Spline Parametrization" (축소 전 근거)
 - Fossen (2011). "Handbook of Marine Craft Hydrodynamics and Motion Control"
 """
 
@@ -45,18 +49,21 @@ def angle_wrap(angle):
 
 
 class ILOSGuidance:
-    """ILOS guidance law for 4DOF underactuated UUV.
+    """Path-tangent heading + depth guidance for 4DOF UUV (축소된 ILOS).
 
-    ILOS formula (Lekkas & Fossen 2014):
+    현재 heading 법칙 (FOLLOW 모드, §4 축소 후):
+        χ_d = χ_p          (path tangent만 — cross-track 보정은 cascade outer)
+
+    [deprecated §4] 축소 전 ILOS 공식 (Lekkas & Fossen 2014, 더 이상 미구현):
         χ_d = χ_p + arctan(-e_y / Δ) - arctan(κ_ILOS * ∫e_y dt / Δ)
+    arctan(-e_y/Δ)(cross-track heading)와 ∫e_y(heading 적분) 항을 제거했다.
+    e_y는 여전히 계산·로깅되나(self._cross_track_error) heading에는 미반영.
 
     Where:
         χ_d: Desired heading (yaw)
-        χ_p: Path tangent angle
-        e_y: Cross-track error (lateral deviation from path)
+        χ_p: Path tangent angle = arctan2(tangent[1], tangent[0])
+        e_y: Cross-track error (로깅·진단용 — cascade outer가 보정 전담)
         Δ: Lookahead distance
-        κ_ILOS: Integral gain
-        ∫e_y dt: Integral of cross-track error
     """
 
     def __init__(self, lookahead_distance=5.0, cruise_speed=1.0,
@@ -720,9 +727,9 @@ class ILOSGuidance:
             tangent_start = self._get_path_tangent(0)  # Path start tangent
             chi_d = np.arctan2(tangent_start[1], tangent_start[0])
         else:
-            # FOLLOW mode: Full ILOS with CTE correction, integral action, and curvature FF
-            # Curvature feedforward: anticipate heading change based on upcoming curvature
-            # This allows shorter lookahead while maintaining high-speed performance
+            # FOLLOW mode: path-tangent heading (§4 축소 — CTE 보정·heading 적분 제거).
+            # 아래 곡률 필터링은 heading FF가 아니라 _signed_curvature_filtered를
+            # 갱신하기 위함이다 — 이 상태는 r_d·speed profiler가 소비한다(미dead).
             signed_curvature_raw = self._estimate_signed_curvature(
                 min(self._path_parameter_s + self._lookahead_distance, self._total_path_length)
             )
@@ -740,7 +747,9 @@ class ILOSGuidance:
                 alpha_curv * signed_curvature_raw +
                 (1 - alpha_curv) * self._signed_curvature_filtered
             )
-            curvature_ff = self._curvature_ff_gain * self._signed_curvature_filtered
+            # [deprecated §4] curvature_ff = _curvature_ff_gain * _signed_curvature_filtered
+            # 는 heading FF였으나 chi_d=chi_p 축소로 미소비. _curvature_ff_gain 파라미터는
+            # 생성자 시그니처 호환 위해 유지(미사용). 제거는 호출부·YAML 영향이라 P5 범위 밖.
 
             # [축소 §4] cross-track heading 채널 제거: 순수 path-tangent.
             # e_y 보정은 cascade outer가 전담 → ILOS heading은 χ_p만 출력.
