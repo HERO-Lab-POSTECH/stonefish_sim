@@ -822,9 +822,15 @@ class ILOSGuidance:
         # Heave: from path slope
         # Yaw rate: from curvature
 
-        # [축소 §4] cross-track sway 채널 제거: cascade outer가 e_pos_body[1]을 전담.
-        # desired_velocity[1]=0 → ILOS는 측방 보정을 하지 않는다(이중보정 제거).
-        v_lateral = 0.0
+        # [P6] 곡률 sway feedforward: 코너 원심력 선제 상쇄.
+        # v_sway_ff = -sway_ff_gain · v² · κ_signed (FOLLOW 모드만).
+        # κ<0(우회전)이면 안쪽=오른쪽=+sway(FRD +y=right). 부호 '-'.
+        # feedback(e_y 보정)은 cascade outer가 전담 — 여기는 예측만(이중보정 아님).
+        if self._mode == PathFollowingMode.FOLLOW:
+            v_lateral = (-self._sway_ff_gain * desired_speed * desired_speed
+                         * self._signed_curvature_filtered)
+        else:
+            v_lateral = 0.0
 
         # Heave velocity: Path-based + Depth error correction
         # Two components:

@@ -390,3 +390,40 @@ def test_sway_ff_gain_param_stored(load_module):
     assert g._sway_ff_gain == 0.25
     g_default = mod.ILOSGuidance()
     assert g_default._sway_ff_gain == 0.1, 'sway_ff_gain 기본값은 0.1 (≈m/Kp_inner)'
+
+
+def test_sway_ff_zero_on_straight(load_module):
+    """직선 경로(κ=0)에서 sway feedforward는 0 (직선 거동 무손상 회귀)."""
+    mod = load_module(_ILOS_PATH, 'char_ilos')
+    g = _make_guidance(mod, adaptive=False)
+    # 직선 +X 경로, 차량 경로 위 (CTE=0)
+    path = np.array([[0.0, 0.0, 0.0], [5.0, 0.0, 0.0], [10.0, 0.0, 0.0]])
+    g.set_path(path)
+    g._vehicle_pos = np.array([2.0, 0.0, 0.0])
+    g._vehicle_yaw = 0.0
+    g._mode = mod.PathFollowingMode.FOLLOW
+    _, _, vel = g.compute_guidance(dt=0.1)
+    assert vel[1] == pytest.approx(0.0, abs=1e-9), '직선 κ=0 → sway_ff=0'
+
+
+def test_sway_ff_formula_on_curve(load_module):
+    """코너에서 sway_ff = -gain·v²·κ_signed (손계산 일치, 부호 안쪽)."""
+    mod = load_module(_ILOS_PATH, 'char_ilos')
+    g = mod.ILOSGuidance(sway_ff_gain=0.1)
+    # _compute_body_velocities를 직접 호출해 산식만 검증 (격리).
+    # _signed_curvature_filtered와 desired_speed를 강제 주입.
+    g._mode = mod.PathFollowingMode.FOLLOW
+    g._signed_curvature_filtered = -0.2   # 우회전(negative), 안쪽=오른쪽=+sway
+    g._vehicle_pos = np.array([0.0, 0.0, 0.0])
+    g._prev_ez = 0.0
+    g._integral_ez = 0.0
+    g._de_z_filtered = 0.0
+    # tangent: 수평 +X, p_lookahead 임의(heave는 무관 단언 안 함)
+    tangent = np.array([1.0, 0.0, 0.0])
+    p_lookahead = np.array([1.0, 0.0, 0.0])
+    v_lateral, _, _ = g._compute_body_velocities(
+        e_y=0.0, tangent=tangent, p_lookahead=p_lookahead,
+        desired_speed=1.0, dt=0.1)
+    # 손계산: -0.1 · 1.0² · (-0.2) = +0.02 (우회전→+sway 안쪽)
+    assert v_lateral == pytest.approx(0.02, abs=1e-9), \
+        'sway_ff = -gain·v²·κ; κ=-0.2,v=1 → +0.02 (우회전 안쪽=+y)'
