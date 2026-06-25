@@ -407,13 +407,13 @@ def test_sway_ff_zero_on_straight(load_module):
 
 
 def test_sway_ff_formula_on_curve(load_module):
-    """코너에서 sway_ff = -gain·v²·κ_signed (손계산 일치, 부호 안쪽)."""
+    """코너에서 sway_ff = +gain·v²·κ_signed (손계산 일치, 부호 안쪽)."""
     mod = load_module(_ILOS_PATH, 'char_ilos')
     g = mod.ILOSGuidance(sway_ff_gain=0.1)
     # _compute_body_velocities를 직접 호출해 산식만 검증 (격리).
     # _signed_curvature_filtered와 desired_speed를 강제 주입.
     g._mode = mod.PathFollowingMode.FOLLOW
-    g._signed_curvature_filtered = -0.2   # 우회전(negative), 안쪽=오른쪽=+sway
+    g._signed_curvature_filtered = -0.2   # 좌회전(실측 부호: κ<0=좌회전), 안쪽=왼쪽=-sway
     g._vehicle_pos = np.array([0.0, 0.0, 0.0])
     g._prev_ez = 0.0
     g._integral_ez = 0.0
@@ -424,6 +424,6 @@ def test_sway_ff_formula_on_curve(load_module):
     v_lateral, _, _ = g._compute_body_velocities(
         e_y=0.0, tangent=tangent, p_lookahead=p_lookahead,
         desired_speed=1.0, dt=0.1)
-    # 손계산: -0.1 · 1.0² · (-0.2) = +0.02 (우회전→+sway 안쪽)
-    assert v_lateral == pytest.approx(0.02, abs=1e-9), \
-        'sway_ff = -gain·v²·κ; κ=-0.2,v=1 → +0.02 (우회전 안쪽=+y)'
+    # 손계산: +0.1 · 1.0² · (-0.2) = -0.02 (κ=-0.2(좌회전,실측 부호)→-0.02(왼쪽=안쪽))
+    assert v_lateral == pytest.approx(-0.02, abs=1e-9), \
+        'sway_ff = +gain·v²·κ; κ=-0.2(좌회전),v=1 → -0.02 (좌회전 안쪽=-y)'
