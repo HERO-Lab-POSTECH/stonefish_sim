@@ -2,7 +2,7 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>stonefish_thruster_manager</name>
-  <version>0.4.0</version>
+  <version>0.5.0</version>
   <description>Thruster allocation manager for Stonefish simulator - converts 6DOF wrenches to thruster commands</description>
 
   <maintainer email="luckkim123@gmail.com">Seungmin Kim</maintainer>
