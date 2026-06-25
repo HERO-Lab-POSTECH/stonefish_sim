@@ -186,3 +186,174 @@ def test_yaw_error_angle_wrap(CascadeController):
     _, info = c.compute_control(pose_des, pose_curr, np.zeros(6), dt=0.1, vel_ff=None)
     # wrapped error = -0.2 (not 2π-0.2). v_sp[3] = Kp_outer[3]*e_yaw = -0.2
     assert info['v_sp'][3] == pytest.approx(-0.2, abs=1e-9)
+
+
+# ── HybridController cascade 라우팅 (Task 4) ──────────────────────────────────
+
+_HYBRID_PATH = (
+    'stonefish_control/stonefish_control/stonefish_control/'
+    'controllers/hybrid_controller.py'
+)
+_POS_PATH = (
+    'stonefish_control/stonefish_control/stonefish_control/'
+    'controllers/position_controller.py'
+)
+_CASCADE_PATH = (
+    'stonefish_control/stonefish_control/stonefish_control/'
+    'controllers/cascade_controller.py'
+)
+_CI_PATH = (
+    'stonefish_control/stonefish_control/stonefish_control/'
+    'control_interfaces/data_types.py'
+)
+
+
+def _make_hybrid(tmp_pkg='_hybrid_test_pkg'):
+    """HybridController를 합성 패키지로 로드 — 상대 import 충족.
+
+    hybrid_controller.py는 .position_controller와 .cascade_controller를 상대 import하고,
+    cascade_controller.py는 ..control_interfaces.data_types를 상대 import한다.
+    모두 동일 합성 루트 패키지 아래 등록해 충족한다.
+    """
+    pkg = tmp_pkg
+    ctrl_dir = str(REPO_ROOT / 'stonefish_control/stonefish_control/stonefish_control/controllers')
+    ci_dir = str(REPO_ROOT / 'stonefish_control/stonefish_control/stonefish_control/control_interfaces')
+
+    to_clean = [
+        pkg,
+        f'{pkg}.control_interfaces',
+        f'{pkg}.control_interfaces.data_types',
+        f'{pkg}.controllers',
+        f'{pkg}.controllers.position_controller',
+        f'{pkg}.controllers.cascade_controller',
+        f'{pkg}.controllers.hybrid_controller',
+    ]
+    for name in to_clean:
+        sys.modules.pop(name, None)
+
+    # root package
+    root = types.ModuleType(pkg)
+    root.__path__ = []
+    sys.modules[pkg] = root
+
+    # control_interfaces sub-package
+    ci_pkg = types.ModuleType(f'{pkg}.control_interfaces')
+    ci_pkg.__path__ = [ci_dir]
+    sys.modules[f'{pkg}.control_interfaces'] = ci_pkg
+
+    spec_dt = importlib.util.spec_from_file_location(
+        f'{pkg}.control_interfaces.data_types',
+        str(REPO_ROOT / _CI_PATH))
+    dt_mod = importlib.util.module_from_spec(spec_dt)
+    sys.modules[f'{pkg}.control_interfaces.data_types'] = dt_mod
+    spec_dt.loader.exec_module(dt_mod)
+
+    # controllers sub-package
+    ctrls_pkg = types.ModuleType(f'{pkg}.controllers')
+    ctrls_pkg.__path__ = [ctrl_dir]
+    sys.modules[f'{pkg}.controllers'] = ctrls_pkg
+
+    # position_controller
+    spec_pos = importlib.util.spec_from_file_location(
+        f'{pkg}.controllers.position_controller',
+        str(REPO_ROOT / _POS_PATH))
+    pos_mod = importlib.util.module_from_spec(spec_pos)
+    sys.modules[f'{pkg}.controllers.position_controller'] = pos_mod
+    spec_pos.loader.exec_module(pos_mod)
+
+    # cascade_controller
+    spec_cc = importlib.util.spec_from_file_location(
+        f'{pkg}.controllers.cascade_controller',
+        str(REPO_ROOT / _CASCADE_PATH))
+    cc_mod = importlib.util.module_from_spec(spec_cc)
+    sys.modules[f'{pkg}.controllers.cascade_controller'] = cc_mod
+    spec_cc.loader.exec_module(cc_mod)
+
+    # hybrid_controller
+    spec_hyb = importlib.util.spec_from_file_location(
+        f'{pkg}.controllers.hybrid_controller',
+        str(REPO_ROOT / _HYBRID_PATH))
+    hyb_mod = importlib.util.module_from_spec(spec_hyb)
+    sys.modules[f'{pkg}.controllers.hybrid_controller'] = hyb_mod
+    spec_hyb.loader.exec_module(hyb_mod)
+
+    return hyb_mod, to_clean
+
+
+def test_hybrid_routes_cascade_mode():
+    """B-route: control_mode='cascade'일 때 CascadeController가 호출되어 tau 6-vector 반환."""
+    hyb_mod, to_clean = _make_hybrid()
+    try:
+        c = hyb_mod.HybridController(
+            Kp_vel=np.array([200., 200., 250., 150.]), Kd_vel=np.array([0., 100., 100., 80.]),
+            Ki_vel=np.array([50., 50., 60., 10.]), Kb_vel=np.array([0.8]*4),
+            Kp_pos=np.array([300., 300., 400., 200.]), Kd_pos=np.array([150., 150., 200., 100.]),
+            Ki_pos=np.array([10., 10., 20., 5.]), Kb_pos=np.array([0.8]*4),
+            Kp_outer=np.array([0.4, 0.4, 0.3, 0.8]), Ki_outer=np.array([0.]*4),
+            Kp_inner=np.array([200., 200., 250., 150.]), Ki_inner=np.array([50., 50., 60., 10.]),
+            Kd_inner=np.array([0., 100., 100., 80.]), Kb_inner=np.array([0.8]*4),
+            v_sp_limit=np.array([0.5, 0.3, 0.25, 0.6]),
+            mass=11.5, inertia_zz=0.16,
+            initial_mode='cascade',
+        )
+        pose_des = np.array([1.0, 0.0, 0.0, 0.0])
+        pose_curr = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+        vel_curr = np.zeros(6)
+        vel_des = np.array([0.5, 0.0, 0.0, 0.0])
+        tau, info = c.compute_control(pose_des, pose_curr, vel_curr, 0.1, vel_des)
+        assert tau.shape == (6,)
+        assert info['active_mode'] == 'cascade'
+    finally:
+        for name in to_clean:
+            sys.modules.pop(name, None)
+
+
+def test_hybrid_set_mode_accepts_cascade():
+    """set_mode('cascade')가 ValueError 없이 수용되고 cascade reset 호출."""
+    hyb_mod, to_clean = _make_hybrid()
+    try:
+        c = hyb_mod.HybridController(
+            Kp_vel=np.array([200., 200., 250., 150.]), Kd_vel=np.array([0., 100., 100., 80.]),
+            Ki_vel=np.array([50., 50., 60., 10.]), Kb_vel=np.array([0.8]*4),
+            Kp_pos=np.array([300., 300., 400., 200.]), Kd_pos=np.array([150., 150., 200., 100.]),
+            Ki_pos=np.array([10., 10., 20., 5.]), Kb_pos=np.array([0.8]*4),
+            Kp_outer=np.array([0.4, 0.4, 0.3, 0.8]), Ki_outer=np.array([0.]*4),
+            Kp_inner=np.array([200., 200., 250., 150.]), Ki_inner=np.array([50., 50., 60., 10.]),
+            Kd_inner=np.array([0., 100., 100., 80.]), Kb_inner=np.array([0.8]*4),
+            v_sp_limit=np.array([0.5, 0.3, 0.25, 0.6]),
+            mass=11.5, inertia_zz=0.16,
+            initial_mode='velocity',
+        )
+        c.set_mode('cascade')   # must not raise
+        assert c.control_mode == 'cascade'
+    finally:
+        for name in to_clean:
+            sys.modules.pop(name, None)
+
+
+def test_hybrid_velocity_position_unchanged():
+    """하위호환: velocity/position 라우팅이 여전히 동작(cascade 추가가 기존 경로 불변)."""
+    hyb_mod, to_clean = _make_hybrid()
+    try:
+        c = hyb_mod.HybridController(
+            Kp_vel=np.array([200., 200., 250., 150.]), Kd_vel=np.array([0., 100., 100., 80.]),
+            Ki_vel=np.array([50., 50., 60., 10.]), Kb_vel=np.array([0.8]*4),
+            Kp_pos=np.array([300., 300., 400., 200.]), Kd_pos=np.array([150., 150., 200., 100.]),
+            Ki_pos=np.array([10., 10., 20., 5.]), Kb_pos=np.array([0.8]*4),
+            Kp_outer=np.array([0.4, 0.4, 0.3, 0.8]), Ki_outer=np.array([0.]*4),
+            Kp_inner=np.array([200., 200., 250., 150.]), Ki_inner=np.array([50., 50., 60., 10.]),
+            Kd_inner=np.array([0., 100., 100., 80.]), Kb_inner=np.array([0.8]*4),
+            v_sp_limit=np.array([0.5, 0.3, 0.25, 0.6]),
+            mass=11.5, inertia_zz=0.16,
+            initial_mode='velocity',
+        )
+        pose_des = np.array([0.0, 0.0, 0.0, 0.0])
+        pose_curr = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+        vel_curr = np.zeros(6)
+        vel_des = np.array([1.0, 0.0, 0.0, 0.0])
+        tau, info = c.compute_control(pose_des, pose_curr, vel_curr, 0.1, vel_des)
+        assert info['active_mode'] == 'velocity'
+        assert tau.shape == (6,)
+    finally:
+        for name in to_clean:
+            sys.modules.pop(name, None)
