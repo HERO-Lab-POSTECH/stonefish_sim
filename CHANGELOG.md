@@ -4,6 +4,67 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-06-25
+
+**P5 — 경로추종 position-cascade 재설계 (의도적 동작 변경).** 코너 추종
+trajectory 결함의 근인이던 cross-track **이중보정**(ILOS heading arctan 항 +
+비표준 sway PID)을 제거하고, 별도 `CascadeController`(outer position-P → inner
+velocity-PI)가 cross-track을 단일 채널로 닫도록 제어 구조를 재설계했다. 차량이
+fully-actuated이므로 underactuated ILOS 대신 진짜 position-cascade가 성립한다.
+depth 채널(`_integral_ez`)은 ILOS에 그대로 유지된다. 모든 변경은 executor가
+구현하고 별도 code-reviewer / verifier가 독립 검증했으며(전건 APPROVE, 0 blocker),
+verifier는 골든값을 기하·삼각·제어이론으로 0부터 재유도해 1e-9 이내 일치를 확인했다.
+닫힌루프 안정성·정착시간·thruster 포화는 컨테이너 미검증으로 RTX4070 실기
+sign-off에 이월된다(`P4_FLAGS.md` §P5 cascade).
+
+### Added
+- **`CascadeController`** (`stonefish_control/controllers/cascade_controller.py`):
+  outer position-P가 body-frame 위치오차(`R.T @ e_pos_world`)로 속도 setpoint를
+  내고, inner velocity-PI가 wrench를 낸다. anti-windup(back-calculation)·사다리꼴
+  적분·integral-limit은 검증된 `position_controller.py`(F1) 기제를 충실히 포팅.
+  `Kp_outer is None`이면 미생성(optional)이라 기존 velocity/position 경로는
+  무변경. 단위테스트 `test_cascade_controller.py` (B1~B8 골든).
+- **cascade 모드 라우팅**: `HybridController.set_mode`/`hybrid_controller_node`
+  mode_callback 화이트리스트에 `'cascade'` 추가. `bluerov2/hybrid_controller.yaml`에
+  `cascade.*` 파라미터 블록(outer/inner Kp·Ki·Kd·Kb, v_sp_limit, max_force/torque).
+- **AST 정적 게이트** (`test/test_cascade_static_gate.py`): rclpy 미설치 환경에서
+  적분기 갱신 부활·모드 문자열 회귀를 AST/소스로 고정(mutation 검증으로 진위 확인).
+
+### Changed
+- **ILOS 가이던스 축소**: FOLLOW 모드에서 `χ_d = χ_p`(path tangent만) — cross-track
+  heading arctan 항과 sway PID(`v_lateral=0.0`)를 제거. cross-track 보정은 cascade
+  outer가 전담(이중보정 제거). `e_y`는 진단용으로 계속 계산·로깅되나 heading에 미반영.
+- **publisher 모드 문자열** `'hybrid'` → `'cascade'`: subscriber가 드롭하던
+  `'hybrid'`를 화이트리스트와 정합하는 `'cascade'`로 정정(`path_following_node`).
+- **버전** 0.4.0 → 0.5.0 (7 package.xml + 3 setup.py).
+
+### Removed
+- ILOS heading 적분(`_integral_ey`)·sway 적분(`_integral_ey_lateral`) 갱신 로직과
+  dead 로컬 `curvature_ff`(χ_d=χ_p 축소로 미소비). `_integral_ez`(depth)는 유지.
+
+### Documented
+- `path_following.yaml`의 `lateral_gain`·`integral_gain`·`max_lateral_velocity`에
+  `[deprecated §4]` 주석(YAML 로드 호환 위해 키만 유지, 값 무변경).
+- 축소 전 ILOS 공식을 모듈·클래스 docstring에 `[deprecated §4]` 이력으로 격하.
+- `P4_FLAGS.md` §P5: cascade 이월 5항목(inner M·a feedforward, outer Kp/v_sp_limit
+  실기 튜닝, 모드전환 첫 tick 점프+None-cascade footgun, 코너 lookahead, 닫힌루프
+  안정성 RTX4070 sign-off).
+
+### Verification
+- 102 passed (정식 `pytest.ini` 범위: `stonefish_control` + `test`). cascade 단위
+  B1~B8·ILOS 축소 characterization·AST 게이트 7건 포함, 0 실패.
+- 독립 verifier: S3 yaw/sway·B1/B5/B6/B8·S6 heave 골든을 외부 기준으로 재유도,
+  1e-9 이내 일치. 이중보정 제거를 B2(vel_ff[1]=0)+B4(sway=Kp·e_y)+S3(CTE+1인데
+  sway=0) 세 테스트로 다각 회귀 고정.
+- AST 게이트 mutation 검증: `_integral_ey_lateral +=` 회귀 주입 시 게이트 FAIL 확인.
+
+### Notes
+- **RTX4070 실기 sign-off 미완**: 단위·정적 테스트는 순수 산술과 구조만 덮는다.
+  닫힌루프 안정성·정착시간·thruster allocation 포화·코너 추종(sway=0 + 고정 3m
+  lookahead) 정확도는 `colcon build` + `ros2 launch` + 실기 측정 전까지 미검증.
+  통과 전 cascade 모드는 "검증 미완"으로 간주(`P4_FLAGS.md` §P5).
+- 클래스명 `ILOSGuidance`는 호환을 위해 유지하나 잔존 적분 항은 depth 하나뿐이다.
+
 ## [0.4.0] - 2026-06-24
 
 **P4 — algorithmic/numeric correctness + intentional behavior change.** The
