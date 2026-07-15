@@ -93,12 +93,20 @@ class BridgeNode(Node):
         av = self.odom.twist.twist.angular
         odom_angvel = np.array([av.x, av.y, av.z])
 
-        # look up joint1/joint2 by name -- never assume Stonefish's array order
+        # look up joint1/joint2 by name suffix -- Stonefish prefixes with the
+        # vehicle name (e.g. 'albc/joint1'); Task-7 synthetic input used bare
+        # 'joint1'. Match both, never assume array order.
         names = list(self.joint_state.name)
-        try:
-            i1, i2 = names.index('joint1'), names.index('joint2')
-        except ValueError:
-            self.get_logger().warn('joint_states missing joint1/joint2 names, skipping tick')
+
+        def _find(suffix):
+            for i, n in enumerate(names):
+                if n == suffix or n.endswith('/' + suffix):
+                    return i
+            return None
+
+        i1, i2 = _find('joint1'), _find('joint2')
+        if i1 is None or i2 is None:
+            self.get_logger().warn(f'joint_states missing joint1/joint2 (got {names}), skipping tick')
             return
         joint_pos = np.array([self.joint_state.position[i1], self.joint_state.position[i2]])
         joint_vel = np.array([self.joint_state.velocity[i1], self.joint_state.velocity[i2]])
@@ -135,7 +143,7 @@ class BridgeNode(Node):
 
         # 5. publish
         servo_msg = JointState()
-        servo_msg.name = ['joint1', 'joint2']
+        servo_msg.name = [names[i1], names[i2]]  # echo Stonefish's exact joint names (e.g. albc/joint1)
         servo_msg.position = [float(v) for v in self.joint_targets]
         self.servo_pub.publish(servo_msg)
 
