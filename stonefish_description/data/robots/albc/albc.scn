@@ -1,0 +1,197 @@
+<?xml version="1.0"?>
+<scenario>
+	<looks>
+		<look name="albc_body" gray="0.3" roughness="0.4" metalness="0.6"/>
+		<look name="albc_prop" gray="0.1" roughness="0.3"/>
+	</looks>
+
+	<robot name="$(arg vehicle_name)" fixed="false" self_collisions="false">
+		<base_link name="base_link" type="compound" physics="submerged">
+			<!-- Base: main pressure-vessel cylinder, r=0.09 h=0.325 (URDF measured).
+			     Contributes buoyancy (buoy="true"); mass/inertia/CoG overridden with
+			     URDF-measured values. -->
+			<external_part name="Base" type="cylinder" physics="submerged" buoyant="true">
+				<dimensions radius="0.09" height="0.325"/>
+				<origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+				<material name="Aluminium"/>
+				<look name="albc_body"/>
+				<mass value="9.18"/>
+				<inertia xyz="0.0994 0.0994 0.0372"/>
+				<cg xyz="0.0 0.0 -0.05" rpy="0.0 0.0 0.0"/>
+				<compound_transform xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+			</external_part>
+
+			<!-- Gripper: thin cylindrical stand-off fixed to Base, r=0.015 h=0.325.
+			     Does not contribute buoyancy (buoy="false") per URDF spec; no
+			     inertia/CoG override given so it is auto-computed from mass+shape. -->
+			<external_part name="Gripper" type="cylinder" physics="submerged" buoyant="false">
+				<dimensions radius="0.015" height="0.325"/>
+				<origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+				<material name="Aluminium"/>
+				<look name="albc_body"/>
+				<mass value="0.30"/>
+				<compound_transform xyz="0.0 0.0881 -0.185" rpy="0.0 0.0 0.0"/>
+			</external_part>
+		</base_link>
+
+		<!-- link1: flat arm segment, box 0.233x0.025x0.01, mass 0.1kg. Geometry origin
+		     offset to half-length (0.1165) along local x so the link frame origin
+		     (where joint1 attaches) sits at the proximal end, matching the URDF chain
+		     (joint2 attaches at (0.233,0,0.01) from link1 = the distal end). -->
+		<link name="link1" type="box" physics="submerged" buoyant="false">
+			<dimensions xyz="0.233 0.025 0.01"/>
+			<origin xyz="0.1165 0.0 0.0" rpy="0.0 0.0 0.0"/>
+			<material name="Aluminium"/>
+			<look name="albc_body"/>
+			<mass value="0.1"/>
+		</link>
+
+		<!-- link2: same geometry as link1, chained via joint2. -->
+		<link name="link2" type="box" physics="submerged" buoyant="false">
+			<dimensions xyz="0.233 0.025 0.01"/>
+			<origin xyz="0.1165 0.0 0.0" rpy="0.0 0.0 0.0"/>
+			<material name="Aluminium"/>
+			<look name="albc_body"/>
+			<mass value="0.1"/>
+		</link>
+
+		<!-- buoy: buoyancy-compensation float, cylinder r=0.085, mass 0.93kg, fixed to
+		     link2's distal end. buoyant="true" (this is the vehicle's trim float).
+		     ponytail: height tuned 0.118 -> 0.149m (URDF-spec height was 0.118) to hit
+		     net +10N in 998 kg/m3 freshwater given the fixed URDF masses/Base geometry
+		     (see task-3-report.md for the calc: Base alone gives net -23N). Radius kept
+		     at spec (0.085). Upgrade path: if the real float's physical size is fixed by
+		     hardware, split the +10N deficit into a separate trim ballast/foam part
+		     instead of stretching this one's geometry. -->
+		<link name="buoy" type="cylinder" physics="submerged" buoyant="true">
+			<dimensions radius="0.085" height="0.149"/>
+			<origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+			<material name="Neutral"/>
+			<look name="albc_body"/>
+			<mass value="0.93"/>
+		</link>
+
+		<!-- joint1: revolute about z, base_link -> link1. No <limits> = continuous
+		     (unlimited rotation for cable winding), confirmed working in Task 1. -->
+		<joint name="joint1" type="revolute">
+			<parent name="base_link"/>
+			<child name="link1"/>
+			<origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+			<axis xyz="0.0 0.0 1.0"/>
+		</joint>
+
+		<!-- joint2: revolute about z, link1 -> link2. Continuous (no limits). -->
+		<joint name="joint2" type="revolute">
+			<parent name="link1"/>
+			<child name="link2"/>
+			<origin xyz="0.233 0.0 0.01" rpy="0.0 0.0 0.0"/>
+			<axis xyz="0.0 0.0 1.0"/>
+		</joint>
+
+		<!-- buoy_fixer: fixed joint, link2 -> buoy. -->
+		<joint name="buoy_fixer" type="fixed">
+			<parent name="link2"/>
+			<child name="buoy"/>
+			<origin xyz="0.233 0.0 0.01" rpy="0.0 0.0 0.0"/>
+		</joint>
+
+		<!-- Servos: position control on joint1/joint2 per spec. -->
+		<actuator name="Servo1" type="servo">
+			<controller position_gain="100.0" velocity_gain="3.0" max_torque="13.0" max_velocity="3.1"/>
+			<joint name="joint1"/>
+			<initial position="0.0"/>
+		</actuator>
+		<actuator name="Servo2" type="servo">
+			<controller position_gain="100.0" velocity_gain="3.0" max_torque="13.0" max_velocity="3.1"/>
+			<joint name="joint2"/>
+			<initial position="1.5708"/>
+		</actuator>
+
+		<!-- Thrusters: declared in firmware ESC channel order (4,1,3,5,2,0) per
+		     constrained_albc/envs/main/config.py _ESC_CHANNEL_ORDER, i.e. m0=simT4,
+		     m1=simT1, m2=simT3, m3=simT5, m4=simT2, m5=simT0. m0/m3 are the vertical
+		     (heave) pair; m1,m2,m4,m5 are the 45-deg-vectored horizontal quad (surge/
+		     sway/yaw). Positions/orientations are an approximate quad+dual-vertical
+		     layout scaled to ALBC's base cylinder (r=0.09) -- placement accuracy does
+		     not gate this passive-float task (thrusters are never commanded here);
+		     exact dynamical placement is verified in Task 8. <specs>/<propeller>
+		     syntax and values copied verbatim from bluerov2.scn (native thruster
+		     model); propeller meshes reused from the bluerov2 package. -->
+		<actuator name="m0" type="thruster">
+			<link name="base_link"/>
+			<origin xyz="0.08 0.0 0.0" rpy="0 1.5707963268 0"/>
+			<specs thrust_coeff="0.167" torque_coeff="0.016" max_rpm="3600.0" inverted="false"/>
+			<propeller diameter="0.076" right="true">
+				<mesh filename="data/robots/bluerov2/meshes/ccw.obj" scale="1.0"/>
+				<material name="Neutral"/>
+				<look name="albc_prop"/>
+			</propeller>
+		</actuator>
+
+		<actuator name="m1" type="thruster">
+			<link name="base_link"/>
+			<origin xyz="0.10 0.10 0.0" rpy="0 0 0.7853981634"/>
+			<specs thrust_coeff="0.167" torque_coeff="0.016" max_rpm="3600.0" inverted="false"/>
+			<propeller diameter="0.076" right="true">
+				<mesh filename="data/robots/bluerov2/meshes/ccw.obj" scale="1.0"/>
+				<material name="Neutral"/>
+				<look name="albc_prop"/>
+			</propeller>
+		</actuator>
+
+		<actuator name="m2" type="thruster">
+			<link name="base_link"/>
+			<origin xyz="-0.10 0.10 0.0" rpy="0 0 2.3561944902"/>
+			<specs thrust_coeff="0.167" torque_coeff="0.016" max_rpm="3600.0" inverted="false"/>
+			<propeller diameter="0.076" right="false">
+				<mesh filename="data/robots/bluerov2/meshes/cw.obj" scale="1.0"/>
+				<material name="Neutral"/>
+				<look name="albc_prop"/>
+			</propeller>
+		</actuator>
+
+		<actuator name="m3" type="thruster">
+			<link name="base_link"/>
+			<origin xyz="-0.08 0.0 0.0" rpy="0 1.5707963268 0"/>
+			<specs thrust_coeff="0.167" torque_coeff="0.016" max_rpm="3600.0" inverted="false"/>
+			<propeller diameter="0.076" right="false">
+				<mesh filename="data/robots/bluerov2/meshes/cw.obj" scale="1.0"/>
+				<material name="Neutral"/>
+				<look name="albc_prop"/>
+			</propeller>
+		</actuator>
+
+		<actuator name="m4" type="thruster">
+			<link name="base_link"/>
+			<origin xyz="-0.10 -0.10 0.0" rpy="0 0 -2.3561944902"/>
+			<specs thrust_coeff="0.167" torque_coeff="0.016" max_rpm="3600.0" inverted="false"/>
+			<propeller diameter="0.076" right="false">
+				<mesh filename="data/robots/bluerov2/meshes/cw.obj" scale="1.0"/>
+				<material name="Neutral"/>
+				<look name="albc_prop"/>
+			</propeller>
+		</actuator>
+
+		<actuator name="m5" type="thruster">
+			<link name="base_link"/>
+			<origin xyz="0.10 -0.10 0.0" rpy="0 0 -0.7853981634"/>
+			<specs thrust_coeff="0.167" torque_coeff="0.016" max_rpm="3600.0" inverted="false"/>
+			<propeller diameter="0.076" right="true">
+				<mesh filename="data/robots/bluerov2/meshes/ccw.obj" scale="1.0"/>
+				<material name="Neutral"/>
+				<look name="albc_prop"/>
+			</propeller>
+		</actuator>
+
+		<sensor name="odom" type="odometry" rate="50.0">
+			<link name="base_link"/>
+			<origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+			<ros_publisher topic="/$(arg vehicle_name)/odometry"/>
+		</sensor>
+
+		<world_transform xyz="$(arg xyz)" rpy="$(arg rpy)"/>
+
+		<ros_subscriber thrusters="/$(arg vehicle_name)/setpoint/pwm" servos="/$(arg vehicle_name)/servos"/>
+		<ros_publisher servos="/$(arg vehicle_name)/joint_states"/>
+	</robot>
+</scenario>
