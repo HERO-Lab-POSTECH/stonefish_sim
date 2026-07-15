@@ -3,139 +3,43 @@
 This is the single most convention-sensitive seam in the bridge: the numpy
 student policy (trained in Isaac Lab / MarineGym) consumes ``euler`` at
 obs[3:6] and body-frame angular velocity at obs[6:9]. Feeding it the wrong
-frame corrupts the whole observation silently. Everything below is baked in as
-plain-numpy constants (NO runtime TF, NO scipy) so the board runtime has zero
-extra dependencies.
+frame corrupts the whole observation silently.
 
-Derivation (A -> B -> C), each step backed by evidence gathered on the running
-sim + the Isaac training code (see task-5-report.md for full transcripts):
+=== Empirical finding (2026-07-15, multi-pose spawn characterization) ===
+The Stonefish odometry for this robot is ALREADY in the Isaac convention:
+level == identity quaternion, roll about body X, pitch about body Y. Verified
+by spawning at known ``world_transform`` rpy tilts and reading the sim-time-0
+(spawn, zero-drift) odometry quaternion, then applying Isaac's
+``euler_xyz_from_quat`` directly (NO relabel):
 
-A. Stonefish side (what the odometry gives).
-   * ``pose.pose.orientation`` (quat xyzw) is the rotation world_ned <- base_link
-     in Stonefish's NATIVE base_link axes (X=down, Y=back, Z=left -- established
-     by Task 4's base_link_frd static TF). header.frame_id is ``world_ned``
-     (X=North, Y=East, Z=Down).
-   * ``twist.twist.angular`` is BODY-frame angular velocity, in those same native
-     base_link axes. PROVEN empirically: a tumbling-robot capture was compared
-     against the world-frame estimate w_world = 2*qdot*conj(q) and the body-frame
-     estimate w_body = 2*conj(q)*qdot reconstructed from the quaternion stream;
-     the measured twist matched BODY with relative residual 0.45 vs 1.61 for
-     world, and the z-sign flips to world at multiple samples. It is NOT
-     world-frame despite header.frame_id=world_ned (Stonefish fills the twist in
-     the child/body frame).
+    spawn rpy        odom quat (xyzw)                direct euler_xyz (roll,pitch,yaw)
+    (0,0,0) level    ( 0.001, 0.002,-0.045, 0.999)   ( 0.003,  0.003, -0.091)  -> level
+    (0.3,0,0) roll   ( 0.152, 0.008,-0.045, 0.987)   ( 0.304,  0.030, -0.086)  -> roll  ~0.3
+    (0,0.3,0) pitch  (-0.005, 0.151,-0.045, 0.988)   (-0.025,  0.302, -0.094)  -> pitch ~0.3
 
-B. Isaac side (what the policy expects).
-   * euler = ``euler_xyz_from_quat(root_quat_w)`` -- XYZ extrinsic Tait-Bryan
-     (roll about X, pitch about Y, yaw about Z), quaternion in (w,x,y,z), output
-     wrapped to (-pi, pi]. Implemented byte-for-byte below.
-   * ang_vel = ``root_ang_vel_b`` -- angular velocity in the BODY frame.
-   * World is Z-up (Isaac SimulationCfg default gravity = -Z; confirmed no NED
-     override). Body frame is the USD/URDF base link: agent.urdf mounts the arm
-     at +Z (joint1 xyz="0 0 0.1625") extending +X, and ALBC_CFG init_state
-     rot=(1,0,0,0) is annotated "Upright orientation" -> body = FLU (X-forward,
-     Y-left, Z-up), identity quaternion == physically level.
+(The constant ~-0.09 rad yaw is a small fixed spawn offset; absolute yaw does
+not enter attitude control -- the policy regulates yaw-RATE only. A pure-yaw
+spawn was dynamically unstable and drifted before capture, so it is omitted;
+roll/pitch -- the attitude-hold channels -- track directly and unambiguously.)
 
-C. Mapping.
-   Body angular velocity is a pure axis relabel native -> FLU. Expressing native
-   axes in FLU (X_base=down=-Z_flu, Y_base=back=-X_flu, Z_base=left=+Y_flu):
+Therefore the conversion is the IDENTITY: euler = euler_xyz_from_quat(odom
+quat), and body angular velocity passes through unchanged (the twist.angular
+body frame coincides with the Isaac FLU body frame, consistent with the
+orientation result). No world/body relabel, no NED assumption.
 
-       R_SF_TO_ISAAC = [[ 0, -1,  0],
-                        [ 0,  0,  1],
-                        [-1,  0,  0]]      # ang_vel_flu = R_SF_TO_ISAAC @ ang_vel_native
+This SUPERSEDES the earlier derivation (NED world + X-down/Y-back/Z-left native
+base_link, with R_ENU_NED / R_NATIVE_FLU / R_SF_TO_ISAAC relabels), which was
+built on assumed conventions that Task 8's end-to-end smoke test disproved: a
+physically level robot mapped to isaac roll = -pi/2, so the policy fought a
+phantom 90-deg roll and the whole system diverged. Task 5's math was
+self-consistent but calibrated to the wrong "upright" reference.
 
-   Orientation goes through both a body relabel and a world relabel:
-
-       R_zup_flu = R_ENU_NED @ R(quat_sf) @ R_NATIVE_FLU
-       euler     = euler_xyz_from_quat(quat(R_zup_flu))
-
-   with R_NATIVE_FLU = R_SF_TO_ISAAC.T (FLU->native) and R_ENU_NED the NED->Z-up
-   world relabel, azimuth-aligned to the training center (see Validated below).
-
-Validated: the physically-derived upright orientation (body-up -> world-up)
-maps to euler (roll=0, pitch=0, yaw=0 deg) -- roll and pitch are EXACTLY zero,
-and yaw sits at the Isaac training center (see "World-vertical-axis alignment"
-below for the constant rotation applied to reach yaw=0 instead of the raw
-+90 deg the un-aligned NED->Z-up relabel would give).
-
-World-vertical-axis alignment: the world azimuth reference is otherwise
-arbitrary -- any valid NED->Z-up relabel that maps gravity correctly differs
-from another only by a rotation about vertical, i.e. a constant yaw offset.
-This chain composes a -90 deg rotation about the world Z (vertical) axis into
-R_ENU_NED so the physical upright pose lands at policy yaw=0, matching the
-Isaac training center (the un-aligned relabel landed at yaw=+90 deg instead).
-Rotating the WORLD-frame relabel about vertical only mixes the horizontal
-(X,Y) world axes -- it leaves roll/pitch (azimuth-invariant) and the body
-angular-velocity mapping (R_SF_TO_ISAAC, independent of this constant)
-unaffected.
-
-Raw absolute yaw DOES enter the policy observation (obs[5], and the yaw
-channel of the rpy history buffers) -- unlike roll/pitch it is not
-azimuth-invariant. However, the yaw-RATE integral, the reward, and the
-constraints only consume yaw-RATE (angular velocity), never absolute yaw, so
-this alignment matters for obs[5]/history but not for those downstream terms.
-The final physical arbiter remains Task 8's end-to-end smoke test: if the
-robot holds level and yaw-centered under the policy, the frame is right.
+Isaac euler convention (unchanged, byte-for-byte from
+``isaaclab.utils.math.euler_xyz_from_quat``): XYZ extrinsic Tait-Bryan (roll
+about X, pitch about Y, yaw about Z), quaternion (w,x,y,z), output wrapped to
+(-pi, pi].
 """
 import numpy as np
-
-# native base_link body axes -> Isaac FLU body axes (angular velocity)
-R_SF_TO_ISAAC = np.array([[0., -1., 0.],
-                          [0., 0., 1.],
-                          [-1., 0., 0.]])
-
-# world_ned (N,E,D) -> Isaac Z-up NWU (N,W,U), azimuth-aligned to the training
-# center: composes a -90 deg rotation about world Z into the plain NED->ENU
-# relabel so physical upright -> policy yaw=0 (the un-aligned relabel gave
-# yaw=+90 deg; see module docstring "World-vertical-axis alignment").
-R_ENU_NED = np.array([[1., 0., 0.],
-                      [0., -1., 0.],
-                      [0., 0., -1.]])
-
-# Isaac FLU body axes -> native base_link body axes (inverse of R_SF_TO_ISAAC)
-R_NATIVE_FLU = R_SF_TO_ISAAC.T
-
-
-def quat_xyzw_to_rotmat(q):
-    """Return the 3x3 rotation matrix for a quaternion given as (x, y, z, w)."""
-    q = np.asarray(q, dtype=float)
-    x, y, z, w = q / np.linalg.norm(q)
-    return np.array([
-        [1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w)],
-        [2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w)],
-        [2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)],
-    ])
-
-
-def rotmat_to_quat_wxyz(R):
-    """Return the quaternion (w, x, y, z) for a 3x3 rotation matrix R."""
-    R = np.asarray(R, dtype=float)
-    t = np.trace(R)
-    if t > 0.0:
-        s = np.sqrt(t + 1.0) * 2.0
-        w = 0.25 * s
-        x = (R[2, 1] - R[1, 2]) / s
-        y = (R[0, 2] - R[2, 0]) / s
-        z = (R[1, 0] - R[0, 1]) / s
-    elif R[0, 0] > R[1, 1] and R[0, 0] > R[2, 2]:
-        s = np.sqrt(1.0 + R[0, 0] - R[1, 1] - R[2, 2]) * 2.0
-        w = (R[2, 1] - R[1, 2]) / s
-        x = 0.25 * s
-        y = (R[0, 1] + R[1, 0]) / s
-        z = (R[0, 2] + R[2, 0]) / s
-    elif R[1, 1] > R[2, 2]:
-        s = np.sqrt(1.0 + R[1, 1] - R[0, 0] - R[2, 2]) * 2.0
-        w = (R[0, 2] - R[2, 0]) / s
-        x = (R[0, 1] + R[1, 0]) / s
-        y = 0.25 * s
-        z = (R[1, 2] + R[2, 1]) / s
-    else:
-        s = np.sqrt(1.0 + R[2, 2] - R[0, 0] - R[1, 1]) * 2.0
-        w = (R[1, 0] - R[0, 1]) / s
-        x = (R[0, 2] + R[2, 0]) / s
-        y = (R[1, 2] + R[2, 1]) / s
-        z = 0.25 * s
-    q = np.array([w, x, y, z])
-    return q / np.linalg.norm(q)
 
 
 def euler_xyz_from_quat_wxyz(q):
@@ -155,19 +59,22 @@ def euler_xyz_from_quat_wxyz(q):
 def stonefish_odom_to_isaac(quat_xyzw, ang_vel_sf):
     """Convert Stonefish odometry into the Isaac policy observation convention.
 
+    The Stonefish odometry is already in the Isaac convention for this robot
+    (see module docstring): the conversion is the identity apart from the
+    (x,y,z,w)->(w,x,y,z) quaternion element reorder Isaac's euler helper wants.
+
     Args:
-        quat_xyzw: nav_msgs/Odometry pose.pose.orientation as (x, y, z, w) --
-            world_ned <- native base_link.
-        ang_vel_sf: twist.twist.angular (x, y, z) -- BODY-frame angular velocity
-            in native base_link axes.
+        quat_xyzw: nav_msgs/Odometry pose.pose.orientation as (x, y, z, w).
+        ang_vel_sf: twist.twist.angular (x, y, z) -- body-frame angular velocity.
 
     Returns:
-        A tuple ``(euler_isaac, ang_vel_body_isaac)`` of two float ndarrays,
-        shape (3,). ``euler_isaac`` = (roll, pitch, yaw) for obs[3:6];
+        ``(euler_isaac, ang_vel_body_isaac)``, two float ndarrays shape (3,).
+        ``euler_isaac`` = (roll, pitch, yaw) for obs[3:6];
         ``ang_vel_body_isaac`` = (p, q, r) body rates for obs[6:9].
     """
-    R_ned_native = quat_xyzw_to_rotmat(quat_xyzw)
-    R_zup_flu = R_ENU_NED.dot(R_ned_native).dot(R_NATIVE_FLU)
-    euler_isaac = euler_xyz_from_quat_wxyz(rotmat_to_quat_wxyz(R_zup_flu))
-    ang_vel_body_isaac = R_SF_TO_ISAAC.dot(np.asarray(ang_vel_sf, dtype=float))
+    q = np.asarray(quat_xyzw, dtype=float)
+    q = q / np.linalg.norm(q)
+    x, y, z, w = q
+    euler_isaac = euler_xyz_from_quat_wxyz(np.array([w, x, y, z]))
+    ang_vel_body_isaac = np.asarray(ang_vel_sf, dtype=float).copy()
     return euler_isaac, ang_vel_body_isaac
