@@ -127,6 +127,9 @@ class BridgeNode(Node):
             self.get_logger().warn('non-finite action from policy, skipping publish')
             return
 
+        # mirror Isaac _update_action_buffers/thruster.apply_dynamics: single clamp point
+        action = np.clip(action, -1.0, 1.0)
+
         # 4. accumulate joint targets to q_des_t (only now, after obs/policy used prev)
         self.joint_targets = self.joint_targets + action[0:2] * JOINT_DELTA_SCALE
 
