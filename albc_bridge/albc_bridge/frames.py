@@ -49,20 +49,32 @@ C. Mapping.
        euler     = euler_xyz_from_quat(quat(R_zup_flu))
 
    with R_NATIVE_FLU = R_SF_TO_ISAAC.T (FLU->native) and R_ENU_NED the NED->Z-up
-   world relabel.
+   world relabel, azimuth-aligned to the training center (see Validated below).
 
 Validated: the physically-derived upright orientation (body-up -> world-up)
-maps to euler (roll=0, pitch=0, yaw=+90 deg) -- roll and pitch are EXACTLY zero,
-confirming the chain puts "physical level" at policy-level.
+maps to euler (roll=0, pitch=0, yaw=0 deg) -- roll and pitch are EXACTLY zero,
+and yaw sits at the Isaac training center (see "World-vertical-axis alignment"
+below for the constant rotation applied to reach yaw=0 instead of the raw
++90 deg the un-aligned NED->Z-up relabel would give).
 
-Residual assumption (non-blocking): the world azimuth reference is arbitrary.
-Any valid NED->Z-up relabel that maps gravity correctly differs from this one
-only by a rotation about vertical, i.e. a constant YAW offset (here +90 deg from
-the ENU choice). roll/pitch are azimuth-invariant and therefore definitive; yaw
-is rate-controlled by the policy (obs uses yaw_RATE, no absolute-yaw target), so
-a constant yaw offset does not affect hold-level behaviour. The final physical
-arbiter is Task 8's end-to-end smoke test: if the robot holds level under the
-policy, the frame is right.
+World-vertical-axis alignment: the world azimuth reference is otherwise
+arbitrary -- any valid NED->Z-up relabel that maps gravity correctly differs
+from another only by a rotation about vertical, i.e. a constant yaw offset.
+This chain composes a -90 deg rotation about the world Z (vertical) axis into
+R_ENU_NED so the physical upright pose lands at policy yaw=0, matching the
+Isaac training center (the un-aligned relabel landed at yaw=+90 deg instead).
+Rotating the WORLD-frame relabel about vertical only mixes the horizontal
+(X,Y) world axes -- it leaves roll/pitch (azimuth-invariant) and the body
+angular-velocity mapping (R_SF_TO_ISAAC, independent of this constant)
+unaffected.
+
+Raw absolute yaw DOES enter the policy observation (obs[5], and the yaw
+channel of the rpy history buffers) -- unlike roll/pitch it is not
+azimuth-invariant. However, the yaw-RATE integral, the reward, and the
+constraints only consume yaw-RATE (angular velocity), never absolute yaw, so
+this alignment matters for obs[5]/history but not for those downstream terms.
+The final physical arbiter remains Task 8's end-to-end smoke test: if the
+robot holds level and yaw-centered under the policy, the frame is right.
 """
 import numpy as np
 
@@ -71,9 +83,12 @@ R_SF_TO_ISAAC = np.array([[0., -1., 0.],
                           [0., 0., 1.],
                           [-1., 0., 0.]])
 
-# world_ned (N,E,D) -> Isaac Z-up ENU (E,N,U)
-R_ENU_NED = np.array([[0., 1., 0.],
-                      [1., 0., 0.],
+# world_ned (N,E,D) -> Isaac Z-up NWU (N,W,U), azimuth-aligned to the training
+# center: composes a -90 deg rotation about world Z into the plain NED->ENU
+# relabel so physical upright -> policy yaw=0 (the un-aligned relabel gave
+# yaw=+90 deg; see module docstring "World-vertical-axis alignment").
+R_ENU_NED = np.array([[1., 0., 0.],
+                      [0., -1., 0.],
                       [0., 0., -1.]])
 
 # Isaac FLU body axes -> native base_link body axes (inverse of R_SF_TO_ISAAC)

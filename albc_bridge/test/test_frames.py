@@ -86,7 +86,10 @@ def test_upright_reference_is_policy_level():
     euler, _ = stonefish_odom_to_isaac(_quat_wxyz_to_xyzw(q_wxyz), np.zeros(3))
     assert np.isclose(euler[0], 0.0, atol=1e-9)   # roll
     assert np.isclose(euler[1], 0.0, atol=1e-9)   # pitch
-    assert np.isclose(euler[2], np.pi / 2, atol=1e-9)  # documented +90 deg offset
+    # azimuth-aligned to the Isaac training center (yaw=0): the world relabel
+    # composes a -90 deg rotation about vertical, see frames.py docstring
+    # "World-vertical-axis alignment" (previously +90 deg, un-aligned).
+    assert np.isclose(euler[2], 0.0, atol=1e-9)   # yaw
 
 
 def test_orientation_roundtrip():
