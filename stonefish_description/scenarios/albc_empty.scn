@@ -32,7 +32,7 @@
 
 	<include file="data/robots/albc/albc.scn">
 		<arg name="vehicle_name" value="albc"/>
-		<arg name="xyz" value="0.0 0.0 2.0"/>
+		<arg name="xyz" value="0.0 0.0 80.0"/>
 		<arg name="rpy" value="0.0 0.0 0.0"/>
 	</include>
 </scenario>
