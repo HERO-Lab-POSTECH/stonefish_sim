@@ -1,0 +1,299 @@
+<?xml version="1.0"?>
+<!-- ============================ VIEWING-ONLY VARIANT ============================
+     albc_visual.scn: albc.scn with the real visual meshes (agent_body.obj,
+     gripper_set.obj) on Base/Gripper via type="model". DO NOT use for
+     quantitative tests: switching a part from primitive to Polyhedron changes
+     Stonefish's ADDED-MASS approximation path (Compound uses getAugmented
+     Mass/Inertia for external parts, Compound.cpp:184/205/214), measured as a
+     ~10%% compound-inertia shift on base_link (0.042/0.139/0.144 ->
+     0.048/0.120/0.124) even though rigid mass/volume match to 0.01%%.
+     The QUANTITATIVE canonical robot is albc.scn (validated physics).
+     ============================================================================ -->
+<scenario>
+	<looks>
+		<look name="albc_body" gray="0.3" roughness="0.4" metalness="0.6"/>
+		<look name="albc_prop" gray="0.1" roughness="0.3"/>
+	</looks>
+
+	<!-- NO <materials> BLOCK HERE (2026-07-16 root-cause): ScenarioParser
+	     parses ONLY the FIRST <materials> element after include-flattening
+	     (ScenarioParser.cpp ~line 246: single FirstChildElement, no sibling
+	     loop unlike <looks>), so a materials block in this included file is
+	     SILENTLY ignored and any custom material falls back to Neutral
+	     (density 1000). The old BuoyFloat(347) material was never created --
+	     the buoy weighed 2.678 kg instead of 0.93 (engine log: link2 mass
+	     2.778), killing its +17.1 N net lift. The buoy now uses Neutral +
+	     <mass> override instead: a bare <mass> override calls
+	     ScalePhysicalPropertiesToArbitraryMass which changes mass/inertia
+	     ONLY, preserving geometric volume and CB (SolidEntity.cpp:112) --
+	     the earlier "mass override loses displacement" observation was a
+	     misdiagnosis poisoned by this same invisible material fallback. -->
+
+	<!-- FRAME CONVENTION (2026-07-16 session): Stonefish native body frame is
+	     z-DOWN (NED-style; evidence: bluerov2.scn Dive thrusters rpy(0,+pi/2,0)
+	     thrust -z=up, horizontal thrusters at z=+0.0725=below center). The
+	     authoritative source geometry (marinelab agent.urdf) is FLU (z-up), so
+	     every position here is converted FLU->NED: (x, -y, -z). Joint axes stay
+	     (0,0,1) as in the URDF; measured (yaw-reaction probes): + command =
+	     physical CCW from above = Isaac joint sign. The ROS odometry publisher
+	     converts back to FLU, which is why odometry quats are Isaac-convention
+	     (verified by multi-pose spawn, frames.py DIRECT). -->
+	<robot name="$(arg vehicle_name)" fixed="false" self_collisions="false">
+		<base_link name="base_link" type="compound" physics="submerged">
+			<!-- Base: main pressure-vessel cylinder, r=0.09 h=0.325 (URDF measured).
+			     cg z=+0.05 NED = 5cm BELOW center (URDF FLU -0.05, "CoG below CoB
+			     for passive stability"). The old -0.05 here was the unconverted FLU
+			     value = 5cm above = inverted static stability (measured: robot
+			     settled upside down, roll~2.8rad). -->
+			<!-- height 0.3537 (URDF visual 0.325): V = pi*0.09^2*0.3537 = 0.009 m^3
+			     = ALBCHydrodynamicsCfg volume (88.1 N displacement), replacing the
+			     internal BuoyancyTrim (measured no-op: internal parts sit inside the
+			     already-displaced hull and add no displacement). -->
+			<!-- type="model": VISUAL mesh only. Physics stays the validated
+			     cylinder, supplied as an exact-dimension watertight OBJ
+			     (phy_cyl_base.obj, r=0.09 h=0.3537 N=256, vol 8999.7 vs
+			     analytic 9000.6 cm3, -0.01%). agent_body.obj is visual-only
+			     here AND in the training stack (URDF <visual>; collision =
+			     this same cylinder) -- it is an OPEN shell (1312 boundary
+			     edges, signed vol 4903 cm3 = garbage), never use it for
+			     physics. Visual origin = C * T_urdf_visual, C=Rx(pi)
+			     (FLU->NED one-sided; numerically computed 2026-07-16). -->
+			<external_part name="Base" type="model" physics="submerged" buoyant="true">
+				<physical>
+					<mesh filename="data/robots/albc/meshes/phy_cyl_base.obj" scale="1.0"/>
+					<origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+				</physical>
+				<visual>
+					<mesh filename="data/robots/albc/meshes/agent_body.obj" scale="1.0"/>
+					<origin xyz="0.0 0.0 0.02" rpy="0.0 0.0 -1.0472"/>
+				</visual>
+				<material name="Aluminium"/>
+				<look name="albc_body"/>
+				<mass value="9.18"/>
+				<inertia xyz="0.0994 0.0994 0.0372"/>
+				<cg xyz="0.0 0.0 0.05" rpy="0.0 0.0 0.0"/>
+				<compound_transform xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+			</external_part>
+
+			<!-- Gripper: thin cylindrical stand-off fixed to Base, r=0.015 h=0.325.
+			     URDF FLU attach (0, +0.0881, -0.185) -> NED (0, -0.0881, +0.185)
+			     (hangs BELOW the vessel). buoy="false" per URDF spec. -->
+			<!-- Visual mesh gripper_set.obj (watertight, 146 cm3) is visual-only;
+			     physics keeps the validated r=0.015 h=0.325 cylinder as an exact
+			     OBJ (buoyant=false so volume is buoyancy-irrelevant anyway).
+			     Visual origin = C * T_urdf_visual (xyz 0,0,-0.02 rpy 2.9671,0,0). -->
+			<external_part name="Gripper" type="model" physics="submerged" buoyant="false">
+				<physical>
+					<mesh filename="data/robots/albc/meshes/phy_cyl_gripper.obj" scale="1.0"/>
+					<origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+				</physical>
+				<visual>
+					<mesh filename="data/robots/albc/meshes/gripper_set.obj" scale="1.0"/>
+					<origin xyz="0.0 0.0 0.02" rpy="-0.1745 0.0 0.0"/>
+				</visual>
+				<material name="Aluminium"/>
+				<look name="albc_body"/>
+				<mass value="0.30"/>
+				<compound_transform xyz="0.0 -0.0881 0.185" rpy="0.0 0.0 0.0"/>
+			</external_part>
+		</base_link>
+
+		<!-- link1: flat arm segment, box 0.233x0.025x0.01, mass 0.1kg. URDF plate
+		     offset z=+0.01 FLU -> -0.01 NED. Frame origin at proximal end. -->
+		<link name="link1" type="box" physics="submerged" buoyant="false">
+			<dimensions xyz="0.233 0.025 0.01"/>
+			<origin xyz="0.1165 0.0 -0.01" rpy="0.0 0.0 0.0"/>
+			<material name="Aluminium"/>
+			<look name="albc_body"/>
+			<mass value="0.1"/>
+		</link>
+
+		<!-- link2: arm segment + buoy float MERGED as one compound link.
+		     Buoy: URDF r=0.085 h=0.118 (V=0.00268 = ALBCBuoyHydrodynamicsCfg
+		     volume, 26.2 N at 998). Material Neutral + <mass value="0.93"/>
+		     override: the override preserves geometric volume/CB (verified in
+		     SolidEntity::ScalePhysicalPropertiesToArbitraryMass), so the buoy
+		     displaces 26.2 N, weighs 9.1 N -> net +17.1 N moving WITH the arm
+		     = Isaac buoy hydro (albc.py ALBCBuoyHydrodynamicsCfg). Compound CB
+		     aggregates buoyant parts only (Compound::RecalculatePhysical-
+		     Properties), so Fb acts at the buoy centroid at the arm distal
+		     end. Buoy center at link2 distal end (x=0.233), extending UP
+		     (NED z: -0.011-0.118..-0.011). -->
+		<link name="link2" type="compound" physics="submerged">
+			<external_part name="Arm2" type="box" physics="submerged" buoyant="false">
+				<dimensions xyz="0.233 0.025 0.01"/>
+				<origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+				<material name="Aluminium"/>
+				<look name="albc_body"/>
+				<mass value="0.1"/>
+				<compound_transform xyz="0.1165 0.0 -0.01" rpy="0.0 0.0 0.0"/>
+			</external_part>
+			<external_part name="Buoy" type="cylinder" physics="submerged" buoyant="true">
+				<dimensions radius="0.085" height="0.118"/>
+				<origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+				<material name="Neutral"/>
+				<look name="albc_body"/>
+				<mass value="0.93"/>
+				<compound_transform xyz="0.233 0.0 -0.069" rpy="0.0 0.0 0.0"/>
+			</external_part>
+		</link>
+
+		<!-- joint1: revolute, base_link -> link1. URDF mount (0,0,+0.1625) FLU =
+		     arm sits 16.25cm ABOVE the vessel center -> NED (0,0,-0.1625) (the old
+		     scn omitted this entirely: arm was at the center plane). Axis (0,0,1)
+		     kept as URDF: MEASURED (yaw-reaction probe 2026-07-16) + command =
+		     physical CCW from above = Isaac joint sign; do NOT "NED-flip" this
+		     axis; (0,0,-1) was measured mirrored. No <limits> = continuous.
+		     MOUNT YAW=pi (2026-07-16 arm-channel fix): with the buoy lift alive,
+		     the arm->attitude-obs Jacobian measured SIGN-FLIPPED vs Isaac on BOTH
+		     roll and pitch (numeric model validated against the jsign probe:
+		     SF d(roll,pitch)/dq = (-0.109,-0.198) vs Isaac (+0.109,+0.198) for
+		     q1 0->0.5). Because odom euler is NED-consistent while joint q maps
+		     to NED azimuth +q, no axis flip can fix both axes at once (an axis
+		     flip fixes roll only). Placing the buoy at NED azimuth q+180deg makes
+		     the (roll,pitch) obs response Isaac-matching for ALL q (dJ/dq=+1),
+		     so the arm zero-direction is remounted 180deg about z. The physical
+		     arm points aft where Isaac's points fwd -- observationally
+		     equivalent, thrusters/frames untouched. ponytail: obs-equivalence
+		     fix, not physical-geometry fidelity; revisit if obs ever gains an
+		     arm-azimuth-absolute channel. -->
+		<joint name="joint1" type="revolute">
+			<parent name="base_link"/>
+			<child name="link1"/>
+			<origin xyz="0.0 0.0 -0.1625" rpy="0.0 0.0 3.14159265"/>
+			<axis xyz="0.0 0.0 1.0"/>
+		</joint>
+
+		<!-- joint2: revolute, link1 -> link2. URDF (0.233, 0, +0.01) FLU ->
+		     NED z=-0.01. Axis (0,0,1) as URDF (measured Isaac-correct, same
+		     convention as joint1). -->
+		<joint name="joint2" type="revolute">
+			<parent name="link1"/>
+			<child name="link2"/>
+			<origin xyz="0.233 0.0 -0.01" rpy="0.0 0.0 0.0"/>
+			<axis xyz="0.0 0.0 1.0"/>
+		</joint>
+
+
+		<!-- Servos: position control on joint1/joint2.
+		     GAIN UNITS (2026-07-16): Stonefish servo gains go straight into
+		     Bullet btMultiBodyJointMotor (setPositionTarget(pos,kp) /
+		     setVelocityTarget(vel,kd)) whose kp/kd are NORMALIZED [0..1]
+		     per-step correction fractions, NOT physical PD gains. The old
+		     100.0/3.0 were PhysX Nm/rad values copied verbatim -> permanent
+		     torque-limit bang-bang -> the measured passive limit cycle
+		     (body rate 13-20 rad/s sustained). 1.0/1.0 + max_torque 13Nm +
+		     max_velocity 3.1 rad/s reproduces PhysX behavior at the limits
+		     that matter (torque cap, velocity slew cap, stiff hold). -->
+		<actuator name="Servo1" type="servo">
+			<controller position_gain="1.0" velocity_gain="1.0" max_torque="13.0" max_velocity="3.1"/>
+			<joint name="joint1"/>
+			<initial position="0.0"/>
+		</actuator>
+		<actuator name="Servo2" type="servo">
+			<controller position_gain="1.0" velocity_gain="1.0" max_torque="13.0" max_velocity="3.1"/>
+			<joint name="joint2"/>
+			<initial position="1.5708"/>
+		</actuator>
+
+		<!-- Thrusters (2026-07-16 rewrite): declared in firmware ESC channel order
+		     m0..m5 = simT4,T1,T3,T5,T2,T0 (config.py _ESC_CHANNEL_ORDER 4,1,3,5,2,0).
+		     Geometry = actuators.xacro positions (FLU->NED converted, taken
+		     relative to base origin; ponytail: xacro anchors them to the CoM,
+		     the few-cm CoM offset shifts Mx/My couplings only, re-anchor after a
+		     CoM audit if pitch-arm precision matters). Channel signs must match
+		     the B1-measured allocation matrix (config.py _BASE_ALLOCATION_MATRIX,
+		     2026-07-06): B1 equals xacro geometry with T1 and T2 thrust-REVERSED.
+		     MEASURED thrust-sign rule (pulse tests, both signs, 2026-07-16):
+		     effective thrust is +x of the thruster frame iff (propeller right ==
+		     inverted); right=true props with inverted=false push -x. Each
+		     channel's `inverted` below is chosen per that rule so the effective
+		     direction matches its B1 column; verified per-channel by +-pulse
+		     tests against the B1 signs.
+		     Old layout was a bluerov2-scaled placeholder whose 4 horizontal
+		     thrust lines all passed through the origin = zero yaw authority. -->
+
+		<!-- m0 = simT4: vertical (heave), x=-0.1445, thrust -z NED (up) -->
+		<actuator name="m0" type="thruster">
+			<link name="base_link"/>
+			<origin xyz="-0.1445 0.0 0.111" rpy="0 1.5707963268 0"/>
+			<specs thrust_coeff="0.167" torque_coeff="0.016" max_rpm="3600.0" inverted="true"/>
+			<propeller diameter="0.076" right="true">
+				<mesh filename="data/robots/bluerov2/meshes/ccw.obj" scale="1.0"/>
+				<material name="Neutral"/>
+				<look name="albc_prop"/>
+			</propeller>
+		</actuator>
+
+		<!-- m1 = simT1: horizontal, corner (-x,-y) NED, B1 thrust-reversed vs xacro -->
+		<actuator name="m1" type="thruster">
+			<link name="base_link"/>
+			<origin xyz="-0.10173 -0.10244 0.013" rpy="0 0 2.3561944902"/>
+			<specs thrust_coeff="0.167" torque_coeff="0.016" max_rpm="3600.0" inverted="true"/>
+			<propeller diameter="0.076" right="false">
+				<mesh filename="data/robots/bluerov2/meshes/cw.obj" scale="1.0"/>
+				<material name="Neutral"/>
+				<look name="albc_prop"/>
+			</propeller>
+		</actuator>
+
+		<!-- m2 = simT3: horizontal, corner (+x,-y) NED -->
+		<actuator name="m2" type="thruster">
+			<link name="base_link"/>
+			<origin xyz="0.10173 -0.10244 0.013" rpy="0 0 -2.3561944902"/>
+			<specs thrust_coeff="0.167" torque_coeff="0.016" max_rpm="3600.0" inverted="false"/>
+			<propeller diameter="0.076" right="false">
+				<mesh filename="data/robots/bluerov2/meshes/cw.obj" scale="1.0"/>
+				<material name="Neutral"/>
+				<look name="albc_prop"/>
+			</propeller>
+		</actuator>
+
+		<!-- m3 = simT5: vertical (heave), x=+0.1445, thrust -z NED (up) -->
+		<actuator name="m3" type="thruster">
+			<link name="base_link"/>
+			<origin xyz="0.1445 0.0 0.111" rpy="0 1.5707963268 0"/>
+			<specs thrust_coeff="0.167" torque_coeff="0.016" max_rpm="3600.0" inverted="false"/>
+			<propeller diameter="0.076" right="false">
+				<mesh filename="data/robots/bluerov2/meshes/cw.obj" scale="1.0"/>
+				<material name="Neutral"/>
+				<look name="albc_prop"/>
+			</propeller>
+		</actuator>
+
+		<!-- m4 = simT2: horizontal, corner (+x,+y) NED, B1 thrust-reversed vs xacro -->
+		<actuator name="m4" type="thruster">
+			<link name="base_link"/>
+			<origin xyz="0.10173 0.10244 0.013" rpy="0 0 -0.7853981634"/>
+			<specs thrust_coeff="0.167" torque_coeff="0.016" max_rpm="3600.0" inverted="false"/>
+			<propeller diameter="0.076" right="true">
+				<mesh filename="data/robots/bluerov2/meshes/ccw.obj" scale="1.0"/>
+				<material name="Neutral"/>
+				<look name="albc_prop"/>
+			</propeller>
+		</actuator>
+
+		<!-- m5 = simT0: horizontal, corner (-x,+y) NED -->
+		<actuator name="m5" type="thruster">
+			<link name="base_link"/>
+			<origin xyz="-0.10173 0.10244 0.013" rpy="0 0 0.7853981634"/>
+			<specs thrust_coeff="0.167" torque_coeff="0.016" max_rpm="3600.0" inverted="true"/>
+			<propeller diameter="0.076" right="true">
+				<mesh filename="data/robots/bluerov2/meshes/ccw.obj" scale="1.0"/>
+				<material name="Neutral"/>
+				<look name="albc_prop"/>
+			</propeller>
+		</actuator>
+
+		<sensor name="odom" type="odometry" rate="50.0">
+			<link name="base_link"/>
+			<origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+			<ros_publisher topic="/$(arg vehicle_name)/odometry"/>
+		</sensor>
+
+		<world_transform xyz="$(arg xyz)" rpy="$(arg rpy)"/>
+
+		<ros_subscriber thrusters="/$(arg vehicle_name)/setpoint/pwm" servos="/$(arg vehicle_name)/servos"/>
+		<ros_publisher servos="/$(arg vehicle_name)/joint_states"/>
+	</robot>
+</scenario>
