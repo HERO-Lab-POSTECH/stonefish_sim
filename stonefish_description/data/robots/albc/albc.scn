@@ -5,16 +5,19 @@
 		<look name="albc_prop" gray="0.1" roughness="0.3"/>
 	</looks>
 
-	<!-- BuoyFloat: density chosen so the buoy's auto-computed mass equals the
-	     URDF 0.93 kg WITHOUT a <mass> override (0.93 / 0.00268 m^3 = 347).
-	     Rationale (2026-07-16 measured): a simple robot <link> with a <mass>
-	     override loses its geometric displacement (lean probes showed the
-	     arm-end net-heavy and buoy-size-invariant); letting Stonefish compute
-	     mass/volume/CB purely from geometry x material is the verified path
-	     (the compound base floats correctly that way). -->
-	<materials>
-		<material name="BuoyFloat" density="347.0" restitution="0.1"/>
-	</materials>
+	<!-- NO <materials> BLOCK HERE (2026-07-16 root-cause): ScenarioParser
+	     parses ONLY the FIRST <materials> element after include-flattening
+	     (ScenarioParser.cpp ~line 246: single FirstChildElement, no sibling
+	     loop unlike <looks>), so a materials block in this included file is
+	     SILENTLY ignored and any custom material falls back to Neutral
+	     (density 1000). The old BuoyFloat(347) material was never created --
+	     the buoy weighed 2.678 kg instead of 0.93 (engine log: link2 mass
+	     2.778), killing its +17.1 N net lift. The buoy now uses Neutral +
+	     <mass> override instead: a bare <mass> override calls
+	     ScalePhysicalPropertiesToArbitraryMass which changes mass/inertia
+	     ONLY, preserving geometric volume and CB (SolidEntity.cpp:112) --
+	     the earlier "mass override loses displacement" observation was a
+	     misdiagnosis poisoned by this same invisible material fallback. -->
 
 	<!-- FRAME CONVENTION (2026-07-16 session): Stonefish native body frame is
 	     z-DOWN (NED-style; evidence: bluerov2.scn Dive thrusters rpy(0,+pi/2,0)
@@ -71,15 +74,15 @@
 		</link>
 
 		<!-- link2: arm segment + buoy float MERGED as one compound link.
-		     Measured (2026-07-16 lean/z-rate probes): a simple robot <link> does
-		     NOT get its displacement applied at the link (arm-end read net-heavy
-		     while the vehicle total gained the buoy's net lift elsewhere), so the
-		     buoy is attached as a compound external_part instead; the compound
-		     path is the one buoyancy mechanism verified correct (the base floats
-		     exactly per its geometry). Buoy: URDF r=0.085 h=0.118 (V=0.00268 =
-		     ALBCBuoyHydrodynamicsCfg volume, 26.2 N), BuoyFloat density 347 ->
-		     auto mass 0.93 kg, net +17.1 N moving WITH the arm = Isaac buoy
-		     hydro. Buoy center at link2 distal end (x=0.233), extending UP
+		     Buoy: URDF r=0.085 h=0.118 (V=0.00268 = ALBCBuoyHydrodynamicsCfg
+		     volume, 26.2 N at 998). Material Neutral + <mass value="0.93"/>
+		     override: the override preserves geometric volume/CB (verified in
+		     SolidEntity::ScalePhysicalPropertiesToArbitraryMass), so the buoy
+		     displaces 26.2 N, weighs 9.1 N -> net +17.1 N moving WITH the arm
+		     = Isaac buoy hydro (albc.py ALBCBuoyHydrodynamicsCfg). Compound CB
+		     aggregates buoyant parts only (Compound::RecalculatePhysical-
+		     Properties), so Fb acts at the buoy centroid at the arm distal
+		     end. Buoy center at link2 distal end (x=0.233), extending UP
 		     (NED z: -0.011-0.118..-0.011). -->
 		<link name="link2" type="compound" physics="submerged">
 			<external_part name="Arm2" type="box" physics="submerged" buoyant="false">
@@ -93,8 +96,9 @@
 			<external_part name="Buoy" type="cylinder" physics="submerged" buoyant="true">
 				<dimensions radius="0.085" height="0.118"/>
 				<origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
-				<material name="BuoyFloat"/>
+				<material name="Neutral"/>
 				<look name="albc_body"/>
+				<mass value="0.93"/>
 				<compound_transform xyz="0.233 0.0 -0.069" rpy="0.0 0.0 0.0"/>
 			</external_part>
 		</link>
@@ -104,11 +108,24 @@
 		     scn omitted this entirely: arm was at the center plane). Axis (0,0,1)
 		     kept as URDF: MEASURED (yaw-reaction probe 2026-07-16) + command =
 		     physical CCW from above = Isaac joint sign; do NOT "NED-flip" this
-		     axis; (0,0,-1) was measured mirrored. No <limits> = continuous. -->
+		     axis; (0,0,-1) was measured mirrored. No <limits> = continuous.
+		     MOUNT YAW=pi (2026-07-16 arm-channel fix): with the buoy lift alive,
+		     the arm->attitude-obs Jacobian measured SIGN-FLIPPED vs Isaac on BOTH
+		     roll and pitch (numeric model validated against the jsign probe:
+		     SF d(roll,pitch)/dq = (-0.109,-0.198) vs Isaac (+0.109,+0.198) for
+		     q1 0->0.5). Because odom euler is NED-consistent while joint q maps
+		     to NED azimuth +q, no axis flip can fix both axes at once (an axis
+		     flip fixes roll only). Placing the buoy at NED azimuth q+180deg makes
+		     the (roll,pitch) obs response Isaac-matching for ALL q (dJ/dq=+1),
+		     so the arm zero-direction is remounted 180deg about z. The physical
+		     arm points aft where Isaac's points fwd -- observationally
+		     equivalent, thrusters/frames untouched. ponytail: obs-equivalence
+		     fix, not physical-geometry fidelity; revisit if obs ever gains an
+		     arm-azimuth-absolute channel. -->
 		<joint name="joint1" type="revolute">
 			<parent name="base_link"/>
 			<child name="link1"/>
-			<origin xyz="0.0 0.0 -0.1625" rpy="0.0 0.0 0.0"/>
+			<origin xyz="0.0 0.0 -0.1625" rpy="0.0 0.0 3.14159265"/>
 			<axis xyz="0.0 0.0 1.0"/>
 		</joint>
 
