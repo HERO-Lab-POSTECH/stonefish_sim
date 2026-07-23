@@ -27,11 +27,13 @@ def generate_launch_description():
     args = [
         DeclareLaunchArgument(
             'scenario_desc',
-            default_value='/workspace/src/stonefish_sim/stonefish_description/scenarios/albc_empty.scn',
-            description='Absolute path to the .scn scenario file to load.'),
+            default_value=PathJoinSubstitution([
+                FindPackageShare('stonefish_description'),
+                'scenarios', 'albc_empty.scn']),
+            description='Path to the .scn scenario file to load.'),
         DeclareLaunchArgument(
             'simulation_data',
-            default_value='/workspace/src/stonefish_sim/stonefish_description/',
+            default_value=FindPackageShare('stonefish_description'),
             description='Root path of simulation assets (stonefish_description share dir).'),
         DeclareLaunchArgument(
             'simulation_rate', default_value='100.0',

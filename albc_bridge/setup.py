@@ -7,7 +7,7 @@ package_name = 'albc_bridge'
 
 setup(
     name=package_name,
-    version='0.0.0',
+    version='0.4.0',
     packages=find_packages(exclude=['test']),
     data_files=[
         ('share/ament_index/resource_index/packages',
@@ -20,10 +20,10 @@ setup(
     ],
     install_requires=['setuptools'],
     zip_safe=True,
-    maintainer='root',
+    maintainer='HERO Lab, POSTECH',
     maintainer_email='luckkim123@gmail.com',
-    description='TODO: Package description',
-    license='TODO: License declaration',
+    description='RL policy bridge: obs-policy-action loop between Stonefish and a trained ALBC policy',
+    license='GPL-3.0',
     extras_require={
         'test': [
             'pytest',
