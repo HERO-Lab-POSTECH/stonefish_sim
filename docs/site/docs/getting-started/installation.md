@@ -4,6 +4,9 @@
 
 `stonefish_sim`은 ROS2 Humble 위에서 동작하는 7개 패키지 워크스페이스이며, C++ 시뮬레이터 래퍼(`stonefish_ros2`)가 별도 설치된 Stonefish 라이브러리에 의존한다. 따라서 빌드 전에 ROS2와 Python 의존성, 그리고 Stonefish 라이브러리를 먼저 설치해야 한다.
 
+!!! tip "두 가지 설치 경로 — 네이티브 또는 Docker"
+    설치는 두 방식 중 하나를 택한다. **호스트에 직접 설치**(아래 "단계별 설치")는 ROS2가 이미 깔린 개발 머신에서 코드를 자주 고칠 때 적합하다. **Docker 이미지 빌드**([Docker로 설치](#docker))는 의존성을 한 번에 재현 가능하게 묶어 **배포·재현**에 적합하다 — ROS2·Stonefish·sim·slam 빌드가 한 이미지 안에서 끝나므로 호스트에는 GPU 드라이버와 Docker만 있으면 된다. 처음 배포하거나 다른 머신에서 그대로 돌리려면 Docker 경로를 권장한다.
+
 ## 설치 흐름
 
 ```mermaid
@@ -90,6 +93,95 @@ colcon build --symlink-install
 ```bash
 source install/setup.bash
 ```
+
+## Docker로 설치 {#docker}
+
+위의 단계별 설치를 호스트에 직접 하는 대신, **Docker 이미지 하나로 ROS2·Stonefish 라이브러리·`stonefish_sim`·`stonefish_slam`을 모두 빌드**할 수 있다. 의존성이 이미지 안에 고정되므로 머신마다 환경을 맞출 필요가 없어 **배포·재현에 적합**하다.
+
+소스는 `stonefish.repos`(vcstool)로 이미지 빌드 시점에 가져와 **이미지 안에 포함(baked)**된다 — 호스트 워크스페이스를 bind-mount하지 않으므로 받는 쪽은 Dockerfile만으로 자족적이다.
+
+!!! note "환경 자산 위치 (SSOT)"
+    Dockerfile·`docker-compose.yml`·`entrypoint.sh`·`stonefish.repos`·`.env.example`은 시뮬레이터 워크스페이스의 `.omp/env/`에 정본으로 관리된다. 한 이미지가 `stonefish`(C++ 코어)·`stonefish_sim`·`stonefish_slam` 세 repo를 함께 빌드하므로, sim과 slam의 Docker 설치 경로는 **동일한 `stonefish_bringup` 이미지**를 공유한다.
+
+### 이미지 구조
+
+멀티스테이지 빌드로 두 가지 leaf 타깃을 제공한다.
+
+| 타깃 | 내용 | 용도 |
+|------|------|------|
+| `runtime` | `install/` 산출물만 COPY (빌드 도구·src 제외 = 슬림) | 배포 실행 |
+| `dev` | builder 상속 — src·빌드 도구·`/workspace/src` 보유 | 컨테이너 안에서 코드 수정·`colcon` 재빌드 |
+
+```mermaid
+flowchart TD
+    B["builder<br/>(vcs import + Stonefish lib /opt/stonefish<br/>+ sim/slam colcon overlay)"] --> R["runtime<br/>(슬림 배포)"]
+    B --> D["dev<br/>(src·빌드도구 보유)"]
+```
+
+!!! note "워크스페이스 경로는 `/workspace`"
+    컨테이너 안 colcon 워크스페이스 루트는 `/workspace`이고, Stonefish C++ 라이브러리는 `/opt/stonefish`에 설치된다(`CMAKE_PREFIX_PATH`로 overlay가 참조). overlay는 `--merge-install`로 빌드된다. 호스트 네이티브 설치와 경로가 다르므로 컨테이너 안에서 작업할 때는 `/workspace`를 기준으로 한다.
+
+### 1. GPU·디스플레이 사전 준비
+
+시뮬레이터는 **호스트의 X 디스플레이에 GLX로 직접 렌더**한다(Stonefish가 OpenGL 4.3+ GPU를 요구 — 공식 install 문서). 컨테이너 안에 별도 데스크톱이나 VirtualGL은 두지 않는다. 따라서 호스트에서 컨테이너의 X 접근을 먼저 허용한다.
+
+```bash
+xhost +local:
+```
+
+!!! warning "`:0` 세션이 활성이어야 한다"
+    `DISPLAY=:0`에 직접 그리므로 호스트의 `:0` 세션이 **활성**(물리 로그인 또는 autologin)이어야 프레임버퍼가 검정이 아니다. 헤드리스 서버라면 GDM autologin 또는 dummy 모니터를 구성해야 한다. Chrome Remote Desktop 가상 디스플레이를 쓰는 머신은 `.env`의 `HOST_DISPLAY`를 `:20` 등으로 바꾼다.
+
+### 2. `.env` 작성
+
+`.omp/env/.env.example`을 `.env`로 복사해 머신별 값을 채운다. `.env`는 호스트 종속값(이미지 네임스페이스·태그·디스플레이·컨테이너 이름·빌드 타깃)을 담으며, Dockerfile·compose는 `${VAR}`만 참조한다(머신 종속값 하드코딩 없음).
+
+```bash
+cd .omp/env
+cp .env.example .env
+# 필요 시 편집: HOST_DISPLAY(:0/:20), BUILD_TARGET(runtime/dev), CONTAINER_NAME 등
+```
+
+| 변수 | 기본값 | 의미 |
+|------|--------|------|
+| `DOCKER_NAMESPACE` | `ghcr.io/hero-lab-postech` | 이미지 네임스페이스(로컬 태그용, push 안 함) |
+| `IMAGE_TAG` | `latest` | 이미지 태그 |
+| `CONTAINER_NAME` | `stonefish_run` | 컨테이너 이름(배포=`stonefish_run`, 개발=`stonefish_dev`) |
+| `BUILD_TARGET` | `runtime` | 빌드 타깃(`runtime` 슬림 배포 / `dev` 코드작업) |
+| `HOST_DISPLAY` | `:0` | 렌더할 호스트 X 디스플레이 |
+
+### 3. 이미지 빌드
+
+`.omp/env/`에서 compose로 이미지를 빌드한다. 배포본은 `runtime`, 컨테이너 안에서 코드를 고칠 거면 `.env`의 `BUILD_TARGET=dev`로 둔다.
+
+```bash
+docker compose build
+```
+
+### 4. 컨테이너 기동
+
+```bash
+docker compose up -d
+```
+
+기본 `command`는 `sleep infinity`라 컨테이너가 상주한다. 접속해 작업하거나 launch를 실행한다.
+
+```bash
+docker exec -it stonefish_run bash
+# 컨테이너 안 — 환경은 entrypoint가 이미 source함
+ros2 launch stonefish_ros2 bringup.launch.py vehicle:=bluerov2
+```
+
+배포 실행 시 `sleep infinity` 대신 launch를 바로 띄우려면 `.env`의 `CONTAINER_CMD`를 `ros2 launch ...`로 오버라이드한다.
+
+!!! tip "dev 타깃으로 컨테이너 안에서 재빌드"
+    `BUILD_TARGET=dev`로 빌드하면 `/workspace/src`에 소스가 남아 컨테이너 안에서 바로 수정·재빌드할 수 있다.
+    ```bash
+    docker exec -it stonefish_dev bash
+    cd /workspace
+    colcon build --merge-install
+    source install/setup.bash
+    ```
 
 ## 빌드 검증
 
