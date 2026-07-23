@@ -6,13 +6,15 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
-- 팀 개발 컨테이너 (`docker/` — Dockerfile + compose, GPU+X11, Stonefish 1.3.0 베이크)
+- README Docker 설치 안내 — 전용 배포 repo
+  [`stonefish_bringup`](https://github.com/HERO-Lab-POSTECH/stonefish_bringup) 참조
+  (core+sim+slam 소스를 bake하는 멀티스테이지 GPU 이미지, 호스트 실빌드 검증 완료)
 - 협업 규칙 `CONTRIBUTING.md` + PR 템플릿 (GitHub Flow · Conventional Commits, 발효 2026-07-23)
 
 ### Changed
 
 - README 설치 가이드: 실존하지 않는 `/workspace/colcon_ws` 경로 제거, `--merge-install` 표준화,
-  Docker 설치 경로(권장) 추가, 패키지 표에 albc_bridge 보완
+  패키지 표에 albc_bridge 보완
 
 ### Fixed
 

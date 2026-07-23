@@ -77,7 +77,7 @@ sudo apt install libglm-dev libsdl2-dev libfreetype6-dev libopengl-dev
 
 ## Installation
 
-The expected workspace layout (used by all docs and the Docker files) is:
+The expected workspace layout (used by all docs) is:
 
 ```text
 stonefish_ws/                  # colcon workspace root
@@ -92,30 +92,24 @@ git clone https://github.com/HERO-Lab-POSTECH/stonefish_sim.git
 git clone https://github.com/HERO-Lab-POSTECH/stonefish_slam.git
 ```
 
-### Option A — Docker (recommended, identical team environment)
+### Option A — Docker (recommended for deployment / reproduction)
 
-Everything (ROS 2 Humble, Stonefish 1.3.0, sim+SLAM dependencies) is baked into
-one image; your workspace is bind-mounted so you edit on the host and build/run
-inside the container.
-
-Host prerequisites: NVIDIA driver + [nvidia-container-toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)
-(+ Docker CE from apt, not snap).
+The team Docker environment lives in a dedicated repo:
+[**stonefish_bringup**](https://github.com/HERO-Lab-POSTECH/stonefish_bringup).
+Its multi-stage Dockerfile bakes the Stonefish core library (HERO fork, 1.3.0),
+this repo, and `stonefish_slam` into one GPU-accelerated image — sources are
+fetched at image build time via `stonefish.repos` (no bind mount), so the image
+is self-contained and reproducible.
 
 ```bash
-cd ~/stonefish_ws/src/stonefish_sim/docker
-xhost +SI:localuser:$(id -un)          # allow X11 access (once per login)
-HOST_UID=$(id -u) HOST_GID=$(id -g) docker compose up -d --build
-docker compose exec stonefish-dev bash
-
-# inside the container
-cd /workspace
-colcon build --merge-install
-source install/setup.bash
+git clone https://github.com/HERO-Lab-POSTECH/stonefish_bringup.git
+cd stonefish_bringup
+docker compose build       # first build ~15-30 min
 ```
 
-GPU sanity check inside the container: `glxinfo | grep renderer` must show your
-NVIDIA GPU — if it shows `llvmpipe`, the GPU is not wired in (rendering will be
-extremely slow); re-check the nvidia-container-toolkit install.
+Requirements (NVIDIA GPU + nvidia-container-toolkit, host X display `:0`) and
+the run commands are documented in the
+[stonefish_bringup README](https://github.com/HERO-Lab-POSTECH/stonefish_bringup#readme).
 
 ### Option B — Native install
 
