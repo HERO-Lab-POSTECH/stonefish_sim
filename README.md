@@ -104,7 +104,7 @@ Host prerequisites: NVIDIA driver + [nvidia-container-toolkit](https://docs.nvid
 ```bash
 cd ~/stonefish_ws/src/stonefish_sim/docker
 xhost +SI:localuser:$(id -un)          # allow X11 access (once per login)
-UID=$(id -u) GID=$(id -g) docker compose up -d --build
+HOST_UID=$(id -u) HOST_GID=$(id -g) docker compose up -d --build
 docker compose exec stonefish-dev bash
 
 # inside the container
