@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- 팀 개발 컨테이너 (`docker/` — Dockerfile + compose, GPU+X11, Stonefish 1.3.0 베이크)
+- 협업 규칙 `CONTRIBUTING.md` + PR 템플릿 (GitHub Flow · Conventional Commits, 발효 2026-07-23)
+
+### Changed
+
+- README 설치 가이드: 실존하지 않는 `/workspace/colcon_ws` 경로 제거, `--merge-install` 표준화,
+  Docker 설치 경로(권장) 추가, 패키지 표에 albc_bridge 보완
+
+### Fixed
+
+- `albc_smoke.launch.py`: `/workspace` 절대경로 하드코딩 → `FindPackageShare` (타 머신 이식성)
+- `albc_bridge` 메타데이터 placeholder 제거 (버전 0.4.0 통일, GPL-3.0, 실제 description)
+
 ## [0.4.0] - 2026-06-24
 
 **P4 — algorithmic/numeric correctness + intentional behavior change.** The
