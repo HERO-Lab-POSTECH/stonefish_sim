@@ -40,7 +40,7 @@
 			     internal BuoyancyTrim (measured no-op: internal parts sit inside the
 			     already-displaced hull and add no displacement). -->
 			<external_part name="Base" type="cylinder" physics="submerged" buoyant="true">
-				<dimensions radius="0.09" height="0.3537"/>
+				<dimensions radius="0.09" height="0.3105"/>
 				<origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
 				<material name="Aluminium"/>
 				<look name="albc_body"/>
