@@ -1,0 +1,119 @@
+<?xml version="1.0"?>
+<!-- Hydro measurement rig: albc BASE ONLY (deployment geometry, neutral mass trim).
+     Purpose: measure Stonefish shape-derived drag/added-mass of the physical hull
+     (cylinder r=0.09 h=0.3105 + gripper stand-off) in isolation, mapping 1:1 to
+     ALBCHydrodynamicsCfg (body="base"). Arm/buoy links removed (their flop/offset
+     contaminates free decay; buoy maps to ALBCBuoyHydrodynamicsCfg separately).
+     Mass trim: Base 9.18 -> 7.586 so total (incl. Gripper 0.30) = 998*0.0079013
+     = 7.886 kg = neutral. <mass> override preserves geometric volume/CB
+     (SolidEntity::ScalePhysicalPropertiesToArbitraryMass). cg z=+0.05 kept ->
+     known restoring for pitch/roll free-decay. Hydro coefficients are geometry-
+     derived, unaffected by the mass trim. -->
+<scenario>
+	<looks>
+		<look name="albc_body" gray="0.3" roughness="0.4" metalness="0.6"/>
+		<look name="albc_prop" gray="0.1" roughness="0.3"/>
+	</looks>
+
+	<robot name="$(arg vehicle_name)" fixed="false" self_collisions="false">
+		<base_link name="base_link" type="compound" physics="submerged">
+			<external_part name="Base" type="cylinder" physics="submerged" buoyant="true">
+				<dimensions radius="0.09" height="0.3105"/>
+				<origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+				<material name="Aluminium"/>
+				<look name="albc_body"/>
+				<mass value="7.586"/>
+				<inertia xyz="0.0994 0.0994 0.0372"/>
+				<cg xyz="0.0 0.0 0.05" rpy="0.0 0.0 0.0"/>
+				<compound_transform xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+			</external_part>
+
+			<external_part name="Gripper" type="cylinder" physics="submerged" buoyant="false">
+				<dimensions radius="0.015" height="0.325"/>
+				<origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+				<material name="Aluminium"/>
+				<look name="albc_body"/>
+				<mass value="0.30"/>
+				<compound_transform xyz="0.0 -0.0881 0.185" rpy="0.0 0.0 0.0"/>
+			</external_part>
+		</base_link>
+
+		<!-- m0 = simT4: vertical (heave), x=-0.1445, thrust -z NED (up) -->
+		<actuator name="m0" type="thruster">
+			<link name="base_link"/>
+			<origin xyz="-0.1445 0.0 0.111" rpy="0 1.5707963268 0"/>
+			<specs thrust_coeff="0.167" torque_coeff="0.016" max_rpm="3600.0" inverted="true"/>
+			<propeller diameter="0.076" right="true">
+				<mesh filename="data/robots/bluerov2/meshes/ccw.obj" scale="1.0"/>
+				<material name="Neutral"/>
+				<look name="albc_prop"/>
+			</propeller>
+		</actuator>
+
+		<actuator name="m1" type="thruster">
+			<link name="base_link"/>
+			<origin xyz="-0.10173 -0.10244 0.013" rpy="0 0 2.3561944902"/>
+			<specs thrust_coeff="0.167" torque_coeff="0.016" max_rpm="3600.0" inverted="true"/>
+			<propeller diameter="0.076" right="false">
+				<mesh filename="data/robots/bluerov2/meshes/cw.obj" scale="1.0"/>
+				<material name="Neutral"/>
+				<look name="albc_prop"/>
+			</propeller>
+		</actuator>
+
+		<actuator name="m2" type="thruster">
+			<link name="base_link"/>
+			<origin xyz="0.10173 -0.10244 0.013" rpy="0 0 -2.3561944902"/>
+			<specs thrust_coeff="0.167" torque_coeff="0.016" max_rpm="3600.0" inverted="false"/>
+			<propeller diameter="0.076" right="false">
+				<mesh filename="data/robots/bluerov2/meshes/cw.obj" scale="1.0"/>
+				<material name="Neutral"/>
+				<look name="albc_prop"/>
+			</propeller>
+		</actuator>
+
+		<actuator name="m3" type="thruster">
+			<link name="base_link"/>
+			<origin xyz="0.1445 0.0 0.111" rpy="0 1.5707963268 0"/>
+			<specs thrust_coeff="0.167" torque_coeff="0.016" max_rpm="3600.0" inverted="false"/>
+			<propeller diameter="0.076" right="false">
+				<mesh filename="data/robots/bluerov2/meshes/cw.obj" scale="1.0"/>
+				<material name="Neutral"/>
+				<look name="albc_prop"/>
+			</propeller>
+		</actuator>
+
+		<actuator name="m4" type="thruster">
+			<link name="base_link"/>
+			<origin xyz="0.10173 0.10244 0.013" rpy="0 0 -0.7853981634"/>
+			<specs thrust_coeff="0.167" torque_coeff="0.016" max_rpm="3600.0" inverted="false"/>
+			<propeller diameter="0.076" right="true">
+				<mesh filename="data/robots/bluerov2/meshes/ccw.obj" scale="1.0"/>
+				<material name="Neutral"/>
+				<look name="albc_prop"/>
+			</propeller>
+		</actuator>
+
+		<actuator name="m5" type="thruster">
+			<link name="base_link"/>
+			<origin xyz="-0.10173 0.10244 0.013" rpy="0 0 0.7853981634"/>
+			<specs thrust_coeff="0.167" torque_coeff="0.016" max_rpm="3600.0" inverted="true"/>
+			<propeller diameter="0.076" right="true">
+				<mesh filename="data/robots/bluerov2/meshes/ccw.obj" scale="1.0"/>
+				<material name="Neutral"/>
+				<look name="albc_prop"/>
+			</propeller>
+		</actuator>
+
+		<sensor name="odom" type="odometry" rate="100.0">
+			<link name="base_link"/>
+			<origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+			<ros_publisher topic="/$(arg vehicle_name)/odometry"/>
+		</sensor>
+
+		<world_transform xyz="$(arg xyz)" rpy="$(arg rpy)"/>
+
+		<ros_subscriber thrusters="/$(arg vehicle_name)/setpoint/pwm"/>
+		<ros_publisher thrusters="/$(arg vehicle_name)/thruster_state"/>
+	</robot>
+</scenario>
