@@ -75,6 +75,8 @@ class BridgeNode(Node):
         self.create_subscription(JointState, '/albc/joint_states', self._on_joint_state, 10)
         self.servo_pub = self.create_publisher(JointState, '/albc/servos', 10)
         self.pwm_pub = self.create_publisher(Float64MultiArray, '/albc/setpoint/pwm', 10)
+        # diagnostic: publish the student TCN latent (caution #2 encoder-health check)
+        self.latent_pub = self.create_publisher(Float64MultiArray, '/albc/debug/latent', 10)
 
         self.create_timer(CONTROL_DT, self.on_tick)
 
@@ -127,6 +129,9 @@ class BridgeNode(Node):
 
         # 2. policy forward
         latent = self.tcn.forward(win)
+        lat_msg = Float64MultiArray()
+        lat_msg.data = [float(v) for v in latent[0]]  # (9,) diagnostic
+        self.latent_pub.publish(lat_msg)
         obs_norm = self.teacher.normalize(obs[None])
         action = self.teacher.act(obs_norm, latent)[0]  # (8,)
 
