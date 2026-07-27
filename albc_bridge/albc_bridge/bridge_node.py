@@ -24,6 +24,13 @@ the only difference, per ObsBuilder's 69D deployed-contract note). No separate
 board ROS node was reachable from this environment (hero_agent host clone has
 no python inference node -- board runtime lives only on the physical
 agent-jetson, out of reach here), so student_inference.py is the SSOT.
+
+  UPDATE (2026-07-27, H5b fix): student_inference.py is self-contradictory
+  on normalization; the canonical reference is
+  constrained-albc/analysis/student_policy.py. The window passed to
+  StudentTCN.forward MUST be teacher-normalized -- the student is distilled
+  on normalized input and carries no normalizer of its own
+  (npforward.py:139-144). See teacher.normalize() applied at the forward call.
 Reproduced below with a plain deque(maxlen=9): append the current obs each
 tick (rightmost = newest); on startup, pad left by duplicating the single
 available frame until the window is full.
@@ -125,10 +132,10 @@ class BridgeNode(Node):
         self.window.append(obs.astype(np.float32))
         while len(self.window) < TCN_HISTORY:
             self.window.appendleft(self.window[0])
-        win = np.stack(self.window)[None]  # (1, 9, 69)
+        win = np.stack(self.window)[None]  # (1, 9, 72)
 
         # 2. policy forward
-        latent = self.tcn.forward(win)
+        latent = self.tcn.forward(self.teacher.normalize(win))
         lat_msg = Float64MultiArray()
         lat_msg.data = [float(v) for v in latent[0]]  # (9,) diagnostic
         self.latent_pub.publish(lat_msg)
