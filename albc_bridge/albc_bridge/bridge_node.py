@@ -75,6 +75,19 @@ class BridgeNode(Node):
 
         self.declare_parameter('ang_cmd', [0.0, 0.0, 0.0])
 
+        # Declared, reversible static-gain match (marinelab 2026-07-30 request #1).
+        # Stonefish bollard thrust is QUADRATIC, T = 20.03 * s^2 N (thruster-scale-gap
+        # 2026-07-29, kT 0.167 / max_rpm 3600 / D 0.076, identical on all 6 actuators);
+        # the policy was trained on Isaac's LINEAR T = 40 * a N. When enabled, invert the
+        # plant curve so command->thrust is 40 N/unit linear:
+        #     s = sign(a) * min(1, sqrt(|a| * ratio)),  ratio = 40 / 20.03 = 1.9970
+        # ponytail: exact only for |a| <= 1/ratio = 0.5008. Above that the plant's 20.03 N
+        # rating IS the ceiling and s clamps to 1.0 -- Stonefish physically cannot deliver
+        # Isaac's 20-40 N band. Bollard-exact only; inflow u lowers real thrust further.
+        # Default False = unmatched (plant as-is), so behaviour is unchanged until declared.
+        self.declare_parameter('thrust_gain_match', False)
+        self.declare_parameter('thrust_gain_ratio', 40.0 / 20.03)
+
         self.odom = None
         self.joint_state = None
 
@@ -84,6 +97,10 @@ class BridgeNode(Node):
         self.pwm_pub = self.create_publisher(Float64MultiArray, '/albc/setpoint/pwm', 10)
         # diagnostic: publish the student TCN latent (caution #2 encoder-health check)
         self.latent_pub = self.create_publisher(Float64MultiArray, '/albc/debug/latent', 10)
+        # diagnostic: post-clamp 8-D policy action, BEFORE any static-gain transform.
+        # Required because /albc/setpoint/pwm carries the transformed wire value once
+        # thrust_gain_match is on, so it no longer measures what the POLICY commanded.
+        self.action_pub = self.create_publisher(Float64MultiArray, '/albc/debug/action', 10)
 
         self.create_timer(CONTROL_DT, self.on_tick)
 
@@ -159,8 +176,19 @@ class BridgeNode(Node):
         servo_msg.position = [float(v) for v in self.joint_targets]
         self.servo_pub.publish(servo_msg)
 
+        act_msg = Float64MultiArray()
+        act_msg.data = [float(v) for v in action]  # (8,) post-clamp, pre-gain-transform
+        self.action_pub.publish(act_msg)
+
+        # static-gain match applies to the WIRE value only -- obs/history keep the raw
+        # policy action (Isaac's thruster state is the filtered command, not the setpoint)
+        thr = action[2:8]
+        if self.get_parameter('thrust_gain_match').value:
+            g = float(self.get_parameter('thrust_gain_ratio').value)
+            thr = np.sign(thr) * np.minimum(1.0, np.sqrt(np.abs(thr) * g))
+
         pwm_msg = Float64MultiArray()
-        pwm_msg.data = [float(v) for v in action[2:8]]  # ESC declaration order, unmodified
+        pwm_msg.data = [float(v) for v in thr]  # ESC declaration order
         self.pwm_pub.publish(pwm_msg)
 
         # 6. carry action forward for next tick's obs/thruster-filter update
