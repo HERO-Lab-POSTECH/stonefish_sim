@@ -6,7 +6,7 @@ odometry quaternion. These lock in that the conversion is the identity for this
 robot's odometry (level == identity, roll about X, pitch about Y).
 """
 import numpy as np
-from albc_bridge.frames import stonefish_odom_to_isaac
+from stonefish_albc_bridge.frames import stonefish_odom_to_isaac
 
 
 def test_pure_identity_maps_to_level():

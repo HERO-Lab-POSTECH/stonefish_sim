@@ -3,7 +3,7 @@ from glob import glob
 
 from setuptools import find_packages, setup
 
-package_name = 'albc_bridge'
+package_name = 'stonefish_albc_bridge'
 
 setup(
     name=package_name,
@@ -31,7 +31,7 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'albc_bridge = albc_bridge.bridge_node:main',
+            'stonefish_albc_bridge = stonefish_albc_bridge.bridge_node:main',
         ],
     },
 )

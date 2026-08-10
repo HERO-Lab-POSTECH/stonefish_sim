@@ -7,7 +7,7 @@ Stonefish sensors (/albc/odometry, /albc/joint_states) -> ObsBuilder (69D) ->
 
 === Window construction (Step 0 SSOT) ===
 StudentTCN.forward consumes (1, 9, 69) -- confirmed by golden_tcn.npz
-(input_window.shape == (1, 9, 69), albc_bridge/policy/golden/golden_tcn.npz).
+(input_window.shape == (1, 9, 69), see policy/golden/golden_tcn.npz).
 TCN_HISTORY=9 and the rolling-window construction are confirmed from the
 deploy reference module in the marinelab-isaaclab container:
   constrained-albc/deploy/student_albc_260607/student_inference.py:80
@@ -47,9 +47,10 @@ from rclpy.node import Node
 from sensor_msgs.msg import JointState
 from std_msgs.msg import Float64MultiArray
 
-from albc_bridge.obs_builder import ObsBuilder
+from stonefish_albc_bridge.obs_builder import ObsBuilder
 
-_POLICY_DIR = os.path.join(get_package_share_directory('albc_bridge'), 'policy')
+_PKG_SHARE = get_package_share_directory('stonefish_albc_bridge')
+_POLICY_DIR = os.path.join(_PKG_SHARE, 'policy')
 sys.path.insert(0, _POLICY_DIR)
 from npforward import StudentTCN, TeacherActor  # noqa: E402
 

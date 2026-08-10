@@ -13,6 +13,11 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- **BREAKING** `albc_bridge` → `stonefish_albc_bridge` 개명 — 유일하게 `stonefish_` 접두사
+  규칙(`.omp/rules.json` naming `src/*/`)을 어기던 패키지. 디렉토리·`package.xml`·`setup.py`·
+  `setup.cfg`·ament resource 마커·import 경로·launch 참조 일괄 변경.
+  실행 명령이 바뀝니다: `ros2 launch stonefish_albc_bridge albc_smoke.launch.py`.
+  ROS 노드 이름은 형제 패키지 관행(기능명)에 따라 `albc_bridge`로 유지
 - README 설치 가이드: 실존하지 않는 `/workspace/colcon_ws` 경로 제거, `--merge-install` 표준화,
   패키지 표에 albc_bridge 보완
 

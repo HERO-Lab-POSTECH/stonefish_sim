@@ -165,7 +165,7 @@ ros2 launch stonefish_control control.launch.py
 | stonefish_control | Controllers (position, velocity, hybrid) |
 | stonefish_thruster_manager | TAM-based thrust allocation |
 | stonefish_trajectory_manager | Path generation and following |
-| albc_bridge | RL policy bridge (obs→policy→action loop, numpy inference) |
+| stonefish_albc_bridge | RL policy bridge (obs→policy→action loop, numpy inference) |
 
 ## ROS2 Topics
 

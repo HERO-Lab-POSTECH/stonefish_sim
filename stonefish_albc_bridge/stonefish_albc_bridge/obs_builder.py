@@ -94,7 +94,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from albc_bridge.frames import stonefish_odom_to_isaac
+from stonefish_albc_bridge.frames import stonefish_odom_to_isaac
 
 # --- layout dims (config.py observation_space breakdown) ---
 PROPRIO_DIM = 20
