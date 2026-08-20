@@ -136,14 +136,18 @@ def test_straight_path_on_path_cte_is_zero(load_module):
 
 # ── S3: 직선 경로, 차량 오른쪽 1m — CTE 보정 헤딩·sway ─────────────────────
 
-def test_right_offset_produces_negative_yaw_correction(load_module):
-    """차량이 경로 오른쪽 1m일 때 ILOS 헤딩이 왼쪽으로 보정된다 (arctan(-1/5))."""
+def test_right_offset_heading_is_pure_path_tangent(load_module):
+    """[축소] 차량이 경로 오른쪽 1m여도 ILOS 헤딩은 순수 path-tangent χ_p=0.
+
+    설계 SSOT §4: cross-track의 heading 채널(arctan) 제거. e_y 보정은 cascade
+    outer가 전담하므로 ILOS는 chi_d=chi_p만 출력한다(직선 +X 경로 → χ_p=0).
+    """
     mod = load_module(_ILOS_PATH, 'char_ilos')
     PathFollowingMode = mod.PathFollowingMode
 
     g = _make_guidance(mod, adaptive=False)
     g.set_path(_straight_path())
-    g._vehicle_pos = np.array([3.0, 1.0, 0.0])   # 1m starboard (right of +X path)
+    g._vehicle_pos = np.array([3.0, 1.0, 0.0])   # 1m starboard
     g._vehicle_yaw = 0.0
     g._vehicle_velocity = np.array([1.0, 0.0, 0.0])
     g._mode = PathFollowingMode.FOLLOW
@@ -151,14 +155,17 @@ def test_right_offset_produces_negative_yaw_correction(load_module):
 
     pos, yaw, vel = g.compute_guidance(dt=0.1)
 
-    # ILOS formula: chi_d = chi_p + arctan(-e_y / Delta) = 0 + arctan(-1/5)
-    expected_yaw = np.arctan(-1.0 / 5.0)  # ≈ -0.19739556
-    assert yaw == pytest.approx(expected_yaw, abs=1e-9), \
-        f'S3: yaw should be arctan(-1/5)={expected_yaw:.9f}'
+    # 축소 후: chi_d = chi_p = arctan2(0,1) = 0 (CTE와 무관, arctan 항 제거)
+    assert yaw == pytest.approx(0.0, abs=1e-9), \
+        'S3[축소]: heading must be pure path tangent χ_p=0 (no cross-track arctan)'
 
 
-def test_right_offset_cte_and_sway(load_module):
-    """차량이 오른쪽 1m일 때 CTE=+1.0, sway=-lateral_gain*1.0=-0.3."""
+def test_right_offset_cte_computed_but_sway_zero(load_module):
+    """[축소] 차량이 오른쪽 1m: CTE=+1.0은 여전히 계산, sway 출력은 0.
+
+    설계 SSOT §4: cross-track의 sway 채널(PID) 제거. desired_velocity[1]=0.0.
+    cascade outer e_pos_body[1]이 sway를 전담(이중보정 제거).
+    """
     mod = load_module(_ILOS_PATH, 'char_ilos')
     PathFollowingMode = mod.PathFollowingMode
 
@@ -173,11 +180,9 @@ def test_right_offset_cte_and_sway(load_module):
     pos, yaw, vel = g.compute_guidance(dt=0.1)
 
     assert g._cross_track_error == pytest.approx(1.0, abs=1e-9), \
-        'S3: CTE must be +1.0 for 1m right offset'
-    # sway = -lateral_gain * e_y = -0.6 * 1.0 = -0.6 → clamped to max_lateral(0.3)
-    # actual output from oracle: -0.3 (clamped by max_lateral_velocity=0.3)
-    assert vel[1] == pytest.approx(-0.3, abs=1e-9), \
-        'S3: sway must be -0.3 (lateral_gain*CTE, clamped to max_lateral_velocity)'
+        'S3[축소]: CTE must still be computed (+1.0) for logging/diagnostics'
+    assert vel[1] == pytest.approx(0.0, abs=1e-9), \
+        'S3[축소]: sway must be 0 (cross-track sway channel removed)'
 
 
 # ── S4: L자형 경로, 커브 전 속도 프로파일링 ─────────────────────────────────

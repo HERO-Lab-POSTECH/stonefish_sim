@@ -59,6 +59,29 @@
       # Integral safety factor (higher = more integral authority)
       integral_safety_factor: 2.0
 
+    # ============================================
+    # Cascade Mode (Position-Cascade Path Following)
+    # ============================================
+    # outer 위치-P → 속도 setpoint → inner 속도-PI → 힘/토크
+    # heading vs 위치보정 이중보정을 구조적으로 제거(설계 SSOT §4)
+    cascade:
+      outer_loop:
+        # 위치오차[m,rad] → 속도 setpoint[m/s,rad/s] (느린 루프)
+        Kp: [0.4, 0.4, 0.3, 0.8]   # [x, y, z, yaw] (추정 초기값, P4 실기 튜닝)
+        Ki: [0.0, 0.0, 0.0, 0.0]   # outer I 비활성 — 적분은 inner만(windup 차단)
+      inner_loop:
+        # 속도오차[m/s,rad/s] → 힘/토크[N,Nm] (빠른 루프, velocity_mode 실효값 F6)
+        Kp: [200.0, 200.0, 250.0, 150.0]
+        Ki: [50.0, 50.0, 60.0, 10.0]
+        Kd: [0.0, 100.0, 100.0, 80.0]   # F6: bluerov2 YAML 실효값
+        Kb: [0.8, 0.8, 0.8, 0.8]
+        integral_safety_factor: 0.5
+      # 속도 setpoint 포화 [u,v,w,r]. OWNER DECISION #1(c): ALIGN 진입속도 0.3에
+      # 맞춰 surge/sway 보수 설정. FOLLOW 정착 후 P4 실기 튜닝으로 상향.
+      v_sp_limit: [0.5, 0.3, 0.25, 0.6]
+      max_force: 800.0
+      max_torque: 160.0
+
 # Design Notes:
 #
 # Velocity Mode:

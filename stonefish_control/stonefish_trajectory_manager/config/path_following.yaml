@@ -22,7 +22,8 @@
     # Curve slowdown aggressiveness
     curvature_gain: 3.0
 
-    # Lateral correction strength
+    # [deprecated §4] cross-track sway 채널이 cascade outer로 이관됨.
+    # ILOS는 더 이상 lateral_gain을 사용하지 않음(YAML 로드 호환 위해 키 유지).
     lateral_gain: 0.5
 
     # Minimum speed in curves
@@ -40,8 +41,10 @@
 
     # ILOS integral gain for steady-state error
     # Now uses leaky integrator to prevent curve accumulation
+    # [deprecated §4] ILOS heading 적분(_integral_ey) 제거로 미사용(키만 유지).
     integral_gain: 0.1
 
     # Velocity limits
+    # [deprecated §4] sway 출력이 0이 되어 미사용(키만 유지).
     max_lateral_velocity: 0.5
     max_heave_velocity: 0.4
