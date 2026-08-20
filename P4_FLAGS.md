@@ -86,3 +86,57 @@ P3 characterization이 못 덮는 값 정확성 측면(code-reviewer 지적). �
 - ~~Vehicle 속성→값 매핑 미검증~~ → **P3에서 해소**(`test_vehicle_init_attribute_value_mapping`: cog≠cob 구별값으로 10개 속성 직접 단언).
 - ~~declare default 값 미검증~~ → **P3에서 해소**(`test_vehicle_init_declare_defaults_flow_when_param_absent`: density 1028.0 흐름 확인).
 - **fake node ↔ 실제 rclpy 의미 차이**: fake node는 list→array 변환·타입 검증·`ParameterValue` 래핑을 안 한다. 골든 마스터가 "rclpy 동등성"까지 보증한다고 과신 금지 — 위 T5 sign-off로 닫는다.
+
+## P5 cascade 재설계 이월 (경로추종 position-cascade — p5-path-cascade)
+P5에서 ILOS의 cross-track 이중보정(heading arctan + 비표준 sway PID)을 제거하고, 별도 `CascadeController`(outer position-P → inner velocity-PI)로 cross-track을 단일 채널 처리하도록 재설계했다. 아래는 이번 범위에서 의도적으로 단순화·이월한 천장으로, RTX4070 실기 측정 후 검토한다. 설계 SSOT: `/workspace/.sp/plans/2026-06-25-path-following-position-cascade.md`.
+- **inner M·a feedforward (accel_ff = M·v̇_sp)**: `v_sp` 수치미분이 노이즈를 증폭할 위험으로 미구현. 현재 `CascadeController`는 생성자에서 `mass`/`inertia_zz`를 받되 `compute_control`에서 미사용(시그니처 동형성 유지 — P4에서 필터링 후 추가 시 호출부 무변경). 추가 시 v̇_sp 저역통과 필터 설계 선행.
+- **outer Kp=[0.4,0.4,0.3,0.8] / v_sp_limit=[0.5,0.3,0.25,0.6]**: 시간상수 분리 원칙(outer가 inner보다 느림)에서 도출한 초기값. 닫힌루프 정착시간·오버슈트는 컨테이너 미검증이라 RTX4070 실기 측정으로 미세조정. v_sp_limit는 OWNER DECISION #1(c) ALIGN 보수값.
+- **모드 전환 첫 tick 점프**: velocity→cascade 진입 시 `set_mode`의 reset + outer 출력 clamp(v_sp_limit)로 1차 완화. integral preloading(전환 시 적분기를 직전 속도로 시드)은 실기 관측 후 검토. 또한 cascade_controller 미생성 환경에서 `set_mode('cascade')` 시 `active_mode='cascade'`로 보고하나 실제 라우팅은 position으로 폴백하는 latent footgun(Task 4 리뷰 지적) — 가드 추가는 P4.
+- **코너 추종 (sway=0 + 고정 lookahead 3m)**: cross-track sway 채널 제거로 코너에서 cascade outer만 횡오차를 닫는다. adaptive lookahead 재활성·curvature preview는 미구현(현재 `adaptive_lookahead: false`). 코너 추종 정확도는 실기 sign-off 항목.
+- **닫힌루프 안정성·정착시간·thruster allocation 포화**: 단위테스트(84 passed)는 순수 산술(CascadeController 손계산·ILOS 축소 골든)과 정적 게이트만 덮는다. 닫힌루프 안정성·정착시간·thruster 포화는 컨테이너 골든 미검증 → `colcon build` + `ros2 launch` + RTX4070 실기 sign-off 필요. 통과 전까지 cascade 모드는 검증 미완 상태로 간주.
+
+## P6 코너 feedforward 이월
+- [cascade] sway_ff_gain=0.1은 m/Kp_inner 모델 추정. 항력·부가질량 미반영 →
+  RTX4070 실기에서 코너 e_y 측정하며 튜닝(과소면 ↑). 0이면 비활성(P5 거동).
+- [cascade] v_sp_limit sway 0.5로 상향 — inner/thruster 포화 한도 실기 미검증.
+- [cascade] feedforward는 kinematic(v²κ)만. inner M·a feedforward(P5 이월)는 별개
+  — 두 ff는 독립이라 동시 적용 시 결합 튜닝 필요.
+- [cascade] sway Kp 0.4→0.5 + v_sp_limit 0.3→0.5 + 곡률 ff 활성으로 §P5 "닫힌루프
+  안정성·정착시간·thruster allocation 포화" sign-off 범위가 확장됨 — feedforward+상향
+  게인 결합 거동(과도 응답·정착시간·포화)을 RTX4070 실기에서 재확인해야 한다.
+- [cascade] reset() staleness (P6 최종리뷰 발견): ILOS.reset()이 _signed_curvature_filtered·
+  _current_curvature를 안 지운다(P5부터 잔존). P6가 _signed_curvature_filtered를 published
+  sway 명령의 직접 입력으로 만들어 blast radius 확대 — 코너 중 reset(새 경로 로드 등) 시
+  다음 run 첫 FOLLOW tick들이 옛 곡률로 sway ff를 내보낼 수 있다(필터 재수렴 전까지).
+  실기는 run마다 새 guidance 객체라 영향 제한적. fix=reset()에 두 변수 0.0 추가(동작
+  변경이라 별도). corner-entry 필터 lag(tau_up)도 sway_ff_gain과 함께 실기 튜닝 체크리스트.
+
+## P7 코너 cascade 결함 A+C 처방 (2026-06-25)
+
+### 적용 (RTX4070 실기 검증 이월)
+- **A (r_d 부호)**: `ilos_guidance.py` `_compute_body_velocities`에서 r_d가
+  `_signed_curvature_filtered`(부호 있음) 사용. 좌/우회전 r_d 부호는 합성 경로
+  실측 골든으로 고정. **실기에서 좌·우 코너 모두 heading이 경로를 향하는지
+  프로브 재측정 필요** (e_yaw 부호가 정렬 방향).
+- **C (yaw 게이트)**: `cascade_controller.py` outer sway 채널에
+  `max(cos(e_yaw),0)` 게이트. cos 게이트 강도는 고정(파라미터 미노출 — YAGNI).
+  **실기에서 코너 e_y 2.49m→<0.5m, 동그란 overshoot 소멸 확인 필요**.
+
+### 미처리 (이번 범위 밖)
+- **B (heading chi_p 점프)**: `chi_d=chi_p`가 lookahead가 아닌 발밑 접선(s+0.1m)을
+  봐 piecewise-linear 코너에서 계단 점프. A+C 프로브 후 재평가 결정. C가 overshoot를
+  완화하면 B는 불필요할 수 있음.
+- **[ilos docstring] `_estimate_signed_curvature` 부호 오류**: `ilos_guidance.py:504-506`의
+  docstring("Positive = left turn")이 구현(좌회전→κ_signed<0, 우회전→κ>0)과 **반대**다.
+  Task 1 리뷰 발견(MEDIUM). 기존 결함이고 r_d 산식 주석(L891-893)에 올바른 관례가
+  명시되어 있으나, 함수 docstring 자체는 여전히 거짓이라 후행 개발자가 이 함수를
+  먼저 보면 잘못된 부호를 내재화한다. 구현이 SSOT이고 주석이 맞음.
+  **fix=docstring L504-506을 "Positive = right turn / Negative = left turn"으로 정정**(별도 작업 — 동작 무관).
+- **[cascade docstring] `compute_control` Returns 절 불완전**: `cascade_controller.py`의
+  Returns 절이 `debug_info['e_outer']`를 raw body 오차로만 설명하나, 결함 C 수정 후
+  sway 슬롯은 cos(e_yaw) 게이트된 값이다. Task 2 리뷰 발견(LOW).
+  **fix=Returns 절에 "sway 슬롯은 게이트 후 값" 한 줄 추가**(별도 작업).
+- **[cascade 주석] 기하학적 부정확성**: `cascade_controller.py` 게이트 주석 "body sway가
+  world cross-track으로 기여하는 성분이 정확히 cos(e_yaw)"는 기하학적으로 부정확
+  (실제는 cos(yaw_curr); cos(e_yaw)는 제어 의도 스케일링). Task 2 리뷰 발견(Nit).
+  동작 무관이지만 후행 개발자 혼동 위험.

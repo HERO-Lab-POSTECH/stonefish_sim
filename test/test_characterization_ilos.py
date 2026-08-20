@@ -136,14 +136,18 @@ def test_straight_path_on_path_cte_is_zero(load_module):
 
 # ── S3: 직선 경로, 차량 오른쪽 1m — CTE 보정 헤딩·sway ─────────────────────
 
-def test_right_offset_produces_negative_yaw_correction(load_module):
-    """차량이 경로 오른쪽 1m일 때 ILOS 헤딩이 왼쪽으로 보정된다 (arctan(-1/5))."""
+def test_right_offset_heading_is_pure_path_tangent(load_module):
+    """[축소] 차량이 경로 오른쪽 1m여도 ILOS 헤딩은 순수 path-tangent χ_p=0.
+
+    설계 SSOT §4: cross-track의 heading 채널(arctan) 제거. e_y 보정은 cascade
+    outer가 전담하므로 ILOS는 chi_d=chi_p만 출력한다(직선 +X 경로 → χ_p=0).
+    """
     mod = load_module(_ILOS_PATH, 'char_ilos')
     PathFollowingMode = mod.PathFollowingMode
 
     g = _make_guidance(mod, adaptive=False)
     g.set_path(_straight_path())
-    g._vehicle_pos = np.array([3.0, 1.0, 0.0])   # 1m starboard (right of +X path)
+    g._vehicle_pos = np.array([3.0, 1.0, 0.0])   # 1m starboard
     g._vehicle_yaw = 0.0
     g._vehicle_velocity = np.array([1.0, 0.0, 0.0])
     g._mode = PathFollowingMode.FOLLOW
@@ -151,14 +155,17 @@ def test_right_offset_produces_negative_yaw_correction(load_module):
 
     pos, yaw, vel = g.compute_guidance(dt=0.1)
 
-    # ILOS formula: chi_d = chi_p + arctan(-e_y / Delta) = 0 + arctan(-1/5)
-    expected_yaw = np.arctan(-1.0 / 5.0)  # ≈ -0.19739556
-    assert yaw == pytest.approx(expected_yaw, abs=1e-9), \
-        f'S3: yaw should be arctan(-1/5)={expected_yaw:.9f}'
+    # 축소 후: chi_d = chi_p = arctan2(0,1) = 0 (CTE와 무관, arctan 항 제거)
+    assert yaw == pytest.approx(0.0, abs=1e-9), \
+        'S3[축소]: heading must be pure path tangent χ_p=0 (no cross-track arctan)'
 
 
-def test_right_offset_cte_and_sway(load_module):
-    """차량이 오른쪽 1m일 때 CTE=+1.0, sway=-lateral_gain*1.0=-0.3."""
+def test_right_offset_cte_computed_but_sway_zero(load_module):
+    """[축소] 차량이 오른쪽 1m: CTE=+1.0은 여전히 계산, sway 출력은 0.
+
+    설계 SSOT §4: cross-track의 sway 채널(PID) 제거. desired_velocity[1]=0.0.
+    cascade outer e_pos_body[1]이 sway를 전담(이중보정 제거).
+    """
     mod = load_module(_ILOS_PATH, 'char_ilos')
     PathFollowingMode = mod.PathFollowingMode
 
@@ -173,11 +180,9 @@ def test_right_offset_cte_and_sway(load_module):
     pos, yaw, vel = g.compute_guidance(dt=0.1)
 
     assert g._cross_track_error == pytest.approx(1.0, abs=1e-9), \
-        'S3: CTE must be +1.0 for 1m right offset'
-    # sway = -lateral_gain * e_y = -0.6 * 1.0 = -0.6 → clamped to max_lateral(0.3)
-    # actual output from oracle: -0.3 (clamped by max_lateral_velocity=0.3)
-    assert vel[1] == pytest.approx(-0.3, abs=1e-9), \
-        'S3: sway must be -0.3 (lateral_gain*CTE, clamped to max_lateral_velocity)'
+        'S3[축소]: CTE must still be computed (+1.0) for logging/diagnostics'
+    assert vel[1] == pytest.approx(0.0, abs=1e-9), \
+        'S3[축소]: sway must be 0 (cross-track sway channel removed)'
 
 
 # ── S4: L자형 경로, 커브 전 속도 프로파일링 ─────────────────────────────────
@@ -374,3 +379,133 @@ def test_near_end_minimum_speed_floor_applied(load_module):
     # Oracle: surge=0.1 (speed_factor = 0.5/5.0 = 0.1 → exactly at 10% floor)
     assert vel[0] == pytest.approx(0.1, abs=1e-9), \
         'S7: surge must be 0.1 (10% floor of cruise_speed when lookahead is small)'
+
+
+# ── S8: 곡률 sway feedforward (P6) ─────────────────────────────────────────────
+
+def test_sway_ff_gain_param_stored(load_module):
+    """sway_ff_gain 생성자 파라미터가 _sway_ff_gain에 저장된다 (기본 0.1)."""
+    mod = load_module(_ILOS_PATH, 'char_ilos')
+    g = mod.ILOSGuidance(sway_ff_gain=0.25)
+    assert g._sway_ff_gain == 0.25
+    g_default = mod.ILOSGuidance()
+    assert g_default._sway_ff_gain == 0.1, 'sway_ff_gain 기본값은 0.1 (≈m/Kp_inner)'
+
+
+def test_sway_ff_zero_on_straight(load_module):
+    """직선 경로(κ=0)에서 sway feedforward는 0 (직선 거동 무손상 회귀)."""
+    mod = load_module(_ILOS_PATH, 'char_ilos')
+    g = _make_guidance(mod, adaptive=False)
+    # 직선 +X 경로, 차량 경로 위 (CTE=0)
+    path = np.array([[0.0, 0.0, 0.0], [5.0, 0.0, 0.0], [10.0, 0.0, 0.0]])
+    g.set_path(path)
+    g._vehicle_pos = np.array([2.0, 0.0, 0.0])
+    g._vehicle_yaw = 0.0
+    g._mode = mod.PathFollowingMode.FOLLOW
+    _, _, vel = g.compute_guidance(dt=0.1)
+    assert vel[1] == pytest.approx(0.0, abs=1e-9), '직선 κ=0 → sway_ff=0'
+
+
+def test_sway_ff_formula_on_curve(load_module):
+    """코너에서 sway_ff = +gain·v²·κ_signed (손계산 일치, 부호 안쪽)."""
+    mod = load_module(_ILOS_PATH, 'char_ilos')
+    g = mod.ILOSGuidance(sway_ff_gain=0.1)
+    # _compute_body_velocities를 직접 호출해 산식만 검증 (격리).
+    # _signed_curvature_filtered와 desired_speed를 강제 주입.
+    g._mode = mod.PathFollowingMode.FOLLOW
+    g._signed_curvature_filtered = -0.2   # 좌회전(실측 부호: κ<0=좌회전), 안쪽=왼쪽=-sway
+    g._vehicle_pos = np.array([0.0, 0.0, 0.0])
+    g._prev_ez = 0.0
+    g._integral_ez = 0.0
+    g._de_z_filtered = 0.0
+    # tangent: 수평 +X, p_lookahead 임의(heave는 무관 단언 안 함)
+    tangent = np.array([1.0, 0.0, 0.0])
+    p_lookahead = np.array([1.0, 0.0, 0.0])
+    v_lateral, _, _ = g._compute_body_velocities(
+        e_y=0.0, tangent=tangent, p_lookahead=p_lookahead,
+        desired_speed=1.0, dt=0.1)
+    # 손계산: +0.1 · 1.0² · (-0.2) = -0.02 (κ=-0.2(좌회전,실측 부호)→-0.02(왼쪽=안쪽))
+    assert v_lateral == pytest.approx(-0.02, abs=1e-9), \
+        'sway_ff = +gain·v²·κ; κ=-0.2(좌회전),v=1 → -0.02 (좌회전 안쪽=-y)'
+
+
+# ── S9: r_d yaw rate feedforward 부호 (결함 A) ──────────────────────────────
+
+def _left_turn_path():
+    """+X로 가다 -Y로 꺾는 좌회전 경로 (NED: North→West, 실측 부호: κ_signed<0)."""
+    return np.array([
+        [0.0, 0.0, 0.0], [5.0, 0.0, 0.0], [10.0, 0.0, 0.0],
+        [10.0, -5.0, 0.0], [10.0, -10.0, 0.0],
+    ])
+
+def _right_turn_path():
+    """+X로 가다 +Y로 꺾는 우회전 경로 (NED: North→East, 실측 부호: κ_signed>0)."""
+    return np.array([
+        [0.0, 0.0, 0.0], [5.0, 0.0, 0.0], [10.0, 0.0, 0.0],
+        [10.0, 5.0, 0.0], [10.0, 10.0, 0.0],
+    ])
+
+def test_rd_sign_opposite_on_left_vs_right(load_module):
+    """좌회전과 우회전 코너에서 r_d 부호가 반대다 (부호 없는 회귀 차단).
+
+    부호 없는 _current_curvature를 쓰면 두 경우 r_d가 같은 부호라 실패한다.
+    """
+    mod = load_module(_ILOS_PATH, 'char_ilos')
+
+    def _rd_at_corner(path, s_at):
+        g = _make_guidance(mod, adaptive=False)
+        g.set_path(path)
+        g._mode = mod.PathFollowingMode.FOLLOW
+        g._path_parameter_s = s_at
+        # 코너 곡률을 필터에 실측 주입: signed_curvature를 코너 지점에서 평가
+        kappa = g._estimate_signed_curvature(s_at)
+        g._signed_curvature_filtered = kappa
+        g._current_curvature = abs(kappa)
+        g._vehicle_pos = g._interpolate_from_parameter(s_at)
+        g._prev_ez = 0.0; g._integral_ez = 0.0; g._de_z_filtered = 0.0
+        tangent = np.array([1.0, 0.0, 0.0])
+        _, _, r_d = g._compute_body_velocities(
+            e_y=0.0, tangent=tangent, p_lookahead=g._vehicle_pos,
+            desired_speed=1.0, dt=0.1)
+        return r_d, kappa
+
+    rd_left, k_left = _rd_at_corner(_left_turn_path(), 10.0)
+    rd_right, k_right = _rd_at_corner(_right_turn_path(), 10.0)
+    # 실측 부호 검증: 좌회전 κ<0, 우회전 κ>0 (Global Constraints SSOT)
+    assert k_left < 0 and k_right > 0, \
+        f'경로 부호 실측 실패: 좌={k_left}, 우={k_right} (SSOT: 좌<0, 우>0)'
+    # r_d가 회전 방향 부호를 따름 (좌/우 반대 부호)
+    assert rd_left * rd_right < 0, \
+        f'r_d가 좌/우에서 같은 부호 — 부호 없는 곡률 회귀 (좌={rd_left}, 우={rd_right})'
+
+
+def test_rd_zero_on_straight(load_module):
+    """직선 경로(κ_signed=0)에서 r_d=0 (직선 거동 무손상 회귀)."""
+    mod = load_module(_ILOS_PATH, 'char_ilos')
+    g = _make_guidance(mod, adaptive=False)
+    g.set_path(_straight_path())
+    g._mode = mod.PathFollowingMode.FOLLOW
+    g._signed_curvature_filtered = 0.0
+    g._current_curvature = 0.0
+    g._vehicle_pos = np.array([2.0, 0.0, 0.0])
+    g._prev_ez = 0.0; g._integral_ez = 0.0; g._de_z_filtered = 0.0
+    _, _, r_d = g._compute_body_velocities(
+        e_y=0.0, tangent=np.array([1.0, 0.0, 0.0]),
+        p_lookahead=np.array([1.0, 0.0, 0.0]), desired_speed=1.0, dt=0.1)
+    assert r_d == pytest.approx(0.0, abs=1e-12), '직선 κ=0 → r_d=0'
+
+
+def test_rd_left_turn_sign_golden(load_module):
+    """좌회전 코너 r_d 부호 골든: κ_signed<0 → r_d<0 (FRD r<0 방향)."""
+    mod = load_module(_ILOS_PATH, 'char_ilos')
+    g = mod.ILOSGuidance()
+    g._mode = mod.PathFollowingMode.FOLLOW
+    g._signed_curvature_filtered = -0.2   # 좌회전(실측 SSOT)
+    g._current_curvature = 0.2
+    g._vehicle_pos = np.array([0.0, 0.0, 0.0])
+    g._prev_ez = 0.0; g._integral_ez = 0.0; g._de_z_filtered = 0.0
+    _, _, r_d = g._compute_body_velocities(
+        e_y=0.0, tangent=np.array([1.0, 0.0, 0.0]),
+        p_lookahead=np.array([1.0, 0.0, 0.0]), desired_speed=1.0, dt=0.1)
+    # r = v·κ_signed = 1.0·(-0.2) = -0.2
+    assert r_d == pytest.approx(-0.2, abs=1e-9), 'r_d = v·κ_signed = -0.2'

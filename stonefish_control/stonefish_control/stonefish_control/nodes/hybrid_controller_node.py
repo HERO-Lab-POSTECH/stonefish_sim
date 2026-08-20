@@ -26,6 +26,13 @@ class HybridController4DOFNode(Node):
             max_force_pos=self.max_force_pos, max_torque_pos=self.max_torque_pos,
             integral_safety_factor_vel=self.integral_safety_factor_vel,
             integral_safety_factor_pos=self.integral_safety_factor_pos,
+            Kp_outer=self.Kp_outer, Ki_outer=self.Ki_outer,
+            Kp_inner=self.Kp_inner, Ki_inner=self.Ki_inner,
+            Kd_inner=self.Kd_inner, Kb_inner=self.Kb_inner,
+            v_sp_limit=self.v_sp_limit,
+            max_force_cascade=self.max_force_cascade,
+            max_torque_cascade=self.max_torque_cascade,
+            integral_safety_factor_cascade=self.integral_safety_factor_cascade,
             initial_mode=self.initial_mode
         )
         
@@ -66,7 +73,17 @@ class HybridController4DOFNode(Node):
         self.declare_parameter('position_mode.max_force', 200.0)
         self.declare_parameter('position_mode.max_torque', 50.0)
         self.declare_parameter('position_mode.integral_safety_factor', 2.0)
-    
+        self.declare_parameter('cascade.outer_loop.Kp', [0.4, 0.4, 0.3, 0.8])
+        self.declare_parameter('cascade.outer_loop.Ki', [0.0, 0.0, 0.0, 0.0])
+        self.declare_parameter('cascade.inner_loop.Kp', [200.0, 200.0, 250.0, 150.0])
+        self.declare_parameter('cascade.inner_loop.Ki', [50.0, 50.0, 60.0, 10.0])
+        self.declare_parameter('cascade.inner_loop.Kd', [0.0, 100.0, 100.0, 80.0])
+        self.declare_parameter('cascade.inner_loop.Kb', [0.8, 0.8, 0.8, 0.8])
+        self.declare_parameter('cascade.inner_loop.integral_safety_factor', 0.5)
+        self.declare_parameter('cascade.v_sp_limit', [0.5, 0.3, 0.25, 0.6])
+        self.declare_parameter('cascade.max_force', 800.0)
+        self.declare_parameter('cascade.max_torque', 160.0)
+
     def _load_parameters(self):
         self.vehicle_name = self.get_parameter('vehicle_name').value
         self.control_rate = self.get_parameter('control_rate').value
@@ -85,10 +102,20 @@ class HybridController4DOFNode(Node):
         self.max_force_pos = self.get_parameter('position_mode.max_force').value
         self.max_torque_pos = self.get_parameter('position_mode.max_torque').value
         self.integral_safety_factor_pos = self.get_parameter('position_mode.integral_safety_factor').value
-    
+        self.Kp_outer = np.array(self.get_parameter('cascade.outer_loop.Kp').value)
+        self.Ki_outer = np.array(self.get_parameter('cascade.outer_loop.Ki').value)
+        self.Kp_inner = np.array(self.get_parameter('cascade.inner_loop.Kp').value)
+        self.Ki_inner = np.array(self.get_parameter('cascade.inner_loop.Ki').value)
+        self.Kd_inner = np.array(self.get_parameter('cascade.inner_loop.Kd').value)
+        self.Kb_inner = np.array(self.get_parameter('cascade.inner_loop.Kb').value)
+        self.integral_safety_factor_cascade = self.get_parameter('cascade.inner_loop.integral_safety_factor').value
+        self.v_sp_limit = np.array(self.get_parameter('cascade.v_sp_limit').value)
+        self.max_force_cascade = self.get_parameter('cascade.max_force').value
+        self.max_torque_cascade = self.get_parameter('cascade.max_torque').value
+
     def mode_callback(self, msg: String):
         mode = msg.data.lower()
-        if mode in ['velocity', 'position']:
+        if mode in ['velocity', 'position', 'cascade']:
             old_mode = self.controller.control_mode
             self.controller.set_mode(mode)
             if mode != old_mode:
