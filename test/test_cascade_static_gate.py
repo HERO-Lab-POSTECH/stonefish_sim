@@ -22,6 +22,8 @@ _HYBRID = REPO_ROOT / ('stonefish_control/stonefish_control/stonefish_control/'
                        'controllers/hybrid_controller.py')
 _HYBRID_NODE = REPO_ROOT / ('stonefish_control/stonefish_control/stonefish_control/'
                             'nodes/hybrid_controller_node.py')
+_CASCADE = REPO_ROOT / ('stonefish_control/stonefish_control/stonefish_control/'
+                        'controllers/cascade_controller.py')
 
 
 def _self_attr_assignments(tree):
@@ -75,7 +77,10 @@ def test_ilos_integral_ez_preserved():
 
 
 def test_ilos_sway_pid_removed():
-    """sway PID 산식(-lateral_gain * e_y ...)이 제거됨 (소스 문자열)."""
+    """sway PID 산식(-lateral_gain * e_y ...)이 제거됨 (소스 문자열).
+
+    [P6] sway PID feedback 부활 금지 — cross-track feedback은 cascade 단독(이중보정 방지).
+    """
     src = _ILOS.read_text()
     assert '-self._lateral_gain * e_y' not in src and \
            '- self._lateral_gain * e_y' not in src, \
@@ -106,3 +111,98 @@ def test_hybrid_node_mode_callback_accepts_cascade():
     """hybrid_controller_node mode_callback 화이트리스트에 'cascade'가 포함됨(F5b)."""
     src = _HYBRID_NODE.read_text()
     assert "'cascade'" in src, "hybrid_controller_node가 'cascade'를 수용하지 않음"
+
+
+def test_ilos_sway_feedforward_present():
+    """[P6] 곡률 sway feedforward(_sway_ff_gain · v² · κ)가 _compute_body_velocities 산식에 실제 참조된다 (AST).
+
+    문자열 검색이 아닌 AST로 확인하여 생성자 저장·주석만 남기고 산식에서
+    제거되는 false-pass를 막는다.
+    """
+    tree = _ilos_tree()
+
+    # _compute_body_velocities 함수 노드를 찾는다.
+    body_vel_func = None
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef) and node.name == '_compute_body_velocities':
+            body_vel_func = node
+            break
+    assert body_vel_func is not None, \
+        '_compute_body_velocities 함수가 ilos_guidance.py에서 사라짐'
+
+    # 함수 본문에서 self._sway_ff_gain 참조(Attribute)를 확인한다.
+    def _has_self_attr(func_node, attr_name):
+        for n in ast.walk(func_node):
+            if (isinstance(n, ast.Attribute)
+                    and n.attr == attr_name
+                    and isinstance(n.value, ast.Name)
+                    and n.value.id == 'self'):
+                return True
+        return False
+
+    assert _has_self_attr(body_vel_func, '_sway_ff_gain'), \
+        '_compute_body_velocities 산식에서 _sway_ff_gain을 소비하지 않음 (P6 회귀)'
+    assert _has_self_attr(body_vel_func, '_signed_curvature_filtered'), \
+        '_compute_body_velocities 산식에서 _signed_curvature_filtered를 소비하지 않음 (P6 회귀)'
+
+
+def test_rd_uses_signed_curvature():
+    """[결함 A] _compute_body_velocities의 r_d 산식이 _signed_curvature_filtered를
+    참조한다 (부호 없는 _current_curvature 회귀 차단, AST).
+
+    r_d 대입 우변에 _signed_curvature_filtered Attribute가 있어야 한다.
+    """
+    tree = _ilos_tree()
+    body_vel_func = None
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef) and node.name == '_compute_body_velocities':
+            body_vel_func = node
+            break
+    assert body_vel_func is not None, '_compute_body_velocities 사라짐'
+
+    # r_d = ... 대입을 찾아 우변에 _signed_curvature_filtered 참조 확인
+    rd_assigns = []
+    for node in ast.walk(body_vel_func):
+        if isinstance(node, ast.Assign):
+            for t in node.targets:
+                if isinstance(t, ast.Name) and t.id == 'r_d':
+                    rd_assigns.append(node.value)
+    assert rd_assigns, 'r_d 대입이 _compute_body_velocities에 없음'
+
+    def _refs_attr(value_node, attr):
+        for n in ast.walk(value_node):
+            if (isinstance(n, ast.Attribute) and n.attr == attr
+                    and isinstance(n.value, ast.Name) and n.value.id == 'self'):
+                return True
+        return False
+
+    # r_d 대입 중 _signed_curvature_filtered를 참조하는 대입이 적어도 하나 존재해야 한다.
+    # r_d=0.0 같은 초기화 대입은 무시한다.
+    assert any(_refs_attr(v, '_signed_curvature_filtered') for v in rd_assigns), \
+        ('r_d 산식이 _signed_curvature_filtered를 참조하지 않음 — '
+         '부호 없는 _current_curvature 회귀 (결함 A)')
+
+
+def test_cascade_outer_sway_yaw_gated():
+    """[결함 C] cascade compute_control이 e_yaw로 sway 위치명령을 게이트한다 (AST).
+
+    compute_control 본문에 np.cos(e_yaw) 형태 Call이 존재해야 한다.
+    """
+    tree = ast.parse(_CASCADE.read_text())
+    func = None
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef) and node.name == 'compute_control':
+            func = node
+            break
+    assert func is not None, 'compute_control 사라짐'
+
+    # np.cos(e_yaw) 형태의 Call이 본문에 있는지
+    has_cos_eyaw = False
+    for n in ast.walk(func):
+        if (isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+                and n.func.attr == 'cos'):
+            for arg in n.args:
+                if isinstance(arg, ast.Name) and arg.id == 'e_yaw':
+                    has_cos_eyaw = True
+    assert has_cos_eyaw, \
+        'compute_control에 np.cos(e_yaw) 게이트 없음 — 결함 C 회귀'

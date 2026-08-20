@@ -79,7 +79,8 @@ class ILOSGuidance:
                  max_lateral_velocity=None, max_heave_velocity=None,
                  adaptive_lookahead=True,
                  curvature_preview_enabled=True, curvature_preview_samples=8,
-                 curvature_ff_gain=None):
+                 curvature_ff_gain=None,
+                 sway_ff_gain=0.1):
         """Initialize ILOS guidance.
 
         Primary Parameters (tune these):
@@ -139,6 +140,11 @@ class ILOSGuidance:
         self._curvature_preview_enabled = curvature_preview_enabled
         self._curvature_preview_samples = curvature_preview_samples
         self._curvature_ff_gain = curvature_ff_gain  # Heading feedforward from curvature
+
+        # [P6] 곡률 sway feedforward 게인 (≈m/Kp_inner=20.131/200≈0.1 s).
+        # v_sway_ff = +sway_ff_gain · v² · κ_signed 로 코너 원심력 선제 상쇄.
+        # (구현 부호: _estimate_signed_curvature는 우회전→κ>0 → +sway=오른쪽=안쪽.)
+        self._sway_ff_gain = sway_ff_gain
 
         # Velocity profiling parameters
         self._cruise_speed = cruise_speed
@@ -817,9 +823,16 @@ class ILOSGuidance:
         # Heave: from path slope
         # Yaw rate: from curvature
 
-        # [축소 §4] cross-track sway 채널 제거: cascade outer가 e_pos_body[1]을 전담.
-        # desired_velocity[1]=0 → ILOS는 측방 보정을 하지 않는다(이중보정 제거).
-        v_lateral = 0.0
+        # [P6] 곡률 sway feedforward: 코너 원심력 선제 상쇄 (FOLLOW만).
+        # v_sway_ff = +sway_ff_gain · v² · κ_signed.
+        # ※구현 부호 관례: _estimate_signed_curvature는 우회전→κ>0(+), 좌회전→κ<0(-).
+        #   (docstring L503-505는 반대로 적혀있으나 구현이 SSOT). 우회전 κ>0 → +sway=오른쪽=안쪽 ✓.
+        # feedback(e_y 보정)은 cascade outer가 전담 — 여기는 예측만(이중보정 아님).
+        if self._mode == PathFollowingMode.FOLLOW:
+            v_lateral = (self._sway_ff_gain * desired_speed * desired_speed
+                         * self._signed_curvature_filtered)
+        else:
+            v_lateral = 0.0
 
         # Heave velocity: Path-based + Depth error correction
         # Two components:
@@ -874,12 +887,15 @@ class ILOSGuidance:
         # Apply velocity saturation
         w_d = np.clip(w_d, -self._max_heave_velocity, self._max_heave_velocity)
 
-        # Yaw rate from curvature (kinematic relationship: r = v * κ)
-        # For 3D path, use horizontal curvature only
+        # Yaw rate from curvature (kinematic relationship: r = v · κ_signed)
+        # [결함 A] _current_curvature(부호 없는 max-preview)는 회전 방향을 모른다.
+        # _signed_curvature_filtered(부호 있음, FOLLOW에서 매 틱 갱신)를 사용해
+        # 좌/우회전에 맞는 yaw rate feedforward를 낸다. FRD에서 r>0=우회전(starboard).
+        # 부호 관례(SSOT 실측): 우회전 κ_signed>0, 좌회전 κ_signed<0. r = v·κ_signed.
         if tangent_xy_norm > 1e-6:
             # Horizontal speed component (affected by curvature)
             speed_xy = desired_speed * tangent_xy_norm
-            r_d = speed_xy * self._current_curvature
+            r_d = speed_xy * self._signed_curvature_filtered
         else:
             # Vertical path, no yaw rate
             r_d = 0.0
