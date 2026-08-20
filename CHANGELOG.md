@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- README Docker 설치 안내 — 전용 배포 repo
+  [`stonefish_bringup`](https://github.com/HERO-Lab-POSTECH/stonefish_bringup) 참조
+  (core+sim+slam 소스를 bake하는 멀티스테이지 GPU 이미지, 호스트 실빌드 검증 완료)
+- 협업 규칙 `CONTRIBUTING.md` + PR 템플릿 (GitHub Flow · Conventional Commits, 발효 2026-07-23)
+
+### Changed
+
+- README 설치 가이드: 실존하지 않는 `/workspace/colcon_ws` 경로 제거, `--merge-install` 표준화,
+  패키지 표에 albc_bridge 보완
+
+### Fixed
+
+- `albc_smoke.launch.py`: `/workspace` 절대경로 하드코딩 → `FindPackageShare` (타 머신 이식성)
+- `albc_bridge` 메타데이터 placeholder 제거 (버전 0.4.0 통일, GPL-3.0, 실제 description)
+
 ## [0.5.0] - 2026-06-25
 
 **P5 — 경로추종 position-cascade 재설계 (의도적 동작 변경).** 코너 추종

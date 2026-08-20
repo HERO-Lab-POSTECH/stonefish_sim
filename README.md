@@ -77,31 +77,70 @@ sudo apt install libglm-dev libsdl2-dev libfreetype6-dev libopengl-dev
 
 ## Installation
 
-### 1. Install the Stonefish C++ Library (v1.3.0+)
+The expected workspace layout (used by all docs) is:
 
-`stonefish_ros2` calls `find_package(Stonefish REQUIRED 1.3.0)`, so the core
-Stonefish library must be built and installed first:
+```text
+stonefish_ws/                  # colcon workspace root
+└── src/
+    ├── stonefish_sim/         # this repo
+    └── stonefish_slam/        # SLAM repo (optional but recommended)
+```
 
 ```bash
-cd /workspace
+mkdir -p ~/stonefish_ws/src && cd ~/stonefish_ws/src
+git clone https://github.com/HERO-Lab-POSTECH/stonefish_sim.git
+git clone https://github.com/HERO-Lab-POSTECH/stonefish_slam.git
+```
+
+### Option A — Docker (recommended for deployment / reproduction)
+
+The team Docker environment lives in a dedicated repo:
+[**stonefish_bringup**](https://github.com/HERO-Lab-POSTECH/stonefish_bringup).
+Its multi-stage Dockerfile bakes the Stonefish core library (HERO fork, 1.3.0),
+this repo, and `stonefish_slam` into one GPU-accelerated image — sources are
+fetched at image build time via `stonefish.repos` (no bind mount), so the image
+is self-contained and reproducible.
+
+```bash
+git clone https://github.com/HERO-Lab-POSTECH/stonefish_bringup.git
+cd stonefish_bringup
+docker compose build       # first build ~15-30 min
+```
+
+Requirements (NVIDIA GPU + nvidia-container-toolkit, host X display `:0`) and
+the run commands are documented in the
+[stonefish_bringup README](https://github.com/HERO-Lab-POSTECH/stonefish_bringup#readme).
+
+### Option B — Native install
+
+#### 1. Install the Stonefish C++ Library (v1.3.0)
+
+`stonefish_ros2` calls `find_package(Stonefish REQUIRED 1.3.0)` and Stonefish's
+CMake config uses an **exact-version match**, so build the HERO fork (pinned at
+1.3.0) — not upstream `master` (which is 1.6.0-dev):
+
+```bash
 git clone https://github.com/HERO-Lab-POSTECH/stonefish.git
 cd stonefish && mkdir build && cd build
 cmake .. -DCMAKE_BUILD_TYPE=Release
 make -j$(nproc) && sudo make install
 ```
 
-### 2. Build the ROS2 Workspace
+#### 2. Build the ROS2 Workspace
 
 ```bash
-cd /workspace/colcon_ws
+cd ~/stonefish_ws
 source /opt/ros/humble/setup.bash
 
 # (optional) resolve declared ROS dependencies from the manifests
 rosdep install --from-paths src --ignore-src -r -y
 
-colcon build --symlink-install
+colcon build --merge-install
 source install/setup.bash
 ```
+
+> `--merge-install` is the team standard — the docs, tests, and existing install
+> trees all assume the merged layout.
 
 ## Quick Start
 
@@ -126,6 +165,7 @@ ros2 launch stonefish_control control.launch.py
 | stonefish_control | Controllers (position, velocity, hybrid) |
 | stonefish_thruster_manager | TAM-based thrust allocation |
 | stonefish_trajectory_manager | Path generation and following |
+| albc_bridge | RL policy bridge (obs→policy→action loop, numpy inference) |
 
 ## ROS2 Topics
 
@@ -171,6 +211,12 @@ Located in `stonefish_description/scenarios/`:
 - `bluerov2_infrastructure.scn` - Underwater structures
 - `bluerov2_seabed.scn` - Ocean floor terrain
 - `bluerov2_shipwreck.scn` - Shipwreck environment
+
+## Contributing
+
+Branch/commit/PR rules live in [CONTRIBUTING.md](CONTRIBUTING.md)
+(GitHub Flow · Conventional Commits · 1-reviewer PR gate). Run
+`python3 -m pytest` before opening a PR.
 
 ## License
 

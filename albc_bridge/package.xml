@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>albc_bridge</name>
+  <version>0.4.0</version>
+  <description>RL policy bridge: closes the obs-policy-action loop between the Stonefish simulator and a trained ALBC policy (numpy .npz inference, 50 Hz)</description>
+  <maintainer email="luckkim123@gmail.com">HERO Lab, POSTECH</maintainer>
+  <license>GPL-3.0</license>
+
+  <depend>rclpy</depend>
+  <depend>ament_index_python</depend>
+  <depend>nav_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>std_msgs</depend>
+
+  <test_depend>ament_copyright</test_depend>
+  <test_depend>ament_flake8</test_depend>
+  <test_depend>ament_pep257</test_depend>
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>
