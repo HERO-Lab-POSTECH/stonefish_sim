@@ -22,6 +22,8 @@ _HYBRID = REPO_ROOT / ('stonefish_control/stonefish_control/stonefish_control/'
                        'controllers/hybrid_controller.py')
 _HYBRID_NODE = REPO_ROOT / ('stonefish_control/stonefish_control/stonefish_control/'
                             'nodes/hybrid_controller_node.py')
+_CASCADE = REPO_ROOT / ('stonefish_control/stonefish_control/stonefish_control/'
+                        'controllers/cascade_controller.py')
 
 
 def _self_attr_assignments(tree):
@@ -142,3 +144,65 @@ def test_ilos_sway_feedforward_present():
         '_compute_body_velocities 산식에서 _sway_ff_gain을 소비하지 않음 (P6 회귀)'
     assert _has_self_attr(body_vel_func, '_signed_curvature_filtered'), \
         '_compute_body_velocities 산식에서 _signed_curvature_filtered를 소비하지 않음 (P6 회귀)'
+
+
+def test_rd_uses_signed_curvature():
+    """[결함 A] _compute_body_velocities의 r_d 산식이 _signed_curvature_filtered를
+    참조한다 (부호 없는 _current_curvature 회귀 차단, AST).
+
+    r_d 대입 우변에 _signed_curvature_filtered Attribute가 있어야 한다.
+    """
+    tree = _ilos_tree()
+    body_vel_func = None
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef) and node.name == '_compute_body_velocities':
+            body_vel_func = node
+            break
+    assert body_vel_func is not None, '_compute_body_velocities 사라짐'
+
+    # r_d = ... 대입을 찾아 우변에 _signed_curvature_filtered 참조 확인
+    rd_assigns = []
+    for node in ast.walk(body_vel_func):
+        if isinstance(node, ast.Assign):
+            for t in node.targets:
+                if isinstance(t, ast.Name) and t.id == 'r_d':
+                    rd_assigns.append(node.value)
+    assert rd_assigns, 'r_d 대입이 _compute_body_velocities에 없음'
+
+    def _refs_attr(value_node, attr):
+        for n in ast.walk(value_node):
+            if (isinstance(n, ast.Attribute) and n.attr == attr
+                    and isinstance(n.value, ast.Name) and n.value.id == 'self'):
+                return True
+        return False
+
+    # r_d 대입 중 _signed_curvature_filtered를 참조하는 대입이 적어도 하나 존재해야 한다.
+    # r_d=0.0 같은 초기화 대입은 무시한다.
+    assert any(_refs_attr(v, '_signed_curvature_filtered') for v in rd_assigns), \
+        ('r_d 산식이 _signed_curvature_filtered를 참조하지 않음 — '
+         '부호 없는 _current_curvature 회귀 (결함 A)')
+
+
+def test_cascade_outer_sway_yaw_gated():
+    """[결함 C] cascade compute_control이 e_yaw로 sway 위치명령을 게이트한다 (AST).
+
+    compute_control 본문에 np.cos(e_yaw) 형태 Call이 존재해야 한다.
+    """
+    tree = ast.parse(_CASCADE.read_text())
+    func = None
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef) and node.name == 'compute_control':
+            func = node
+            break
+    assert func is not None, 'compute_control 사라짐'
+
+    # np.cos(e_yaw) 형태의 Call이 본문에 있는지
+    has_cos_eyaw = False
+    for n in ast.walk(func):
+        if (isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+                and n.func.attr == 'cos'):
+            for arg in n.args:
+                if isinstance(arg, ast.Name) and arg.id == 'e_yaw':
+                    has_cos_eyaw = True
+    assert has_cos_eyaw, \
+        'compute_control에 np.cos(e_yaw) 게이트 없음 — 결함 C 회귀'
