@@ -13,6 +13,9 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- 테스트 게이트에 `albc_bridge` 편입 — `pytest.ini` testpaths 추가 + `ros2 pkg create`
+  잔재 lint 테스트 3개 제거(형제 패키지 7개가 이미 삭제한 관행과 동일).
+  `python3 -m pytest` 115 → 136 passed
 - README 설치 가이드: 실존하지 않는 `/workspace/colcon_ws` 경로 제거, `--merge-install` 표준화,
   패키지 표에 albc_bridge 보완
 
