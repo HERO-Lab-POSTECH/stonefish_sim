@@ -140,3 +140,33 @@ P5에서 ILOS의 cross-track 이중보정(heading arctan + 비표준 sway PID)�
   world cross-track으로 기여하는 성분이 정확히 cos(e_yaw)"는 기하학적으로 부정확
   (실제는 cos(yaw_curr); cos(e_yaw)는 제어 의도 스케일링). Task 2 리뷰 발견(Nit).
   동작 무관이지만 후행 개발자 혼동 위험.
+
+## 감사 확정 버그 4건 수정 이월 (2026-08-21, fix/audit-bugs)
+
+opus 적대검증 CONFIRMED 4건을 수정했다. 컨테이너는 GPU 없어 닫힌루프 검증 불가 —
+아래는 RTX4070 실기 sign-off 항목이다. 정적 게이트·골든은 이미 GREEN(139 passed).
+
+### 실기 sign-off 필요
+- **[control.nodes] position_controller dt 클램프 경계**: `nodes/position_controller_node.py`
+  control_loop에 `dt = max(0.001, min(dt, 0.1))`를 추가했다(형제 `hybrid_controller_node.py`
+  패턴 미러). 경계값 0.001/0.1은 **형제와의 정합에서 온 값이지 이 노드의 제어주기로
+  실측 튜닝한 값이 아니다** — control_rate가 10Hz 미만이면 상한 0.1s가 정상 틱을
+  잘라 적분이 실제보다 느려진다. 실기에서 (a) 정상 운전 중 클램프가 발동하지
+  않는지(발동 빈도 로깅), (b) 일시정지 후 재개 시 적분항 폭주가 사라졌는지 확인.
+  rclpy 부재로 컨테이너 검증은 AST 게이트(`test/test_position_controller_dt_gate.py`)까지다.
+- **[trajectory.path_following] ALOS r_d 부호**: `alos_guidance.py`의 r_d가
+  `_signed_curvature_filtered`(부호 있음)를 쓰도록 교정했다 — 부모 ILOS의 P7 결함 A
+  수정을 ALOS가 `compute_guidance` 전면 오버라이드 탓에 물려받지 못한 건이다.
+  좌/우 코너 r_d 부호 반대는 합성 경로 골든으로 고정(`test_characterization_alos.py`).
+  **실기에서 ALOS 모드로 좌·우 코너 모두 heading이 경로를 향하는지 프로브 재측정
+  필요** — ILOS 결함 A와 동일한 sign-off 항목이며, ILOS 프로브와 함께 수행한다.
+  ALOS는 필터 상태(`_signed_curvature_filtered`)를 이번에 처음 갱신하므로 코너 진입
+  필터 lag(tau_up=0.3)도 ILOS와 같은 튜닝 체크리스트에 든다.
+
+### 미처리 (의도적 — 이번 범위 밖)
+- **[alos] `reset()` 필터 staleness**: P6에서 ILOS에 대해 기록된 것과 동일한 결함이
+  ALOS에도 있다 — `reset()`이 `_signed_curvature_filtered`·`_current_curvature`를 안
+  지운다. 이번 수정이 ALOS에서 이 상태를 r_d의 직접 입력으로 만들어 blast radius가
+  ILOS와 같아졌다. fix는 ILOS와 한 건으로 묶어 처리하는 게 맞다(공통 `reset()` 한 곳).
+- **[ros2.parser] `ActuatorType::PUSH` 미와이어링**: 이미 `RCLCPP_WARN`으로
+  "not supported"를 내보내고 있어 현상 유지가 최소 diff — 손대지 않았다.

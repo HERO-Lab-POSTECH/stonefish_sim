@@ -259,6 +259,10 @@ class PID4DOFNode(Node):
             dt = self.control_dt
         else:
             dt = (current_time - self.last_control_time).nanoseconds / 1e9
+            # Clamp dt: a stalled/paused loop otherwise feeds a huge wall-clock
+            # gap into the trapezoidal integrator (same guard as
+            # nodes/hybrid_controller_node.py).
+            dt = max(0.001, min(dt, 0.1))
 
         self.last_control_time = current_time
 
