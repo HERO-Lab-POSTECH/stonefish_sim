@@ -104,12 +104,12 @@ P5에서 ILOS의 cross-track 이중보정(heading arctan + 비표준 sway PID)�
 - [cascade] sway Kp 0.4→0.5 + v_sp_limit 0.3→0.5 + 곡률 ff 활성으로 §P5 "닫힌루프
   안정성·정착시간·thruster allocation 포화" sign-off 범위가 확장됨 — feedforward+상향
   게인 결합 거동(과도 응답·정착시간·포화)을 RTX4070 실기에서 재확인해야 한다.
-- [cascade] reset() staleness (P6 최종리뷰 발견): ILOS.reset()이 _signed_curvature_filtered·
-  _current_curvature를 안 지운다(P5부터 잔존). P6가 _signed_curvature_filtered를 published
-  sway 명령의 직접 입력으로 만들어 blast radius 확대 — 코너 중 reset(새 경로 로드 등) 시
-  다음 run 첫 FOLLOW tick들이 옛 곡률로 sway ff를 내보낼 수 있다(필터 재수렴 전까지).
-  실기는 run마다 새 guidance 객체라 영향 제한적. fix=reset()에 두 변수 0.0 추가(동작
-  변경이라 별도). corner-entry 필터 lag(tau_up)도 sway_ff_gain과 함께 실기 튜닝 체크리스트.
+- [cascade] ~~reset() staleness~~ (P6 최종리뷰 발견 → **2026-08-21 수정됨**,
+  `fix/guidance-reset-staleness`): ILOS.reset()이 _signed_curvature_filtered·
+  _current_curvature를 안 지웠다(P5부터 잔존). reset()에 두 변수 0.0 추가 —
+  ALOS는 super().reset() 경유라 한 곳 수정으로 양쪽 해소. 회귀 테스트
+  `test_reset_clears_curvature_state`(ILOS)·`test_alos_reset_clears_curvature_state`.
+  corner-entry 필터 lag(tau_up)는 여전히 sway_ff_gain과 함께 실기 튜닝 체크리스트.
 
 ## P7 코너 cascade 결함 A+C 처방 (2026-06-25)
 
@@ -164,9 +164,8 @@ opus 적대검증 CONFIRMED 4건을 수정했다. 컨테이너는 GPU 없어 닫
   필터 lag(tau_up=0.3)도 ILOS와 같은 튜닝 체크리스트에 든다.
 
 ### 미처리 (의도적 — 이번 범위 밖)
-- **[alos] `reset()` 필터 staleness**: P6에서 ILOS에 대해 기록된 것과 동일한 결함이
-  ALOS에도 있다 — `reset()`이 `_signed_curvature_filtered`·`_current_curvature`를 안
-  지운다. 이번 수정이 ALOS에서 이 상태를 r_d의 직접 입력으로 만들어 blast radius가
-  ILOS와 같아졌다. fix는 ILOS와 한 건으로 묶어 처리하는 게 맞다(공통 `reset()` 한 곳).
+- **[alos] ~~`reset()` 필터 staleness~~** (**2026-08-21 수정됨** — ILOS와 한 건으로
+  `fix/guidance-reset-staleness`에서 공통 `reset()` 한 곳 수정, 상속 고정 테스트 포함.
+  위 P6 항목 참조).
 - **[ros2.parser] `ActuatorType::PUSH` 미와이어링**: 이미 `RCLCPP_WARN`으로
   "not supported"를 내보내고 있어 현상 유지가 최소 diff — 손대지 않았다.

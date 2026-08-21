@@ -502,8 +502,11 @@ class ILOSGuidance:
         """Estimate signed curvature at arc-length parameter s.
 
         Returns signed curvature where:
-            Positive = left turn (counterclockwise in NED top-down view)
-            Negative = right turn (clockwise in NED top-down view)
+            Positive = right turn (starboard; clockwise viewed from above)
+            Negative = left turn (port; counterclockwise viewed from above)
+
+        (부호 SSOT: test_characterization_alos의 좌/우 코너 골든 실측 —
+        우회전 κ>0 → r_d>0 = starboard.)
 
         Args:
             s: Arc-length parameter (m)
@@ -532,8 +535,8 @@ class ILOSGuidance:
         if l1 < 1e-9 or l2 < 1e-9:
             return 0.0
 
-        # Cross product z-component determines turn direction
-        # In NED: positive z is down, so cross product sign is flipped
+        # Cross product z-component determines turn direction:
+        # cross_z>0 ⇔ 접선이 x̂(N)→ŷ(E)로 도는 우회전 (위에서 보면 시계방향)
         cross_z = v1[0] * v2[1] - v1[1] * v2[0]  # x1*y2 - y1*x2
         sign = 1.0 if cross_z > 0 else -1.0
 
@@ -1087,3 +1090,7 @@ class ILOSGuidance:
         # Adaptive lookahead filters
         self._lookahead_filtered = self._lookahead_distance_base
         self._curvature_for_lookahead_filtered = 0.0
+        # Curvature state (P4_FLAGS: 안 지우면 새 경로 첫 FOLLOW tick들이
+        # 옛 곡률로 r_d/속도 FF를 내보낸다. ALOS는 super().reset()으로 공유)
+        self._signed_curvature_filtered = 0.0
+        self._current_curvature = 0.0
