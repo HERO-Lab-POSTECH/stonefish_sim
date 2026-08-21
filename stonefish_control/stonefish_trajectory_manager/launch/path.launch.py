@@ -146,7 +146,6 @@ def generate_launch_description():
         package='stonefish_trajectory_manager',
         executable='path_following_node',
         name='path_following_node',
-        namespace=vehicle_name,
         output='screen',
         parameters=[path_following_config, {'use_sim_time': use_sim_time}],
     )
