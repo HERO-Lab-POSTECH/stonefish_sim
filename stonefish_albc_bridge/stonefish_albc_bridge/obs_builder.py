@@ -7,7 +7,7 @@
 
 Reimplemented from the Isaac Lab / MarineGym training source (NOT reused from
 the old deploy node -- Task 1 established that node is not reusable). The
-student policy consumes exactly this 69D vector; a subtle layout/constant error
+student policy consumes exactly this 72D vector; a subtle layout/constant error
 corrupts the input silently, so every field below is matched byte-for-byte to
 the SSOT and cited with file:line.
 
@@ -16,7 +16,7 @@ SSOT (marinelab-isaaclab container /workspace/constrained-albc):
   * constrained_albc/envs/main/albc_env.py
         _get_hist_features   (555-616) -- 18D history feature per step
         _update_hist         (617-632) -- strided ring recording
-        _get_observations    (1099-1155) -- final 69D concat (jb_hist + act_hist + integral)
+        _get_observations    (1099-1155) -- final 72D concat (jb_hist + act_hist + integral)
         _update_manipulability (720-734) -- Yoshikawa index
         _get_rewards         (1164-1193) -- leaky integral update (leak -> gated add -> clamp)
   * constrained_albc/envs/main/config.py -- all constants (hist_len/stride, integral_*, delta_scale)
@@ -134,7 +134,7 @@ def _wrap(x):
 
 
 class ObsBuilder:
-    """Stateful assembler for the 69D policy observation (see module docstring)."""
+    """Stateful assembler for the 72D policy observation (see module docstring)."""
 
     def __init__(self):
         """Initialize all internal buffers to the Isaac post-reset zero state."""
@@ -150,7 +150,7 @@ class ObsBuilder:
 
     def update(self, odom_quat_xyzw, odom_angvel_sf, joint_pos, joint_vel,
                ang_cmd, joint_targets, last_action):
-        """Build and return the current 69D observation (float32). See module docstring."""
+        """Build and return the current 72D observation (float32). See module docstring."""
         joint_pos = np.asarray(joint_pos, dtype=np.float64)
         joint_vel = np.asarray(joint_vel, dtype=np.float64)
         ang_cmd = np.asarray(ang_cmd, dtype=np.float64)

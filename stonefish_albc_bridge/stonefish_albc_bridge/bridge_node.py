@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """ALBC obs->policy->action bridge node, closing the loop at 50Hz.
 
-Stonefish sensors (/albc/odometry, /albc/joint_states) -> ObsBuilder (69D) ->
+Stonefish sensors (/albc/odometry, /albc/joint_states) -> ObsBuilder (72D) ->
 9-frame rolling window -> StudentTCN latent -> TeacherActor action (8D) ->
 /albc/servos (joint targets) + /albc/setpoint/pwm (thruster PWM, ESC order).
 
@@ -19,8 +19,8 @@ deploy reference module in the marinelab-isaaclab container:
       win = np.stack(self._tcn_window)[None]                # (1, 9, dim)
 pack_B's npforward.py (which this node imports) states in its own docstring
 (npforward.py:3) that it "Mirrors student_inference.py's torch modules
-exactly", so this window contract carries over unchanged (obs dim 87->69 is
-the only difference, per ObsBuilder's 69D deployed-contract note). No separate
+exactly", so this window contract carries over unchanged (obs dim 87->72 is
+the only difference, per ObsBuilder's 72D deployed-contract note). No separate
 board ROS node was reachable from this environment (hero_agent host clone has
 no python inference node -- board runtime lives only on the physical
 agent-jetson, out of reach here), so student_inference.py is the SSOT.

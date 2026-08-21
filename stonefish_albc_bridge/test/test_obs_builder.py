@@ -3,7 +3,7 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Structural / invariant tests for the 69D ObsBuilder.
+"""Structural / invariant tests for the 72D ObsBuilder.
 
 There is NO golden for obs assembly (only the policy forward has goldens), so
 these assert layout placement, source constants, and buffer invariants against

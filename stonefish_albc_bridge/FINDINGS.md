@@ -1,5 +1,7 @@
 # Task 1 Findings — ALBC Stonefish Port Discovery
 
+> 현행 계약은 72D(bias-EMA 3ch 추가) — 아래 69D 수치는 2026-07 시점 기록
+
 Scope: `ksm-ubuntu` only (`stonefish_dev` + `marinelab-isaaclab` containers). No access to
 `agent-jetson` (the real board) in this task.
 
