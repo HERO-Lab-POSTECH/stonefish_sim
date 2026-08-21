@@ -509,3 +509,20 @@ def test_rd_left_turn_sign_golden(load_module):
         p_lookahead=np.array([1.0, 0.0, 0.0]), desired_speed=1.0, dt=0.1)
     # r = v·κ_signed = 1.0·(-0.2) = -0.2
     assert r_d == pytest.approx(-0.2, abs=1e-9), 'r_d = v·κ_signed = -0.2'
+
+
+def test_reset_clears_curvature_state(load_module):
+    """reset()이 곡률 필터/프리뷰를 지운다 (P4_FLAGS staleness 이월 수정).
+
+    안 지우면 새 경로 로드 후 첫 FOLLOW tick들이 옛 경로의 곡률로
+    r_d/속도 FF를 내보낸다(필터 재수렴 전까지).
+    """
+    mod = load_module(_ILOS_PATH, 'char_ilos')
+    g = _make_guidance(mod)
+    g._signed_curvature_filtered = 0.7
+    g._current_curvature = 0.9
+    g.reset()
+    assert g._signed_curvature_filtered == 0.0, \
+        'reset()이 _signed_curvature_filtered를 안 지움 — stale r_d FF'
+    assert g._current_curvature == 0.0, \
+        'reset()이 _current_curvature를 안 지움 — stale 속도 프로파일'

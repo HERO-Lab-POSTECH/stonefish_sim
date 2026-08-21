@@ -1087,3 +1087,7 @@ class ILOSGuidance:
         # Adaptive lookahead filters
         self._lookahead_filtered = self._lookahead_distance_base
         self._curvature_for_lookahead_filtered = 0.0
+        # Curvature state (P4_FLAGS: 안 지우면 새 경로 첫 FOLLOW tick들이
+        # 옛 곡률로 r_d/속도 FF를 내보낸다. ALOS는 super().reset()으로 공유)
+        self._signed_curvature_filtered = 0.0
+        self._current_curvature = 0.0
