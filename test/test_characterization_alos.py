@@ -144,3 +144,61 @@ def test_alos_speed_profile_unaffected_by_turn_direction(alos_mod):
     assert s_left == pytest.approx(s_right, abs=1e-12), \
         (f'좌/우 desired_speed 비대칭 ({s_left} vs {s_right}) — '
          f'속도 프로파일러가 부호 있는 곡률을 소비함')
+
+
+def test_alos_reset_clears_curvature_state(alos_mod):
+    """ALOS.reset()이 super() 경유로 곡률 상태를 지운다 (staleness 상속 고정).
+
+    수정은 ILOS.reset() 한 곳이므로, ALOS가 super().reset()을 우회하도록
+    바뀌면 이 테스트가 RED로 잡는다.
+    """
+    g = _make_alos(alos_mod)
+    g._signed_curvature_filtered = 0.7
+    g._current_curvature = 0.9
+    g.reset()
+    assert g._signed_curvature_filtered == 0.0
+    assert g._current_curvature == 0.0
+
+
+def _arc_path(direction):
+    """+X 직선 10 m 후 반경 5 m 원호로 꺾는 경로 (direction=+1 우 / -1 좌).
+
+    꼭짓점 델타가 아닌 매끈한 곡률 구간 — 필터가 seed 없이 스스로 수렴할
+    수 있는 경로를 준다.
+    """
+    lead = [[float(i), 0.0, 0.0] for i in range(11)]
+    R = 5.0
+    # 곡률 추정기는 s±0.1 m 3점 샘플 — 세그먼트가 0.1 m보다 짧아야
+    # 원호 위 어느 s에서도 꼭짓점을 걸쳐 κ≠0이 나온다.
+    arc = [[10.0 + R * np.sin(phi), direction * (R - R * np.cos(phi)), 0.0]
+           for phi in np.linspace(0.02, np.pi / 2, 80)]
+    return np.array(lead + arc, dtype=float)
+
+
+@pytest.mark.parametrize('direction, sign', [(+1, +1), (-1, -1)],
+                         ids=['right_arc', 'left_arc'])
+def test_alos_arc_filter_converges_without_seed(alos_mod, direction, sign):
+    """원호 경로에서 곡률 필터가 seed 없이 옳은 부호로 수렴해 r_d에 전파된다.
+
+    기존 코너 골든은 필터를 수동 seed해 부호만 봤다(리뷰 MEDIUM) —
+    이 골든은 compute_guidance의 필터 갱신 경로 자체를 고정한다.
+    """
+    mod = alos_mod
+    g = _make_alos(mod)
+    g.set_path(_arc_path(direction))
+    g._mode = mod.PathFollowingMode.FOLLOW
+    # 필터 입력은 s가 아니라 s+lookahead 지점의 곡률 — 그 지점이 원호 내부에
+    # 오도록 초기 원호에서 평가한다(경로 끝 클램프 시 κ=0이 들어감).
+    s_eval = 11.0
+    assert sign * g._estimate_signed_curvature(
+        s_eval + g._lookahead_distance) > 0, \
+        '경로 곡률 부호 전제 실패 (경로 구성 오류)'
+    rd = 0.0
+    for _ in range(30):  # tau_up=0.3 s, dt=0.1 → 3 s면 수렴 충분
+        g._path_parameter_s = s_eval
+        g._vehicle_pos = g._interpolate_from_parameter(s_eval)
+        _, _, vel = g.compute_guidance(dt=0.1)
+        rd = vel[3]
+    assert sign * g._signed_curvature_filtered > 0, \
+        '필터가 경로 곡률 부호로 수렴하지 않음'
+    assert sign * rd > 0, f'r_d 부호가 회전 방향과 불일치 (r_d={rd})'
