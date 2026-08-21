@@ -227,6 +227,19 @@ class ALOSGuidance(ILOSGuidance):
             )
             curvature_ff = self._curvature_ff_gain * signed_curvature
 
+            # Asymmetric low-pass filter on the *signed* curvature (mirrors
+            # ILOSGuidance): slow on entry to avoid oscillation, fast on exit.
+            # This state feeds the r_d yaw rate feedforward below.
+            if abs(signed_curvature) > abs(self._signed_curvature_filtered):
+                tau = self._curvature_filter_tau_up
+            else:
+                tau = self._curvature_filter_tau_down
+            alpha_curv = dt / (tau + dt)
+            self._signed_curvature_filtered = (
+                alpha_curv * signed_curvature
+                + (1 - alpha_curv) * self._signed_curvature_filtered
+            )
+
             chi_d = chi_p + np.arctan(-e_y / self._lookahead_distance) + self._beta_hat + curvature_ff
 
         chi_d = angle_wrap(chi_d)
@@ -320,10 +333,15 @@ class ALOSGuidance(ILOSGuidance):
         w_d = w_path + w_correction
         w_d = np.clip(w_d, -self._max_heave_velocity, self._max_heave_velocity)
 
-        # Yaw rate from curvature
+        # Yaw rate from curvature (kinematic relationship: r = v · κ_signed)
+        # [결함 A] _current_curvature(부호 없는 max-preview)는 회전 방향을 모른다 —
+        # 좌회전에서 feedforward가 반대로 나간다. 부모 ILOS의 P7 수정과 동일하게
+        # _signed_curvature_filtered를 쓴다. FRD에서 r>0=우회전(starboard).
+        # 부호 관례(SSOT 실측): 우회전 κ_signed>0, 좌회전 κ_signed<0.
+        # 속도 프로파일(_compute_speed)은 부호 없는 _current_curvature를 유지한다.
         if tangent_xy_norm > 1e-6:
             speed_xy = desired_speed * tangent_xy_norm
-            r_d = speed_xy * self._current_curvature
+            r_d = speed_xy * self._signed_curvature_filtered
         else:
             r_d = 0.0
 
