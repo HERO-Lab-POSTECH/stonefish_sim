@@ -26,12 +26,6 @@ def generate_launch_description():
         description='Path to TAM YAML file (empty = use default based on vehicle_name)'
     )
 
-    output_topic_arg = DeclareLaunchArgument(
-        'output_topic',
-        default_value='setpoint/pwm',
-        description='Output topic for thruster commands (relative to namespace)'
-    )
-
     update_rate_arg = DeclareLaunchArgument(
         'update_rate',
         default_value='50.0',
@@ -66,14 +60,12 @@ def generate_launch_description():
         parameters=[{
             'vehicle_name': LaunchConfiguration('vehicle_name'),
             'tam_file': LaunchConfiguration('tam_file'),
-            'output_topic': LaunchConfiguration('output_topic'),
             'update_rate': LaunchConfiguration('update_rate'),
             'timeout': LaunchConfiguration('timeout'),
             'max_thrust': LaunchConfiguration('max_thrust'),
             'use_sim_time': LaunchConfiguration('use_sim_time'),
         }],
         remappings=[
-            ('~/input', 'thruster_manager/input'),
             ('~/input_stamped', 'thruster_manager/input_stamped'),
         ]
     )
@@ -81,7 +73,6 @@ def generate_launch_description():
     return LaunchDescription([
         vehicle_name_arg,
         tam_file_arg,
-        output_topic_arg,
         update_rate_arg,
         timeout_arg,
         max_thrust_arg,
