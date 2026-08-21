@@ -346,18 +346,3 @@ class PositionController:
                 'Kb': np.diag(self.Kb)
             }
         }
-
-    def update_gains(self, Kp: np.ndarray, Kd: np.ndarray, Ki: np.ndarray, Kb: np.ndarray):
-        """
-        Update PID gains (useful for online tuning/optimization)
-
-        Args:
-            Kp, Kd, Ki, Kb: New gains [4,]
-        """
-        self.Kp = np.diag(Kp)
-        self.Kd = np.diag(Kd)
-        self.Ki = np.diag(Ki)
-        self.Kb = np.diag(Kb)
-
-        # Reset integral when gains change (avoid transient issues)
-        self.integral = np.zeros(4)

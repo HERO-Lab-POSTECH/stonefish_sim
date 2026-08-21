@@ -16,7 +16,7 @@ from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy
 import numpy as np
 from pathlib import Path
 
-from geometry_msgs.msg import Wrench, WrenchStamped
+from geometry_msgs.msg import WrenchStamped
 from std_msgs.msg import Float64MultiArray
 
 from ..thruster_manager import ThrusterManager
@@ -122,24 +122,6 @@ class ThrusterAllocatorNode(Node):
         self.get_logger().info(f'Output topic: {self.output_topic}')
         self.get_logger().info(f'Update rate: {update_rate} Hz')
         self.get_logger().info(f'Timeout: {self.timeout} s')
-
-    def wrench_callback(self, msg):
-        """
-        Callback for Wrench messages.
-
-        Args:
-            msg (Wrench): 6DOF wrench command.
-        """
-        wrench = np.array([
-            msg.force.x,
-            msg.force.y,
-            msg.force.z,
-            msg.torque.x,
-            msg.torque.y,
-            msg.torque.z
-        ])
-
-        self.process_wrench(wrench)
 
     def wrench_stamped_callback(self, msg):
         """

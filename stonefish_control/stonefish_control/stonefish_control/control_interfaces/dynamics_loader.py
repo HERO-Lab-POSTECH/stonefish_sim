@@ -193,16 +193,3 @@ class DynamicsLoader:
     def weight(self) -> float:
         """Weight (N)"""
         return self._weight
-
-    def get_summary(self) -> Dict:
-        """Get dynamics summary as dictionary"""
-        return {
-            'mass': self._mass,
-            'inertia': self._inertial,
-            'cog': self._cog.tolist(),
-            'cob': self._cob.tolist(),
-            'volume': self._volume,
-            'gm': self._metacentric_height,
-            'buoyancy': self._buoyancy,
-            'weight': self._weight,
-        }

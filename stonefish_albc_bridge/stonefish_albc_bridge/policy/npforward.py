@@ -154,6 +154,7 @@ class StudentTCN:
         return softsign(x)
 
 
+# FINDINGS.md 기록용 보존 — TCN 전환 후 미사용
 class StudentGRU:
     """stateful GRU -> head(Linear+ELU+LN+Linear) -> softsign. Carry hidden across calls."""
 

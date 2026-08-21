@@ -8,8 +8,6 @@ import yaml
 from .waypoint import Waypoint
 from stonefish_control_msgs.msg import WaypointSet as WaypointSetMessage
 from visualization_msgs.msg import Marker, MarkerArray
-from nav_msgs.msg import Path
-from geometry_msgs.msg import PoseStamped
 from builtin_interfaces.msg import Time as TimeMsg
 
 
@@ -112,23 +110,6 @@ class WaypointSet(object):
         """Clear the list of waypoints"""
         self._waypoints = list()
 
-    def set_constraint_status(self, index, flag):
-        """Set the flag violates_constraint to a waypoint
-
-        > *Input arguments*
-
-        * `index` (*type:* `int`): Index of the waypoints
-        * `flag` (*type:* `bool`): True, if waypoint violates a constraint
-
-        > *Returns*
-
-        `True` if successful, and `False` if the waypoint `index` is outsite of the list's range.
-        """
-        if index < 0 or index >= len(self._waypoints):
-            return False
-        self._waypoints[index].violates_constraint = flag
-        return True
-
     def get_waypoint(self, index):
         """Return a waypoint
 
@@ -209,20 +190,6 @@ class WaypointSet(object):
         if len(self._waypoints):
             return self._waypoints[-1]
         return None
-
-    def remove_waypoint(self, waypoint):
-        """Remove waypoint from set.
-
-        > *Input arguments*
-
-        * `waypoint` (*type:* `stonefish_trajectory_manager.Waypoint`): Waypoint object
-        """
-        new_waypoints = list()
-        for point in self._waypoints:
-            if point == waypoint:
-                continue
-            new_waypoints.append(point)
-        self._waypoints = new_waypoints
 
     def read_from_file(self, filename):
         """Read waypoint set from a YAML file.
@@ -329,34 +296,6 @@ class WaypointSet(object):
             return False
         return True
 
-    def export_to_file(self, path, filename):
-        """Export waypoint set to YAML file.
-
-        > *Input arguments*
-
-        * `path` (*type:* `str`): Path to the folder containing the file
-        * `filename` (*type:* `str`): Name of the YAML file.
-
-        > *Returns*
-
-        `True` is waypoints could be exported to file. `False`, otherwise.
-        """
-        try:
-            output = dict(inertial_frame_id=self._inertial_frame_id,
-                          waypoints=list())
-            for wp in self._waypoints:
-                wp_elem = dict(point=[float(wp.x), float(wp.y), float(wp.z)],
-                               max_forward_speed=float(wp._max_forward_speed),
-                               heading=float(wp._heading_offset if wp._heading_offset is not None else 0.0),
-                               use_fixed_heading=bool(wp._use_fixed_heading))
-                output['waypoints'].append(wp_elem)
-            with open(os.path.join(path, filename), 'w') as wp_file:
-                yaml.dump(output, wp_file, default_flow_style=False)
-            return True
-        except Exception as e:
-            print('Error occured while exporting waypoint file, message={}'.format(e))
-            return False
-
     def _get_time_msg(self):
         """Get current time as ROS2 Time message.
 
@@ -418,84 +357,6 @@ class WaypointSet(object):
         wp_set = WaypointSet(clock=clock)
         wp_set.from_message(msg)
         return wp_set
-
-    def dist_to_waypoint(self, pos, index=0):
-        """Compute the distance of a waypoint in the set to point
-
-        > *Input arguments*
-
-        * `pos` (*type:* list of `float`): 3D point as a list of coordinates
-        * `index` (*type:* `int`, *default:* `0`): Waypoint index in set
-
-        > *Returns*
-
-        Distance between `pos` and the waypoint in `index`. `None` if waypoint set is empty.
-        """
-        wp = self.get_waypoint(index)
-        if wp is not None:
-            return wp.dist(pos)
-        return None
-
-    def set_radius_of_acceptance(self, index, radius):
-        """Set the radius of acceptance around each waypoint
-        inside which a vehicle is considered to have reached
-        a waypoint.
-
-        > *Input arguments*
-
-        * `index` (*type:* `int`): Index of the waypoint
-        * `radius` (*type:* `float`): Radius of the sphere representing the volume of acceptance
-        """
-        if index >= 0 and index < len(self._waypoints):
-            self._waypoints[index].radius_of_acceptance = radius
-
-    def get_radius_of_acceptance(self, index):
-        """Return the radius of acceptance for a waypoint
-
-        > *Input arguments*
-
-        * `index` (*type:* `int`): Index of the waypoint
-
-        > *Returns*
-
-        Radius of acceptance for the waypoint in position
-        given by `index` as a `float`. `None` if waypoint
-        set is empty.
-        """
-        if index >= 0 and index < len(self._waypoints):
-            return self._waypoints[index].radius_of_acceptance
-        else:
-            return None
-
-    def to_path_marker(self, clear=False):
-        """Return a `nav_msgs/Path` message with all waypoints in the set
-
-        > *Input arguments*
-
-        * `clear` (*type:* `bool`, *default:* `False`): Return an empty `nav_msgs/Path` message.
-
-        > *Returns*
-
-        `nav_msgs/Path` message
-        """
-        path = Path()
-        path.header.stamp = self._get_time_msg()
-        path.header.frame_id = self._inertial_frame_id
-        if self.num_waypoints > 1 and not clear:
-            for i in range(self.num_waypoints):
-                wp = self.get_waypoint(i)
-                pose = PoseStamped()
-                # Create time message for each pose
-                time_msg = TimeMsg()
-                time_msg.sec = i
-                time_msg.nanosec = 0
-                pose.header.stamp = time_msg
-                pose.header.frame_id = self._inertial_frame_id
-                pose.pose.position.x = wp.x
-                pose.pose.position.y = wp.y
-                pose.pose.position.z = wp.z
-                path.poses.append(pose)
-        return path
 
     def to_marker_list(self, clear=False):
         """Return waypoint set as a markers list message of type `visualization_msgs/MarkerArray`

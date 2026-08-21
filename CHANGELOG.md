@@ -23,11 +23,20 @@ All notable changes to this project will be documented in this file.
   `python3 -m pytest` 115 → 136 passed
 - README 설치 가이드: 실존하지 않는 `/workspace/colcon_ws` 경로 제거, `--merge-install` 표준화,
   패키지 표에 albc_bridge 보완
+- **동작 불변 정리** — `stonefish_control`/`stonefish_thruster_manager`/`stonefish_trajectory_manager`의
+  호출자 0 dead code 삭제(미사용 dataclass 10종·회전 헬퍼 2종·`_log` 모듈·`update_gains`·
+  `get_summary`·`to_4dof_message`·`waypoint_set.py` 이식 API 7종, 각각 grep으로 재확증)와
+  죽은 launch 인터페이스 제거(`thruster_manager.launch.py`의 무효 `output_topic`
+  arg+리맵, `path.launch.py`의 no-op `namespace` 인자, `thruster_allocator_node.py`의
+  미구독 `wrench_callback`)
+- `stonefish_albc_bridge` 버전 0.4.0 → 0.5.0 (형제 8개 `package.xml`과 동일하게)
 
 ### Fixed
 
 - `albc_smoke.launch.py`: `/workspace` 절대경로 하드코딩 → `FindPackageShare` (타 머신 이식성)
 - `albc_bridge` 메타데이터 placeholder 제거 (버전 0.4.0 통일, GPL-3.0, 실제 description)
+- `obs_builder.py`·`bridge_node.py` docstring·`test_obs_builder.py` 라벨의 "69D" 서술을
+  실제 72D 계약(bias-EMA 3ch 추가)으로 정정
 
 ## [0.5.0] - 2026-06-25
 
