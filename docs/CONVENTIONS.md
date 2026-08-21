@@ -42,10 +42,10 @@ P1·P2에서 테스트·CI 안전망을 깔았지만 본 코드는 거의 손대
 
 | 항목 | 외부 표준 | 등급 | 이 repo 현황 | 출처 |
 |:---|:---|:---|:---|:---|
-| 패키지명 | 소문자 영숫자+`_`, 알파벳 시작, 2자↑, `__`·하이픈·대문자 금지 | **강제** | 7개 패키지 전부 준수 | [REP 144](https://ros.org/reps/rep-0144.html) |
+| 패키지명 | 소문자 영숫자+`_`, 알파벳 시작, 2자↑, `__`·하이픈·대문자 금지 | **강제** | 8개 패키지 전부 준수 | [REP 144](https://ros.org/reps/rep-0144.html) |
 | 패키지 접미사 | `_msgs`(msg/srv), `_description`(URDF+meshes) 등 | 규약 | `stonefish_msgs`·`stonefish_description` 정확 | REP 144 |
 | 패키지 catchall | `utils` 같은 포괄명 회피 | 권고(SHOULD) | 패키지명엔 없음(서브모듈명엔 무관) | REP 144 |
-| ament_python 레이아웃 | `<pkg>/<pkg>/`+setup.py+setup.cfg+`resource/<pkg>` 마커+test/ | 사실상 강제(툴체인) | 3개 ament_python 패키지 준수 | [ros2cli template](https://github.com/ros2/ros2cli/tree/rolling/ros2pkg/ros2pkg/resource/ament_python) |
+| ament_python 레이아웃 | `<pkg>/<pkg>/`+setup.py+setup.cfg+`resource/<pkg>` 마커+test/ | 사실상 강제(툴체인) | 4개 ament_python 패키지 준수 | [ros2cli template](https://github.com/ros2/ros2cli/tree/rolling/ros2pkg/ros2pkg/resource/ament_python) |
 | 내부 서브디렉토리 | `nodes/`·`controllers/` 등 세부 레이아웃 | **신뢰할 출처 없음**(공식 규정 없음) | 자유롭게 분리 — 표준 위반 아님 | [design.ros2.org/ament](https://design.ros2.org/articles/ament.html) |
 | 노드명 문자 | 영숫자+`_`만, 숫자시작·`/` 금지 | **강제(RMW)** | 준수 | [rmw validate_node_name.c](https://github.com/ros2/rmw/blob/master/rmw/src/validate_node_name.c) |
 | 노드명 스타일 | lower_snake_case | 관행 | snake_case 준수 | (community) |
