@@ -1,22 +1,26 @@
 # 버전·상태
 
-이 페이지는 `stonefish_sim`의 현재 버전(0.4.0)과 그 릴리스에서 무엇이 바뀌었는지, 아직 해결되지 않은 알려진 이슈, 그리고 코드 전반에 적용되는 핵심 규약(CONVENTIONS)을 정리한다.
+이 페이지는 `stonefish_sim`의 현재 버전(0.5.0)과 그 릴리스에서 무엇이 바뀌었는지, 아직 해결되지 않은 알려진 이슈, 그리고 코드 전반에 적용되는 핵심 규약(CONVENTIONS)을 정리한다.
 
 ## 현재 버전
 
-현재 버전은 **0.4.0**(2026-06-24)이며, 7개 ROS2 패키지 전체가 동일 버전으로 통일되어 있다. 라이선스는 전 패키지 GPL-3.0이다.
+현재 버전은 **0.5.0**이며, 8개 ROS2 패키지 전체가 동일 버전으로 통일되어 있다. 라이선스는 전 패키지 GPL-3.0이다.
 
 | 패키지 | 버전 | 빌드타입 |
 |--------|------|---------|
-| `stonefish_msgs` | `0.4.0` | ament_cmake |
-| `stonefish_control_msgs` | `0.4.0` | ament_cmake |
-| `stonefish_description` | `0.4.0` | ament_cmake |
-| `stonefish_ros2` | `0.4.0` | ament_cmake |
-| `stonefish_control` | `0.4.0` | ament_python |
-| `stonefish_thruster_manager` | `0.4.0` | ament_python |
-| `stonefish_trajectory_manager` | `0.4.0` | ament_python |
+| `stonefish_msgs` | `0.5.0` | ament_cmake |
+| `stonefish_control_msgs` | `0.5.0` | ament_cmake |
+| `stonefish_description` | `0.5.0` | ament_cmake |
+| `stonefish_ros2` | `0.5.0` | ament_cmake |
+| `stonefish_control` | `0.5.0` | ament_python |
+| `stonefish_thruster_manager` | `0.5.0` | ament_python |
+| `stonefish_trajectory_manager` | `0.5.0` | ament_python |
+| `stonefish_albc_bridge` | `0.5.0` | ament_python |
 
 근거: `*/package.xml` 전수 검토.
+
+!!! note "테스트 검증"
+    `env -i /usr/bin/python3 -m pytest -q` 기준 **139 passed**.
 
 ## CHANGELOG v0.4.0 요약 (P4 — 알고리즘·수치 정합성)
 

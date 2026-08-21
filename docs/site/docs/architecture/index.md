@@ -1,10 +1,10 @@
 # 시스템 구조
 
-이 페이지는 stonefish_sim을 구성하는 7개 ROS2 패키지의 역할·빌드타입, 패키지 의존 관계와 디렉토리 구조, 그리고 시뮬레이터-제어스택-궤적스택을 잇는 데이터 흐름과 LIVE 노드 6개를 개괄한다. 노드·토픽·서비스의 상세는 [nodes-topics.md](nodes-topics.md), 메시지·서비스 정의의 상세는 [messages.md](messages.md)에서 다룬다.
+이 페이지는 stonefish_sim을 구성하는 8개 ROS2 패키지의 역할·빌드타입, 패키지 의존 관계와 디렉토리 구조, 그리고 시뮬레이터-제어스택-궤적스택을 잇는 데이터 흐름과 LIVE 노드 6개를 개괄한다. 노드·토픽·서비스의 상세는 [nodes-topics.md](nodes-topics.md), 메시지·서비스 정의의 상세는 [messages.md](messages.md)에서 다룬다.
 
-## 패키지 구성 (7개)
+## 패키지 구성 (8개)
 
-stonefish_sim은 메시지 정의, 로봇·환경 정의, C++ 시뮬레이터 래퍼, 그리고 Python 제어·추력·궤적 스택의 7개 ROS2 패키지로 이루어진다. 모든 패키지는 버전 `0.4.0`, 라이선스 GPL-3.0으로 통일되어 있다.
+stonefish_sim은 메시지 정의, 로봇·환경 정의, C++ 시뮬레이터 래퍼, 그리고 Python 제어·추력·궤적·RL 브리지 스택의 8개 ROS2 패키지로 이루어진다. 모든 패키지는 버전 `0.5.0`, 라이선스 GPL-3.0으로 통일되어 있다.
 
 | 패키지 | 역할 | 빌드타입 |
 |--------|------|---------|
@@ -15,6 +15,7 @@ stonefish_sim은 메시지 정의, 로봇·환경 정의, C++ 시뮬레이터 �
 | `stonefish_control` | PID 기반 4DOF 하이브리드 제어기 (velocity/position 모드) | `ament_python` |
 | `stonefish_thruster_manager` | TAM(Thruster Allocation Matrix) 기반 추력 배분 | `ament_python` |
 | `stonefish_trajectory_manager` | ILOS/ALOS 경로추종 + 궤적생성 | `ament_python` |
+| `stonefish_albc_bridge` | RL 정책 브리지 | `ament_python` |
 
 근거: 각 패키지의 `package.xml` 전수 검토.
 

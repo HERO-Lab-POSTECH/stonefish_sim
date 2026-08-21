@@ -2,7 +2,7 @@
 
 이 페이지는 `stonefish_sim`의 의존성 설치부터 `colcon` 빌드와 환경 source까지의 단계를 정리한다.
 
-`stonefish_sim`은 ROS2 Humble 위에서 동작하는 7개 패키지 워크스페이스이며, C++ 시뮬레이터 래퍼(`stonefish_ros2`)가 별도 설치된 Stonefish 라이브러리에 의존한다. 따라서 빌드 전에 ROS2와 Python 의존성, 그리고 Stonefish 라이브러리를 먼저 설치해야 한다.
+`stonefish_sim`은 ROS2 Humble 위에서 동작하는 8개 패키지 워크스페이스이며, C++ 시뮬레이터 래퍼(`stonefish_ros2`)가 별도 설치된 Stonefish 라이브러리에 의존한다. 따라서 빌드 전에 ROS2와 Python 의존성, 그리고 Stonefish 라이브러리를 먼저 설치해야 한다.
 
 !!! tip "두 가지 설치 경로 — 네이티브 또는 Docker"
     설치는 두 방식 중 하나를 택한다. **호스트에 직접 설치**(아래 "단계별 설치")는 ROS2가 이미 깔린 개발 머신에서 코드를 자주 고칠 때 적합하다. **Docker 이미지 빌드**([Docker로 설치](#docker))는 의존성을 한 번에 재현 가능하게 묶어 **배포·재현**에 적합하다 — ROS2·Stonefish·sim·slam 빌드가 한 이미지 안에서 끝나므로 호스트에는 GPU 드라이버와 Docker만 있으면 된다. 처음 배포하거나 다른 머신에서 그대로 돌리려면 Docker 경로를 권장한다.
@@ -14,7 +14,7 @@ flowchart TD
     A["ROS2 Humble 설치"] --> B["ROS2 의존성(tf2-ros, image-transport)"]
     B --> C["Python 패키지(numpy/scipy/scikit-learn/transforms3d)"]
     C --> D["Stonefish 라이브러리 v1.3.0+ (cmake + make install)"]
-    D --> E["colcon build --symlink-install"]
+    D --> E["colcon build --merge-install"]
     E --> F["source install/setup.bash"]
 ```
 
@@ -56,7 +56,7 @@ sudo apt install ros-humble-tf2-ros ros-humble-image-transport
 
 ### 3. Python 패키지 설치
 
-`stonefish_control`, `stonefish_thruster_manager`, `stonefish_trajectory_manager`(모두 `ament_python` 빌드타입)가 사용하는 Python 의존성을 설치한다.
+`stonefish_control`, `stonefish_thruster_manager`, `stonefish_trajectory_manager`, `stonefish_albc_bridge`(모두 `ament_python` 빌드타입)가 사용하는 Python 의존성을 설치한다.
 
 ```bash
 pip install numpy scipy scikit-learn transforms3d
@@ -80,10 +80,10 @@ sudo make install
 
 ### 5. colcon 빌드
 
-워크스페이스 루트(7개 패키지를 포함하는 디렉토리)에서 `colcon build`를 실행한다. `--symlink-install`을 사용하면 Python 노드와 설정 파일을 재빌드 없이 수정 반영할 수 있다.
+워크스페이스 루트(8개 패키지를 포함하는 디렉토리)에서 `colcon build --merge-install`을 실행한다. `--merge-install`은 이 저장소의 표준 빌드 옵션이며, 문서·테스트·기존 install 트리가 merge 레이아웃을 전제한다(`README.md`).
 
 ```bash
-colcon build --symlink-install
+colcon build --merge-install
 ```
 
 ### 6. 환경 source
@@ -198,7 +198,7 @@ ros2 launch stonefish_ros2 bringup.launch.py vehicle:=bluerov2
 ```
 
 !!! tip "새 터미널마다 source가 필요하다"
-    `source install/setup.bash`는 현재 셸에만 적용된다. 새 터미널을 열 때마다 다시 source해야 `ros2 launch`로 패키지를 찾을 수 있다. `--symlink-install`로 빌드한 경우에도 Python 노드/설정 변경은 source된 환경에서 바로 반영되지만, 새 셸에서는 source 자체를 다시 해야 한다.
+    `source install/setup.bash`는 현재 셸에만 적용된다. 새 터미널을 열 때마다 다시 source해야 `ros2 launch`로 패키지를 찾을 수 있다.
 
 !!! warning "source를 빼먹으면 패키지를 찾지 못한다"
     빌드는 성공했는데 `ros2 launch`가 패키지를 찾지 못한다면, 대부분 `install/setup.bash`를 source하지 않았기 때문이다. 빌드 검증 전에 source가 선행되어야 한다.
@@ -212,7 +212,7 @@ pytest -v
 ```
 
 !!! note "테스트는 패키지를 직접 import하지 않는다"
-    루트 `conftest.py`의 `load_module()` fixture는 모듈을 파일 경로로 직접 로드한다(`conftest.py:1-23`). 이는 ROS/gtsam 오염을 피하기 위한 것으로, 테스트가 패키지를 import하지 않고도 노드 로직을 검증할 수 있게 한다. 현재 기준 `pytest`는 42개 테스트를 통과한다(CHANGELOG v0.4.0).
+    루트 `conftest.py`의 `load_module()` fixture는 모듈을 파일 경로로 직접 로드한다(`conftest.py:1-23`). 이는 ROS/gtsam 오염을 피하기 위한 것으로, 테스트가 패키지를 import하지 않고도 노드 로직을 검증할 수 있게 한다. 현재 기준 `pytest`는 139개 테스트를 통과한다(`env -i /usr/bin/python3 -m pytest -q`).
 
 ## 다음 단계
 

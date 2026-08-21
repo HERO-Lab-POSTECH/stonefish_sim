@@ -89,18 +89,18 @@ ros2 launch stonefish_ros2 bringup.launch.py vehicle:=bluerov2 use_sim_time:=tru
 
 | 수정 대상 | 재빌드 | 재실행 | 비고 |
 |-----------|--------|--------|------|
-| YAML 값(게인·동역학·TAM·경로) | 보통 불필요 | 필요 | `--symlink-install` 빌드라면 설정 파일은 심볼릭 링크로 참조됨 |
+| YAML 값(게인·동역학·TAM·경로) | 필요 | 필요 | `--merge-install`은 설정 파일을 install 트리로 복사하므로 재빌드 필요 |
 | launch 인자 | 불필요 | 필요(인자는 기동 시점에 적용) | 노드를 새로 띄우면서 인자만 바꿈 |
 | `control_mode` 토픽 | 불필요 | 불필요 | 실행 중 토픽 발행으로 즉시 반영 |
-| Python 노드 코드 | `--symlink-install`이면 불필요 | 필요 | 심볼릭 링크 설치 시 소스 변경이 바로 반영 |
+| Python 노드 코드 | 필요 | 필요 | `--merge-install`은 소스를 install 트리로 복사하므로 재빌드 필요 |
 | C++ 소스(`stonefish_ros2`) | 필요 | 필요 | `colcon build` 후 `source install/setup.bash` |
 
 !!! warning "재실행 전 반드시 source"
-    빌드 후에는 `source install/setup.bash`를 다시 실행해야 새 설정이 환경에 반영된다(sim_analysis 5.1). `colcon build --symlink-install`를 쓰면 YAML·Python 변경은 재빌드 없이 재실행만으로 적용되지만, C++ 변경은 항상 재빌드가 필요하다.
+    빌드 후에는 `source install/setup.bash`를 다시 실행해야 새 설정이 환경에 반영된다(sim_analysis 5.1). `colcon build --merge-install`은 저장소 표준 빌드 옵션이며, YAML·Python·C++ 변경 모두 재빌드가 필요하다.
 
 ```bash
 # 워크스페이스 루트에서
-colcon build --symlink-install
+colcon build --merge-install
 source install/setup.bash
 ```
 
