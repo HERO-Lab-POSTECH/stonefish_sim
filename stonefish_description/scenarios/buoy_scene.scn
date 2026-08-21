@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<!-- P-C scenario wrapper for the standalone buoy rig. Environment copied from
+     albc_hydro_test.scn so the water the buoy sees is byte-identical to the water the
+     deployed vehicle sees: density 998, no current, no waves. -->
+<scenario>
+	<include file="data/worlds/common/materials.scn"/>
+	<include file="data/worlds/common/visual.scn"/>
+
+	<environment>
+		<ned latitude="41.7777" longitude="3.0333"/>
+		<ocean>
+			<water density="998.0" jerlov="0.2" temperature="15.0"/>
+			<particles enabled="false"/>
+			<waves height="0.0"/>
+			<current type="uniform">
+				<velocity xyz="0.0 0.0 0.0"/>
+			</current>
+		</ocean>
+		<atmosphere>
+			<sun azimuth="20.0" elevation="50.0"/>
+			<conditions temperature="20.0" pressure="101300.0" humidity="0.5"/>
+			<wind type="uniform">
+				<velocity xyz="0.0 0.0 0.0"/>
+			</wind>
+		</atmosphere>
+	</environment>
+
+	<include file="data/robots/albc/buoy_rig.scn">
+		<arg name="vehicle_name" value="albc"/>
+		<arg name="xyz" value="0.0 0.0 60.0"/>
+		<arg name="rpy" value="0.0 0.0 0.0"/>
+	</include>
+</scenario>

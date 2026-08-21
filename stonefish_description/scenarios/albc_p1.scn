@@ -30,9 +30,9 @@
 		</atmosphere>
 	</environment>
 
-	<include file="data/robots/albc/albc_visual.scn">
+	<include file="data/robots/albc/albc_p1.scn">
 		<arg name="vehicle_name" value="albc"/>
-		<arg name="xyz" value="0.0 0.0 4.0"/>
+		<arg name="xyz" value="0.0 0.0 60.0"/>
 		<arg name="rpy" value="0.0 0.0 0.0"/>
 	</include>
 </scenario>

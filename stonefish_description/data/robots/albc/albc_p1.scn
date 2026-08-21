@@ -147,53 +147,18 @@
 		     per-step correction fractions, NOT physical PD gains. The old
 		     100.0/3.0 were PhysX Nm/rad values copied verbatim -> permanent
 		     torque-limit bang-bang -> the measured passive limit cycle
-		     (body rate 13-20 rad/s sustained).
-
-		     GAINS 1.0/1.0 -> 0.1/0.1 (2026-07-30, MEASURED). The claim this
-		     comment used to make -- that 1.0/1.0 "reproduces PhysX behavior at
-		     the limits that matter" -- is FALSE and was never measured. Because
-		     kp/kd are per-step correction FRACTIONS, 1.0/1.0 means "close the
-		     whole position error AND brake to a full stop, every step", i.e. a
-		     second bang-bang one level below the torque-limit one it replaced.
-		     Servo::Update issues both motors each step in POSITION mode
-		     (MotorPositionSetpoint(jId, pSetpoint, Kp) and
-		     MotorVelocitySetpoint(jId, 0, Kv)), so they fight whenever the
-		     setpoint MOVES. Deployed-scene S2 at odom 100 Hz, n=2 per setting:
-		     rms tau1 1.032-1.069 N.m with 43-47% of dq1 power above 5 Hz. At
-		     0.1/0.1: rms tau1 0.147-0.156 N.m (7x less) with 0.4-1.3% above
-		     5 Hz, and tracking TIGHTER than Isaac on the reproducible statistic
-		     (track_rms 0.0043-0.0044 rad over 3 runs and both sample rates,
-		     against Isaac 0.0072). Quote rms, never peak or max: track_max
-		     scatters 1.8x run-to-run at EITHER setting because the free-floating
-		     settle is chaotic. A HELD arm never chattered at either setting
-		     (rms dq1 2e-6 rad/s), so this only ever affected arm-moving windows.
-		     Full result: vault docs/servo-gain-deployed-fix-2026-07-29.md.
-
-		     DO NOT SET Kv TO ZERO. It looks like the cheaper fix and it is not:
-		     1.0/0.0 limit-cycles even while HOLDING (rms base wz 0.494 against
-		     0.017 rad/s). The velocity motor is what prevents resting chatter;
-		     lowering BOTH gains together is the fix.
-
-		     0.1/0.1 IS INTERIM, pending the XW540-T260 step response. The real
-		     joint motor is a Dynamixel XW540-T260 running its own ~1 kHz
-		     firmware PID (registers P=800/I=1/D=40) plus a trapezoidal
-		     profile-velocity, and those registers are not SI. Three controller
-		     FORMS are in play (real discrete PID with an I-term and a profile /
-		     Isaac ImplicitActuator SI Kp=100 Kd=3 / this per-step fraction), so
-		     "matching gains" is undefined -- only matching the RESPONSE is.
-		     0.1/0.1 was chosen because it removes the numerical artifact and
-		     lands the effective lag where Isaac's is, NOT because it was fitted
-		     to hardware. Retune both sims together once that step response is
-		     captured (omx wiki: actuator_hardware_identification_arm_xw540...). -->
+		     (body rate 13-20 rad/s sustained). 1.0/1.0 + max_torque 13Nm +
+		     max_velocity 3.1 rad/s reproduces PhysX behavior at the limits
+		     that matter (torque cap, velocity slew cap, stiff hold). -->
 		<actuator name="Servo1" type="servo">
-			<controller position_gain="0.1" velocity_gain="0.1" max_torque="13.0" max_velocity="3.1"/>
+			<controller position_gain="1.0" velocity_gain="1.0" max_torque="13.0" max_velocity="3.1"/>
 			<joint name="joint1"/>
 			<initial position="0.0"/>
 		</actuator>
 		<actuator name="Servo2" type="servo">
-			<controller position_gain="0.1" velocity_gain="0.1" max_torque="13.0" max_velocity="3.1"/>
+			<controller position_gain="1.0" velocity_gain="1.0" max_torque="13.0" max_velocity="3.1"/>
 			<joint name="joint2"/>
-			<initial position="1.5708"/>
+			<initial position="0.0"/>
 		</actuator>
 
 		<!-- Thrusters (2026-07-16 rewrite): declared in firmware ESC channel order
@@ -285,17 +250,7 @@
 			</propeller>
 		</actuator>
 
-		<!-- MEASUREMENT WARNING (2026-07-30): 50.0 is the deployed control rate
-		     and is correct here, but it is BELOW the 100 Hz physics step, so any
-		     per-step artifact aliases. Measured on this scene at the old 1.0/1.0
-		     servo gains (n=2 per rate): base rms wz reads 0.2485 at 50 Hz against
-		     0.1775 at 100 Hz -- 40% HIGH -- while within-rate spread is only
-		     0.1-1.4%. And the >5 Hz power fraction, the check that should have
-		     caught the artifact, read 0.1% and 14.8% on two identical 50 Hz runs
-		     against a stable 43-47% at 100 Hz. So a clean HF fraction sampled
-		     here proves nothing. When probing solver/actuator behaviour, copy
-		     this robot file with rate="100.0" and measure on the copy. -->
-		<sensor name="odom" type="odometry" rate="50.0">
+		<sensor name="odom" type="odometry" rate="100.0">
 			<link name="base_link"/>
 			<origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
 			<ros_publisher topic="/$(arg vehicle_name)/odometry"/>

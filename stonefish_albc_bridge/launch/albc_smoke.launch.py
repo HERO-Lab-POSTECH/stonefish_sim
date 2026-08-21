@@ -3,15 +3,15 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 # Fixed-attitude E2E smoke test (Milestone 1): starts the Stonefish
-# simulator (albc_empty.scn) and the albc_bridge policy loop together,
+# simulator (albc_empty.scn) and the policy loop together,
 # so a rosbag of the run can be judged against the 4 success criteria.
 #
 # The bridge is TF-independent (frames.py bakes the Stonefish->Isaac
-# rotation as a constant, see albc_bridge/albc_bridge/frames.py), so
+# rotation as a constant, see the package's frames.py), so
 # simulator.launch.py is used as-is -- no base_link_frd static TF needed.
 #
 # Usage:
-#   ros2 launch albc_bridge albc_smoke.launch.py
+#   ros2 launch stonefish_albc_bridge albc_smoke.launch.py
 
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
@@ -58,10 +58,10 @@ def generate_launch_description():
         }.items(),
     )
 
-    # 2. albc_bridge policy loop (fixed attitude command, ang_cmd default [0,0,0]).
+    # 2. policy loop (fixed attitude command, ang_cmd default [0,0,0]).
     bridge = Node(
-        package='albc_bridge',
-        executable='albc_bridge',
+        package='stonefish_albc_bridge',
+        executable='stonefish_albc_bridge',
         name='albc_bridge',
         parameters=[{'ang_cmd': [0.0, 0.0, 0.0]}],
     )

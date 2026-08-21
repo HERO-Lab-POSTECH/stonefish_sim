@@ -129,7 +129,7 @@
 				<compound_transform xyz="0.1165 0.0 -0.01" rpy="0.0 0.0 0.0"/>
 			</external_part>
 			<external_part name="Buoy" type="cylinder" physics="submerged" buoyant="true">
-				<dimensions radius="0.085" height="0.118"/>
+				<dimensions radius="0.085" height="0.122515"/>
 				<origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
 				<material name="Neutral"/>
 				<look name="albc_body"/>
