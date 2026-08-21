@@ -13,6 +13,11 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- **BREAKING** `albc_bridge` → `stonefish_albc_bridge` 개명 — 유일하게 `stonefish_` 접두사
+  규칙(`.omp/rules.json` naming `src/*/`)을 어기던 패키지. 디렉토리·`package.xml`·`setup.py`·
+  `setup.cfg`·ament resource 마커·import 경로·launch 참조 일괄 변경.
+  실행 명령이 바뀝니다: `ros2 launch stonefish_albc_bridge albc_smoke.launch.py`.
+  ROS 노드 이름은 형제 패키지 관행(기능명)에 따라 `albc_bridge`로 유지
 - 테스트 게이트에 `albc_bridge` 편입 — `pytest.ini` testpaths 추가 + `ros2 pkg create`
   잔재 lint 테스트 3개 제거(형제 패키지 7개가 이미 삭제한 관행과 동일).
   `python3 -m pytest` 115 → 136 passed

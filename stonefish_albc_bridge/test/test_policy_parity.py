@@ -6,14 +6,17 @@ to atol=1e-5. Mirrors marinelab constrained_albc/deploy/golden.py's contract:
 
 npforward.py's policy/ dir has no __init__.py (not a built subpackage), so it
 is imported by adding policy/ to sys.path directly rather than via
-`albc_bridge.policy.npforward` -- policy assets are read-only, not touched here.
+`stonefish_albc_bridge.policy.npforward` -- policy assets are
+read-only, not touched here.
 """
 import os
 import sys
 
 import numpy as np
 
-_POLICY_DIR = os.path.join(os.path.dirname(__file__), "..", "albc_bridge", "policy")
+_PKG_DIR = os.path.join(os.path.dirname(__file__), "..",
+                        "stonefish_albc_bridge")
+_POLICY_DIR = os.path.join(_PKG_DIR, "policy")
 _GOLDEN_DIR = os.path.join(_POLICY_DIR, "golden")
 sys.path.insert(0, os.path.abspath(_POLICY_DIR))
 

@@ -7,7 +7,7 @@ Stonefish sensors (/albc/odometry, /albc/joint_states) -> ObsBuilder (69D) ->
 
 === Window construction (Step 0 SSOT) ===
 StudentTCN.forward consumes (1, 9, 69) -- confirmed by golden_tcn.npz
-(input_window.shape == (1, 9, 69), albc_bridge/policy/golden/golden_tcn.npz).
+(input_window.shape == (1, 9, 69), see policy/golden/golden_tcn.npz).
 TCN_HISTORY=9 and the rolling-window construction are confirmed from the
 deploy reference module in the marinelab-isaaclab container:
   constrained-albc/deploy/student_albc_260607/student_inference.py:80
@@ -24,6 +24,13 @@ the only difference, per ObsBuilder's 69D deployed-contract note). No separate
 board ROS node was reachable from this environment (hero_agent host clone has
 no python inference node -- board runtime lives only on the physical
 agent-jetson, out of reach here), so student_inference.py is the SSOT.
+
+  UPDATE (2026-07-27, H5b fix): student_inference.py is self-contradictory
+  on normalization; the canonical reference is
+  constrained-albc/analysis/student_policy.py. The window passed to
+  StudentTCN.forward MUST be teacher-normalized -- the student is distilled
+  on normalized input and carries no normalizer of its own
+  (npforward.py:139-144). See teacher.normalize() applied at the forward call.
 Reproduced below with a plain deque(maxlen=9): append the current obs each
 tick (rightmost = newest); on startup, pad left by duplicating the single
 available frame until the window is full.
@@ -40,9 +47,10 @@ from rclpy.node import Node
 from sensor_msgs.msg import JointState
 from std_msgs.msg import Float64MultiArray
 
-from albc_bridge.obs_builder import ObsBuilder
+from stonefish_albc_bridge.obs_builder import ObsBuilder
 
-_POLICY_DIR = os.path.join(get_package_share_directory('albc_bridge'), 'policy')
+_PKG_SHARE = get_package_share_directory('stonefish_albc_bridge')
+_POLICY_DIR = os.path.join(_PKG_SHARE, 'policy')
 sys.path.insert(0, _POLICY_DIR)
 from npforward import StudentTCN, TeacherActor  # noqa: E402
 
@@ -68,6 +76,19 @@ class BridgeNode(Node):
 
         self.declare_parameter('ang_cmd', [0.0, 0.0, 0.0])
 
+        # Declared, reversible static-gain match (marinelab 2026-07-30 request #1).
+        # Stonefish bollard thrust is QUADRATIC, T = 20.03 * s^2 N (thruster-scale-gap
+        # 2026-07-29, kT 0.167 / max_rpm 3600 / D 0.076, identical on all 6 actuators);
+        # the policy was trained on Isaac's LINEAR T = 40 * a N. When enabled, invert the
+        # plant curve so command->thrust is 40 N/unit linear:
+        #     s = sign(a) * min(1, sqrt(|a| * ratio)),  ratio = 40 / 20.03 = 1.9970
+        # ponytail: exact only for |a| <= 1/ratio = 0.5008. Above that the plant's 20.03 N
+        # rating IS the ceiling and s clamps to 1.0 -- Stonefish physically cannot deliver
+        # Isaac's 20-40 N band. Bollard-exact only; inflow u lowers real thrust further.
+        # Default False = unmatched (plant as-is), so behaviour is unchanged until declared.
+        self.declare_parameter('thrust_gain_match', False)
+        self.declare_parameter('thrust_gain_ratio', 40.0 / 20.03)
+
         self.odom = None
         self.joint_state = None
 
@@ -75,6 +96,12 @@ class BridgeNode(Node):
         self.create_subscription(JointState, '/albc/joint_states', self._on_joint_state, 10)
         self.servo_pub = self.create_publisher(JointState, '/albc/servos', 10)
         self.pwm_pub = self.create_publisher(Float64MultiArray, '/albc/setpoint/pwm', 10)
+        # diagnostic: publish the student TCN latent (caution #2 encoder-health check)
+        self.latent_pub = self.create_publisher(Float64MultiArray, '/albc/debug/latent', 10)
+        # diagnostic: post-clamp 8-D policy action, BEFORE any static-gain transform.
+        # Required because /albc/setpoint/pwm carries the transformed wire value once
+        # thrust_gain_match is on, so it no longer measures what the POLICY commanded.
+        self.action_pub = self.create_publisher(Float64MultiArray, '/albc/debug/action', 10)
 
         self.create_timer(CONTROL_DT, self.on_tick)
 
@@ -123,10 +150,13 @@ class BridgeNode(Node):
         self.window.append(obs.astype(np.float32))
         while len(self.window) < TCN_HISTORY:
             self.window.appendleft(self.window[0])
-        win = np.stack(self.window)[None]  # (1, 9, 69)
+        win = np.stack(self.window)[None]  # (1, 9, 72)
 
         # 2. policy forward
-        latent = self.tcn.forward(win)
+        latent = self.tcn.forward(self.teacher.normalize(win))
+        lat_msg = Float64MultiArray()
+        lat_msg.data = [float(v) for v in latent[0]]  # (9,) diagnostic
+        self.latent_pub.publish(lat_msg)
         obs_norm = self.teacher.normalize(obs[None])
         action = self.teacher.act(obs_norm, latent)[0]  # (8,)
 
@@ -147,8 +177,19 @@ class BridgeNode(Node):
         servo_msg.position = [float(v) for v in self.joint_targets]
         self.servo_pub.publish(servo_msg)
 
+        act_msg = Float64MultiArray()
+        act_msg.data = [float(v) for v in action]  # (8,) post-clamp, pre-gain-transform
+        self.action_pub.publish(act_msg)
+
+        # static-gain match applies to the WIRE value only -- obs/history keep the raw
+        # policy action (Isaac's thruster state is the filtered command, not the setpoint)
+        thr = action[2:8]
+        if self.get_parameter('thrust_gain_match').value:
+            g = float(self.get_parameter('thrust_gain_ratio').value)
+            thr = np.sign(thr) * np.minimum(1.0, np.sqrt(np.abs(thr) * g))
+
         pwm_msg = Float64MultiArray()
-        pwm_msg.data = [float(v) for v in action[2:8]]  # ESC declaration order, unmodified
+        pwm_msg.data = [float(v) for v in thr]  # ESC declaration order
         self.pwm_pub.publish(pwm_msg)
 
         # 6. carry action forward for next tick's obs/thruster-filter update

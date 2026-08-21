@@ -3,7 +3,7 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Assemble the 69D policy observation from Stonefish sensors (pure numpy).
+"""Assemble the 72D policy observation from Stonefish sensors (pure numpy).
 
 Reimplemented from the Isaac Lab / MarineGym training source (NOT reused from
 the old deploy node -- Task 1 established that node is not reusable). The
@@ -22,7 +22,7 @@ SSOT (marinelab-isaaclab container /workspace/constrained-albc):
   * constrained_albc/envs/main/config.py -- all constants (hist_len/stride, integral_*, delta_scale)
   * marinelab/core/thruster.py:apply_dynamics -- first-order ESC filter (tau_up/down)
 
-=== 69D LAYOUT (o_t) ===
+=== 72D LAYOUT (o_t) ===
 Current proprioception (20D, compute_policy_obs):
     [0:3]   ang_cmd = [roll_att_cmd, pitch_att_cmd, yaw_rate_cmd]
     [3:6]   euler (roll, pitch, yaw)                 <- frames.stonefish_odom_to_isaac
@@ -38,12 +38,17 @@ History (46D, ring buffer hist_len=3, stride=3, 18D/step -> sliced in _get_obser
     [50:66] act_hist = ring[-2:, 10:18] flattened (2 newest steps' action, 8D each)
 Integral (3D):
     [66:69] leaky-integrated [roll_err, pitch_err, yaw_rate_err]
+Bias-EMA (3D):
+    [69:72] ungated leaky EMA of [roll_err, pitch_err, yaw_rate_err]
 
-NOTE (source drift, deliberately excluded): config.py currently defaults
-use_bias_ema_obs=True (dated 260715), which would append a 4th block [69:72]
-(_bias_ema) and make the obs 72D. The DEPLOYED student checkpoint is 69D
-(policy/npforward.py normalizer mean/std are (1,69)); this module targets the
-69D deployed contract and intentionally omits the bias_ema block.
+BIAS-EMA BLOCK [69:72] (added 2026-07-27 for the buoyfix s30 72D pack):
+config.py use_bias_ema_obs=True (adopted 260716) appends this 4th block
+[69:72] = _bias_ema [roll, pitch, yaw_rate], making obs 72D. The deployed
+buoyfix s30 pack IS 72D (policy normalizer mean/std are (1,72)), so this
+module assembles the bias_ema block. It is a leaky EMA of the SAME err3 the
+integral uses, but UNGATED (albc_env.py _get_rewards updates it every step
+when reward.k_bias != 0 -- no error gate), alpha = reward.bias_ema_alpha =
+0.99 (main/mdp/rewards.py:119).
 
 === ObsBuilder.update() CONTRACT (Task 7 bridge wires to this) ===
     update(odom_quat_xyzw, odom_angvel_sf, joint_pos, joint_vel,
@@ -89,7 +94,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from albc_bridge.frames import stonefish_odom_to_isaac
+from stonefish_albc_bridge.frames import stonefish_odom_to_isaac
 
 # --- layout dims (config.py observation_space breakdown) ---
 PROPRIO_DIM = 20
@@ -99,7 +104,8 @@ HIST_FEAT_DIM = 18      # config.hist_feature_dim: joint(4)+body(6)+action(8)
 HIST_ACTION_LEN = 2     # config.hist_action_len
 ACTION_DIM = 8          # config.action_space
 NUM_THRUSTERS = 6       # ALBCThrusterCfg.num_thrusters
-OBS_DIM = 69            # config.observation_space (pre bias-ema)
+BIAS_EMA_DIMS = 3       # _bias_ema block [69:72] (use_bias_ema_obs=True)
+OBS_DIM = 72            # config.observation_space (69 + 3 bias-ema)
 
 # --- integral (config.py + rewards.py sigmas) ---
 INTEGRAL_DIMS = 3
@@ -109,6 +115,9 @@ INTEGRAL_CLAMP = 2.0    # config.integral_clamp
 # rewards.py: att_rp.sigma=0.10, yaw_vel.sigma=0.10
 INTEGRAL_GATE_SIGMA = np.array([0.10, 0.10, 0.10])
 STEP_DT = 0.02          # sim.dt(0.005) * decimation(4)
+
+# --- bias-ema (use_bias_ema_obs=True; UNGATED leaky EMA of err3) ---
+BIAS_EMA_ALPHA = 0.99   # reward.bias_ema_alpha (main/mdp/rewards.py:119), ~2s window
 
 # --- thruster first-order filter (ALBCThrusterCfg / thruster.py) ---
 THRUSTER_TAU_UP = 0.1     # time_constant_up
@@ -136,6 +145,8 @@ class ObsBuilder:
         # mirrors env._actions: holds the previous call's last_action (a_{k-1});
         # the history entry records the value from BEFORE this shift (a_{k-2}).
         self._prev_action = np.zeros(ACTION_DIM, dtype=np.float64)
+        # obs[69:72]: leaky EMA of err3, UNGATED (mirrors env._bias_ema)
+        self._bias_ema = np.zeros(BIAS_EMA_DIMS, dtype=np.float64)
 
     def update(self, odom_quat_xyzw, odom_angvel_sf, joint_pos, joint_vel,
                ang_cmd, joint_targets, last_action):
@@ -160,6 +171,9 @@ class ObsBuilder:
         gate = (np.abs(err3) < INTEGRAL_GATE_SIGMA).astype(np.float64)
         self._integral += gate * err3 * STEP_DT
         np.clip(self._integral, -INTEGRAL_CLAMP, INTEGRAL_CLAMP, out=self._integral)
+
+        # --- bias-ema update: UNGATED leaky EMA of err3 (mirror _get_rewards, k_bias!=0) ---
+        self._bias_ema = BIAS_EMA_ALPHA * self._bias_ema + (1.0 - BIAS_EMA_ALPHA) * err3
 
         # --- Yoshikawa manipulability (joint2 = joint_pos[1]) ---
         theta2 = joint_pos[1]
@@ -204,6 +218,6 @@ class ObsBuilder:
         jb_hist = self._hist[:, :10].reshape(-1)                      # 10 * hist_len = 30
         act_hist = self._hist[-HIST_ACTION_LEN:, 10:].reshape(-1)     # 8 * action_len = 16
 
-        obs = np.concatenate([current, jb_hist, act_hist, self._integral])
+        obs = np.concatenate([current, jb_hist, act_hist, self._integral, self._bias_ema])
         assert obs.shape == (OBS_DIM,), obs.shape
         return obs.astype(np.float32)

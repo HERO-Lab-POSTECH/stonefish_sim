@@ -1,16 +1,11 @@
 <?xml version="1.0"?>
+<!-- Hydro measurement scenario: base-only albc rig in the same freshwater
+     environment as albc_empty.scn (998 kg/m3, no waves, no current).
+     Spawn at 10 m depth, level. -->
 <scenario>
 	<include file="data/worlds/common/materials.scn"/>
 	<include file="data/worlds/common/visual.scn"/>
 
-	<!-- ponytail: standalone freshwater (998 kg/m3) environment instead of
-	     <include file="data/worlds/world_empty.scn"/> -- that shared world pulls
-	     data/worlds/common/environment.scn which hardcodes saltwater density
-	     1031 kg/m3. ALBC's buoyancy target (net +10N) is specced for 998 kg/m3
-	     freshwater test-pool conditions, so this scenario declares its own
-	     <environment> (ned/atmosphere/wind copied verbatim from environment.scn,
-	     only <water density="998.0" .../> changed) rather than risk depending on
-	     whether the parser honors a second <environment> block after an include. -->
 	<environment>
 		<ned latitude="41.7777" longitude="3.0333"/>
 		<ocean>
@@ -30,9 +25,9 @@
 		</atmosphere>
 	</environment>
 
-	<include file="data/robots/albc/albc_visual.scn">
+	<include file="data/robots/albc/albc_hydro_base.scn">
 		<arg name="vehicle_name" value="albc"/>
-		<arg name="xyz" value="0.0 0.0 4.0"/>
+		<arg name="xyz" value="0.0 0.0 60.0"/>
 		<arg name="rpy" value="0.0 0.0 0.0"/>
 	</include>
 </scenario>

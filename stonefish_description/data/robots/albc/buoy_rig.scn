@@ -1,0 +1,59 @@
+<?xml version="1.0"?>
+<!-- P-C measurement rig: the ALBC buoy ALONE, driven by Push force actuators.
+     Purpose: measure Stonefish's shape-derived drag and added mass for the buoy in
+     isolation, so the numbers map 1:1 onto Isaac's ALBCBuoyHydrodynamicsCfg
+     (added_mass (0.7,0.7,0.2,...), linear_damping (0.8,0.8,0.6,...),
+     quadratic_damping (10,10,8,...)).
+
+     Why a standalone body and not the deployed robot: in the Stonefish scn the buoy is
+     an external_part welded into the link2 compound together with Arm2, so it cannot be
+     isolated in place. Isaac models it as its own link (link3) with its own hydro cfg,
+     so a standalone cylinder is the like-for-like object.
+
+     Geometry from albc.scn verbatim: r=0.085, h=0.118 -> V = 0.0026786 m3. Material
+     Neutral (density 1000) leaves it 0.05 N heavy against 998 kg/m3 water, i.e. neutral
+     for practical purposes, so the body neither rises nor sinks during a run and the
+     excited axis stays clean. Hydro coefficients are geometry-derived and unaffected by
+     the mass, exactly as in the base rig.
+
+     Actuators are Push, NOT thruster: Push::Update applies ApplyCentralForce(basis*F)
+     with no rotor or propeller model, and ROS2SimulationManager routes the thruster
+     setpoint array straight into setForce(), so the setpoint is a force in NEWTONS.
+     Declaration order fixes the array index: pushX = 0 (+x, broadside), pushZ = 1
+     (+z after the -pi/2 pitch, i.e. along the cylinder axis). -->
+<scenario>
+	<looks>
+		<look name="albc_body" gray="0.3" roughness="0.4" metalness="0.6"/>
+	</looks>
+
+	<robot name="$(arg vehicle_name)" fixed="false" self_collisions="false">
+		<base_link name="buoy" type="cylinder" physics="submerged" buoyant="true">
+			<dimensions radius="0.085" height="0.118"/>
+			<origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+			<material name="Neutral"/>
+			<look name="albc_body"/>
+		</base_link>
+
+		<actuator name="pushX" type="push">
+			<link name="buoy"/>
+			<origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+			<specs lower_limit="-200.0" upper_limit="200.0"/>
+		</actuator>
+
+		<actuator name="pushZ" type="push">
+			<link name="buoy"/>
+			<origin xyz="0.0 0.0 0.0" rpy="0.0 -1.5707963268 0.0"/>
+			<specs lower_limit="-200.0" upper_limit="200.0"/>
+		</actuator>
+
+		<sensor name="odom" type="odometry" rate="100.0">
+			<link name="buoy"/>
+			<origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+			<ros_publisher topic="/$(arg vehicle_name)/odometry"/>
+		</sensor>
+
+		<world_transform xyz="$(arg xyz)" rpy="$(arg rpy)"/>
+
+		<ros_subscriber thrusters="/$(arg vehicle_name)/setpoint/pwm"/>
+	</robot>
+</scenario>

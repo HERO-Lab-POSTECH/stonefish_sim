@@ -12,8 +12,8 @@ the Isaac SSOT. Task 8's end-to-end smoke test is the behavioral arbiter.
 
 import numpy as np
 
-from albc_bridge.frames import stonefish_odom_to_isaac
-from albc_bridge.obs_builder import (
+from stonefish_albc_bridge.frames import stonefish_odom_to_isaac
+from stonefish_albc_bridge.obs_builder import (
     HIST_ACTION_LEN,
     HIST_LEN,
     HIST_STRIDE,
