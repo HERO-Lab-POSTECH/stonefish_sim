@@ -13,6 +13,8 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- BlueROV2 FLS 장착 pitch 60°→80° 하향 (`bluerov2.scn`, 김민종 통합) — 측량 고도에서
+  해저면이 소나 fan 안에 들어오도록 조정, SLAM 특징 추출이 지형 리턴을 보게 함
 - **BREAKING** `albc_bridge` → `stonefish_albc_bridge` 개명 — 유일하게 `stonefish_` 접두사
   규칙(`.omp/rules.json` naming `src/*/`)을 어기던 패키지. 디렉토리·`package.xml`·`setup.py`·
   `setup.cfg`·ament resource 마커·import 경로·launch 참조 일괄 변경.
