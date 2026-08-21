@@ -2,7 +2,7 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>stonefish_albc_bridge</name>
-  <version>0.4.0</version>
+  <version>0.5.0</version>
   <description>RL policy bridge: closes the obs-policy-action loop between the Stonefish simulator and a trained ALBC policy (numpy .npz inference, 50 Hz)</description>
   <maintainer email="luckkim123@gmail.com">HERO Lab, POSTECH</maintainer>
   <license>GPL-3.0</license>
