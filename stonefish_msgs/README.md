@@ -267,7 +267,7 @@ string message
 ### Building from Source
 
 ```bash
-cd /workspace/colcon_ws
+cd ~/stonefish_ws
 colcon build --packages-select stonefish_msgs
 source install/setup.bash
 ```

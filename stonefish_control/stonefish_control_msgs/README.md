@@ -167,8 +167,8 @@ ros2 service call /path_following_node/reset_trajectory stonefish_control_msgs/s
 ### Build from Source
 
 ```bash
-cd /workspace/colcon_ws
-colcon build --packages-select stonefish_control_msgs
+cd ~/stonefish_ws
+colcon build --merge-install --packages-select stonefish_control_msgs
 source install/setup.bash
 ```
 

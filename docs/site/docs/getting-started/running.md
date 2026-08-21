@@ -3,7 +3,7 @@
 이 페이지는 stonefish_sim을 4가지 시나리오(시뮬레이터만 / 제어만 / 전체통합 / 경로추종)로 실행하는 `ros2 launch` 커맨드와 주요 인자, RViz 시각화 설정, pytest 테스트 실행 방법을 다룬다.
 
 !!! note "사전 준비"
-    아래 명령은 모두 워크스페이스가 빌드되어 있고 환경이 source 된 상태를 전제로 한다. 빌드는 `colcon build --symlink-install` 후 `source install/setup.bash`로 수행한다(README.md:5-44). Stonefish 라이브러리 v1.3.0+가 설치되어 있어야 한다.
+    아래 명령은 모두 워크스페이스가 빌드되어 있고 환경이 source 된 상태를 전제로 한다. 빌드는 `colcon build --merge-install` 후 `source install/setup.bash`로 수행한다(README.md). Stonefish 라이브러리 v1.3.0+가 설치되어 있어야 한다.
 
 ## 실행 시나리오 개요
 
@@ -242,14 +242,14 @@ pytest -v
 !!! warning "패키지 import 금지"
     `conftest.py`의 `load_module()` fixture는 테스트 대상 모듈을 패키지 import 경로가 아니라 파일 단위로 로드하도록 설계되어 있다(conftest.py:1-23). 테스트 코드에서 패키지를 통째로 import하면 ROS/gtsam 런타임 의존성에 의해 import가 실패할 수 있으므로, 모듈 로드는 이 fixture를 거쳐야 한다.
 
-v0.4.0 기준 테스트 현황은 다음과 같다.
+v0.5.0 기준 테스트 현황은 다음과 같다.
 
 | 항목 | 결과 |
 |------|------|
-| pytest | 42 passed (이전 대비 +6) |
+| pytest | 139 passed |
 | C++ | 정적검증만 수행 |
 
-근거: CHANGELOG v0.4.0 Verification (pytest 42 passed, C++ 정적검증만).
+근거: `env -i /usr/bin/python3 -m pytest -q`, C++ 정적검증만.
 
 ## 설정 파일 위치
 

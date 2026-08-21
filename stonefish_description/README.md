@@ -376,7 +376,7 @@ ros2 launch stonefish_ros2 simulator.launch.py \
 This is a resource package (no compilation required).
 
 ```bash
-cd /workspace/colcon_ws
+cd ~/stonefish_ws
 colcon build --packages-select stonefish_description
 source install/setup.bash
 ```

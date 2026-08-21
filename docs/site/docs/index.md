@@ -3,13 +3,13 @@
 ROS2 Humble 위에서 Stonefish 물리엔진으로 수중 로봇을 시뮬레이션하고, 경로 생성·궤적 추종·하이브리드 제어·추력 배분 스택과 연결하는 통합 워크스페이스다. 이 페이지는 그 전체 그림을 한눈에 보여주고 나머지 문서로 들어가는 출입구 역할을 한다.
 
 !!! note "버전"
-    이 문서는 **stonefish_sim 0.4.0** 기준이다. 7개 ROS2 패키지 모두 버전 0.4.0, 라이선스 GPL-3.0으로 통일되어 있다.
+    이 문서는 **stonefish_sim 0.5.0** 기준이다. 8개 ROS2 패키지 모두 버전 0.5.0, 라이선스 GPL-3.0으로 통일되어 있다.
 
 ## 무엇을 하는 워크스페이스인가
 
 stonefish_sim은 BlueROV2/BlueBoat 같은 수중 로봇을 대상으로, 시뮬레이터가 만들어 낸 센서 출력을 받아 경로를 생성하고, ILOS 가이던스로 그 경로를 추종하고, 4DOF 하이브리드 PID 제어기가 힘·토크 명령을 만들고, 추력 배분으로 개별 추진기 명령으로 변환한 뒤, 다시 시뮬레이터에 입력하는 완결된 폐루프를 ROS2 노드들로 구성한다. C++ 시뮬레이터 래퍼(`stonefish_ros2`)와 Python 제어·궤적 스택(`stonefish_control`, `stonefish_trajectory_manager`, `stonefish_thruster_manager`)이 메시지 패키지를 매개로 연결된다.
 
-## 7개 패키지 한 줄 요약
+## 8개 패키지 한 줄 요약
 
 | 패키지 | 역할 | 빌드 타입 |
 |--------|------|-----------|
@@ -20,6 +20,7 @@ stonefish_sim은 BlueROV2/BlueBoat 같은 수중 로봇을 대상으로, 시뮬�
 | `stonefish_control` | PID 기반 4DOF 하이브리드 제어기(velocity/position 모드) | `ament_python` |
 | `stonefish_thruster_manager` | TAM(Thruster Allocation Matrix) 기반 추력 배분 | `ament_python` |
 | `stonefish_trajectory_manager` | ILOS/ALOS 경로 추종 + 궤적 생성 | `ament_python` |
+| `stonefish_albc_bridge` | RL 정책 브리지 | `ament_python` |
 
 근거: 각 패키지의 `package.xml` 전수 검토.
 
@@ -65,4 +66,4 @@ flowchart TD
 
 ## 버전·상태
 
-현재 버전은 **0.4.0**이며, P4 단계에서 알고리즘·수치 정확성을 다뤘다. 버전별 변경 내역과 미해결 이슈(P4_FLAGS)는 [버전·상태](status.md) 페이지에 정리되어 있다.
+현재 버전은 **0.5.0**이다. 버전별 변경 내역과 미해결 이슈(P4_FLAGS)는 [버전·상태](status.md) 페이지에 정리되어 있다.

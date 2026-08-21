@@ -6,7 +6,7 @@
 
 `stonefish_sim`은 Stonefish 물리 엔진 위에 ROS2 인터페이스를 얹어, 수중·수상 로봇의 센서·액추에이터 시뮬레이션부터 제어·궤적·추력 배분까지를 하나의 스택으로 묶은 ROS2 워크스페이스다. Stonefish C++ 시뮬레이터는 강체동역학에 유체 항력·부력·센서 시뮬레이션을 더해 물리 세계를 재현하고(`stonefish_simulator.cpp:1-120`), 그 위의 ROS2 노드들이 제어 루프를 닫는다.
 
-7개의 ROS2 패키지로 구성되며 모두 버전 `0.4.0`, 라이선스는 GPL-3.0이다(`*/package.xml`).
+8개의 ROS2 패키지로 구성되며 모두 버전 `0.5.0`, 라이선스는 GPL-3.0이다(`*/package.xml`).
 
 | 패키지 | 역할 | 빌드타입 |
 |--------|------|---------|
@@ -17,6 +17,7 @@
 | `stonefish_control` | PID 기반 4DOF 하이브리드 제어기(velocity/position 모드) | `ament_python` |
 | `stonefish_thruster_manager` | TAM(Thruster Allocation Matrix) 기반 추력 배분 | `ament_python` |
 | `stonefish_trajectory_manager` | ILOS/ALOS 경로추종 + 궤적생성 | `ament_python` |
+| `stonefish_albc_bridge` | RL 정책 브리지 | `ament_python` |
 
 ## 핵심 구성요소
 
@@ -52,7 +53,7 @@ flowchart TD
 
 ## 가장 빠른 실행 경로
 
-설치와 빌드(`colcon build --symlink-install` 후 `source install/setup.bash`)를 마쳤다면, 전체 통합 스택은 단 한 줄로 띄울 수 있다. `bringup.launch.py`가 내부에서 시뮬레이터·제어·경로·추력 관리자를 한꺼번에 기동한다(`sim_analysis` 5.2).
+설치와 빌드(`colcon build --merge-install` 후 `source install/setup.bash`)를 마쳤다면, 전체 통합 스택은 단 한 줄로 띄울 수 있다. `bringup.launch.py`가 내부에서 시뮬레이터·제어·경로·추력 관리자를 한꺼번에 기동한다(`sim_analysis` 5.2).
 
 ```bash
 ros2 launch stonefish_ros2 bringup.launch.py vehicle:=bluerov2

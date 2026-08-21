@@ -30,6 +30,9 @@ All notable changes to this project will be documented in this file.
   arg+리맵, `path.launch.py`의 no-op `namespace` 인자, `thruster_allocator_node.py`의
   미구독 `wrench_callback`)
 - `stonefish_albc_bridge` 버전 0.4.0 → 0.5.0 (형제 8개 `package.xml`과 동일하게)
+- 문서 drift 정리 — docs 사이트·`CONVENTIONS.md`·`P4_FLAGS.md`·`stonefish_control` README를
+  0.4.0 동결 상태(버전·패키지 수·pytest 통과 수)에서 실측 현재값(0.5.0·8개 패키지·139
+  passed)으로 갱신, 잔여 `--symlink-install`/`/workspace/colcon_ws` 서술 제거
 
 ### Fixed
 
