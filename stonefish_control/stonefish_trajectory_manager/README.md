@@ -45,8 +45,8 @@ This package provides complete trajectory generation and path following capabili
 ### Build from Source
 
 ```bash
-cd /workspace/colcon_ws
-colcon build --packages-select stonefish_trajectory_manager
+cd ~/stonefish_ws
+colcon build --merge-install --packages-select stonefish_trajectory_manager
 source install/setup.bash
 ```
 

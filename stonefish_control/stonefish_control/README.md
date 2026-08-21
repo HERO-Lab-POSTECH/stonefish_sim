@@ -35,8 +35,8 @@ Stonefish Simulator
 ### Build from Source
 
 ```bash
-cd /workspace/colcon_ws
-colcon build --packages-select stonefish_control
+cd ~/stonefish_ws
+colcon build --merge-install --packages-select stonefish_control
 source install/setup.bash
 ```
 

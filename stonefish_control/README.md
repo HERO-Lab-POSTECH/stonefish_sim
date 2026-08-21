@@ -61,23 +61,23 @@ Main control algorithms package.
 ### 1. Build
 
 ```bash
-cd /workspace/colcon_ws
+cd ~/stonefish_ws
 
 # Build all control packages
-colcon build --packages-select \
+colcon build --merge-install --packages-select \
     stonefish_control_msgs \
     stonefish_thruster_manager \
     stonefish_trajectory_manager \
     stonefish_control
 
 # Or build individually
-colcon build --packages-select stonefish_thruster_manager
+colcon build --merge-install --packages-select stonefish_thruster_manager
 ```
 
 ### 2. Source Workspace
 
 ```bash
-source /workspace/colcon_ws/install/setup.bash
+source ~/stonefish_ws/install/setup.bash
 ```
 
 ### 3. Launch Simulation with Control
@@ -110,7 +110,7 @@ ros2 launch stonefish_thruster_manager thruster_manager.launch.py \
 # Path stack: generate the path + run LOS path following
 # (path.launch.py bundles path_generator_node + path_following_node)
 ros2 launch stonefish_trajectory_manager path.launch.py \
-    waypoint_file:=/workspace/colcon_ws/src/stonefish_control/stonefish_trajectory_manager/config/example_waypoints.yaml \
+    waypoint_file:=~/stonefish_ws/src/stonefish_control/stonefish_trajectory_manager/config/example_waypoints.yaml \
     vehicle_name:=bluerov2 \
     interpolation_method:=lipb
 
@@ -145,7 +145,7 @@ import numpy as np
 
 # Load TAM
 tam_mgr = ThrusterManager(
-    tam_file_path='/workspace/colcon_ws/src/stonefish_description/data/robots/bluerov2/config/TAM.yaml'
+    tam_file_path='~/stonefish_ws/src/stonefish_description/data/robots/bluerov2/config/TAM.yaml'
 )
 
 # Wrench → Thrust conversion
@@ -223,7 +223,7 @@ BlueROV2 uses 8 thrusters:
 
 **TAM File Location**:
 ```
-/workspace/colcon_ws/src/stonefish_description/data/robots/bluerov2/config/TAM.yaml
+~/stonefish_ws/src/stonefish_description/data/robots/bluerov2/config/TAM.yaml
 ```
 
 #### TAM Formula
@@ -244,7 +244,7 @@ Where `pinv(TAM)` is the Moore-Penrose pseudo-inverse (least-squares solution).
 
 1. **Create TAM Configuration Directory**:
 ```bash
-mkdir -p /workspace/colcon_ws/src/stonefish_description/data/robots/my_robot/config
+mkdir -p ~/stonefish_ws/src/stonefish_description/data/robots/my_robot/config
 ```
 
 2. **Write TAM.yaml**:
@@ -274,7 +274,7 @@ tam:
 ```bash
 ros2 launch stonefish_thruster_manager thruster_manager.launch.py \
     vehicle_name:=my_robot \
-    tam_file:=/workspace/colcon_ws/src/stonefish_description/data/robots/my_robot/config/TAM.yaml
+    tam_file:=~/stonefish_ws/src/stonefish_description/data/robots/my_robot/config/TAM.yaml
 ```
 
 ## Topics
@@ -317,7 +317,7 @@ ros2 launch stonefish_thruster_manager thruster_manager.launch.py \
 | Topic | Type | Description |
 |-------|------|-------------|
 | `/{vehicle_name}/odometry` | `nav_msgs/Odometry` | Robot state |
-| `/{vehicle_name}/cmd_pose` | `geometry_msgs/PoseStamped` | Position setpoint |
+| `/{vehicle_name}/cmd_pose` | `stonefish_control_msgs/TrajectoryPoint` | Position setpoint |
 | `/{vehicle_name}/reference/trajectory` | `stonefish_control_msgs/Trajectory` | Trajectory reference |
 
 #### Published Topics

@@ -66,8 +66,8 @@ Since 8 thrusters > 6 DOFs, the system is **overdetermined**:
 ### Build from Source
 
 ```bash
-cd /workspace/colcon_ws
-colcon build --packages-select stonefish_thruster_manager
+cd ~/stonefish_ws
+colcon build --merge-install --packages-select stonefish_thruster_manager
 source install/setup.bash
 ```
 
@@ -281,7 +281,7 @@ from stonefish_thruster_manager.thruster_manager import ThrusterManager
 import numpy as np
 
 # Load TAM
-tam_path = '/workspace/colcon_ws/src/stonefish_description/data/robots/bluerov2/config/TAM.yaml'
+tam_path = '~/stonefish_ws/src/stonefish_description/data/robots/bluerov2/config/TAM.yaml'
 tam_mgr = ThrusterManager(tam_file_path=tam_path)
 
 # Desired wrench (100N forward, 50Nm yaw torque)
