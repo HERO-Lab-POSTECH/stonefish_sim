@@ -48,7 +48,7 @@ The library installs to `/usr/local/lib/libStonefish.so`.
 ### Building
 
 ```bash
-cd /workspace/colcon_ws
+cd ~/stonefish_ws
 
 # Build stonefish_msgs first (dependency)
 colcon build --packages-select stonefish_msgs
