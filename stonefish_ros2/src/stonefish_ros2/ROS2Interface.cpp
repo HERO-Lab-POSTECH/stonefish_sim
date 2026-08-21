@@ -453,6 +453,9 @@ void ROS2Interface::PublishMultibeamPCL(rclcpp::PublisherBase::SharedPtr pub, Mu
 void ROS2Interface::PublishProfiler(rclcpp::PublisherBase::SharedPtr pub, Profiler* prof) const
 {
     const std::vector<Sample>* hist = prof->getHistory();
+    if(hist->size() == 0) // front()/back() below are UB on an empty history
+        return;
+
     SensorChannel channel = prof->getSensorChannelDescription(1); // range channel
 
     sensor_msgs::msg::LaserScan msg;
