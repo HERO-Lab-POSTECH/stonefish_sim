@@ -36,3 +36,8 @@ docs/site/site/
 # Ad-hoc pre-change backups (*.pre_<tag>_<YYMMDD>, and .pre_*/ dirs)
 *.pre_*_[0-9][0-9][0-9][0-9][0-9][0-9]
 *.pre_*_[0-9][0-9][0-9][0-9][0-9][0-9]/
+
+# knowledge-graph build artifacts (indexes are local; ignore rules are tracked)
+.graphify/
+.code-review-graph/
+.tokensave/
