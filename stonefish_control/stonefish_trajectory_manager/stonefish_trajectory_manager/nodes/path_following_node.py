@@ -57,10 +57,6 @@ class PathFollowing4DOFNode(Node):
         self.declare_parameter('max_lateral_velocity', 0.5)  # m/s (BlueROV2 sway limit)
         self.declare_parameter('max_heave_velocity', 0.4)    # m/s (BlueROV2 heave limit)
 
-        # Acceleration feedforward (P2 모델 주입): 발행 속도의 수치미분 저역필터 차단주파수.
-        # 0 이하면 acceleration을 채우지 않는다(=ff off, 이전 동작).
-        self.declare_parameter('accel_ff_cutoff_hz', 2.0)
-
         # Velocity profiling parameters
         self.declare_parameter('cruise_speed', 0.5)     # m/s (straight line)
         self.declare_parameter('min_speed', 0.2)        # m/s (tight curves)
@@ -99,7 +95,6 @@ class PathFollowing4DOFNode(Node):
         use_alos = self.get_parameter('use_alos').value
         adaptive_lookahead = self.get_parameter('adaptive_lookahead').value
         sway_ff_gain = self.get_parameter('sway_ff_gain').value
-        self._accel_ff_cutoff_hz = self.get_parameter('accel_ff_cutoff_hz').value
 
         # State
         self._path_received = False
@@ -107,8 +102,6 @@ class PathFollowing4DOFNode(Node):
         self._last_update_time = None
         self._path_complete_logged = False
         self._recording_active = False
-        self._prev_vel_ff = None          # 가속 ff 수치미분용 직전 속도 [4]
-        self._accel_ff = np.zeros(4)      # 저역필터 상태 [u̇,v̇,ẇ,ṙ]
         self._prev_mode = None  # For mode transition logging
 
         # Actual trajectory recording
@@ -411,10 +404,8 @@ class PathFollowing4DOFNode(Node):
             msg.pose.orientation.y = quat[2]
             msg.pose.orientation.z = quat[3]
 
-            # Zero velocity (stop) — acceleration도 기본 0 유지, ff 미분기 리셋
+            # Zero velocity (stop)
             msg.velocity = Twist()
-            self._prev_vel_ff = None
-            self._accel_ff = np.zeros(4)
 
             self.guidance_pub.publish(msg)
 
@@ -461,20 +452,6 @@ class PathFollowing4DOFNode(Node):
         msg.velocity.angular.x = 0.0  # p (roll rate, passive)
         msg.velocity.angular.y = 0.0  # q (pitch rate, passive)
         msg.velocity.angular.z = float(desired_velocities[3])  # r (yaw rate)
-
-        # Acceleration feedforward (P2 모델 주입): 발행 속도의 수치미분 + 1차 저역필터.
-        # 소비자는 hybrid cascade inner의 M_eff·a 항. cutoff<=0이면 미기입(=0, ff off).
-        if self._accel_ff_cutoff_hz > 0.0 and dt > 0.0:
-            v_cmd = np.asarray(desired_velocities[:4], dtype=float)
-            if self._prev_vel_ff is not None:
-                raw = (v_cmd - self._prev_vel_ff) / dt
-                alpha = 1.0 - np.exp(-2.0 * np.pi * self._accel_ff_cutoff_hz * dt)
-                self._accel_ff += alpha * (raw - self._accel_ff)
-            self._prev_vel_ff = v_cmd
-            msg.acceleration.linear.x = float(self._accel_ff[0])
-            msg.acceleration.linear.y = float(self._accel_ff[1])
-            msg.acceleration.linear.z = float(self._accel_ff[2])
-            msg.acceleration.angular.z = float(self._accel_ff[3])
 
         # Publish cmd_pose
         self.guidance_pub.publish(msg)

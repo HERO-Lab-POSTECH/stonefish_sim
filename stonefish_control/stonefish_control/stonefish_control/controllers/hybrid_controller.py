@@ -100,16 +100,17 @@ class HybridController:
         pose_curr: np.ndarray,
         vel_curr: np.ndarray,
         dt: float,
-        vel_des: Optional[np.ndarray] = None,
-        acc_ff: Optional[np.ndarray] = None
+        vel_des: Optional[np.ndarray] = None
     ) -> Tuple[np.ndarray, dict]:
+        # accel ff는 CascadeController 내부(v_sp 미분)에서 생성 — 인자로 받지
+        # 않는다. position/velocity 모드는 accel ff 비대상(정지점·수동 운용).
         if self.control_mode == 'velocity':
             tau, info = self.velocity_controller.compute_control(
                 pose_des, pose_curr, vel_curr, dt, vel_des
             )
         elif self.control_mode == 'cascade' and self.cascade_controller is not None:
             tau, info = self.cascade_controller.compute_control(
-                pose_des, pose_curr, vel_curr, dt, vel_des, acc_ff
+                pose_des, pose_curr, vel_curr, dt, vel_des
             )
         else:
             tau, info = self.position_controller.compute_control(
