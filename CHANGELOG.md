@@ -15,7 +15,11 @@ All notable changes to this project will be documented in this file.
   `CascadeController`에 accel feedforward 추가: clip 후 v_sp를 내부
   수치미분(1차 LPF)해 `M_eff·v̇_sp`를 inner에 합산(포화 전) —
   guidance 원신호 미분은 outer surge 상시 clip 때문에 unmatched
-  disturbance가 되어 리뷰에서 기각. 게이트 테스트: 실측치↔게인 정합
+  disturbance가 되어 리뷰에서 기각. **폐루프 어블레이션(runE/runF)에서
+  accel ff ON이 직선 leg 사행을 유발함이 실측되어 기본 비활성**
+  (`accel_ff_cutoff_hz: 0.0` — v_sp가 outer P 경유로 차량 위치의 함수라
+  그 미분이 폐루프 자기되먹임이 됨; damping·부력 ff는 순기능으로 유지,
+  e_y RMS 0.227 m vs P1 0.323 m). 게이트 테스트: 실측치↔게인 정합
   (`Kp=M_eff·ω_c`)·node 기본값 drift·v_sp_limit≤실측 v_max
 
 - **`stonefish_sonar_yolo` 패키지** (김민종 colcon_ws2 통합, 원명 `sonar_yolo_ros2`):

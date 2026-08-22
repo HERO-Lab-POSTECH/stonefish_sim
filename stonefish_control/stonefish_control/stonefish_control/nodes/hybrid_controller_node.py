@@ -86,7 +86,7 @@ class HybridController4DOFNode(Node):
         self.declare_parameter('cascade.inner_loop.Kb', [0.8, 0.8, 0.8, 0.8])
         self.declare_parameter('cascade.inner_loop.integral_safety_factor', 0.5)
         self.declare_parameter('cascade.v_sp_limit', [0.7, 0.5, 0.25, 0.6])
-        self.declare_parameter('cascade.accel_ff_cutoff_hz', 2.0)
+        self.declare_parameter('cascade.accel_ff_cutoff_hz', 0.0)
         self.declare_parameter('cascade.max_force', 55.0)
         self.declare_parameter('cascade.max_torque', 13.7)
 

@@ -108,7 +108,7 @@
         # yaw는 I_zz 실측이 진동 잡음으로 부정확(~0.24, order만 신뢰) →
         # P1에서 검증된 기존값 유지.
         # 포화: Kp·e = 55 N은 e≈0.4 m/s — 코너 과도의 순간 포화는
-        # back-calculation + M·a feedforward(acc_ff)가 부담 분산.
+        # back-calculation이 흡수 (acc_ff는 기본 off — accel_ff_cutoff_hz 참조).
         Kp: [140.0, 124.0, 128.0, 4.0]
         Ki: [70.0, 62.0, 64.0, 2.0]
         Kd: [0.0, 20.0, 20.0, 1.0]   # 실측 유도 아님 — P0 경험값 유지
@@ -127,8 +127,13 @@
       #   (Open Q1: 실기 요구 속도는 사용자 결정 — 이 표가 판단 근거)
       # sway 0.5: 곡률 feedforward 헤드룸 (P6), heave/yaw 기존 유지
       v_sp_limit: [0.7, 0.5, 0.25, 0.6]
-      # accel ff(v_sp 미분) LPF 차단주파수 [Hz]. 0 = accel ff 비활성.
-      accel_ff_cutoff_hz: 2.0
+      # accel ff(v_sp 미분) LPF 차단주파수 [Hz]. 0 = accel ff 비활성(기본).
+      # 폐루프 어블레이션(2026-08-22 runE/runF): ON(2.0)에서 직선 leg 사행
+      #   (e_y RMS 0.456, 사행 leg v_y_std 0.15) → OFF에서 소멸(0.227, ≤0.03).
+      #   v_sp는 outer P를 통해 차량 위치의 함수라 v_sp 미분이 차량 운동을
+      #   힘으로 되먹이는 폐루프 자기되먹임이 된다(개루프 테스트로는 안 잡힘).
+      #   켜려면 폐루프 재검증 필수.
+      accel_ff_cutoff_hz: 0.0
       max_force: 55.0    # N (물리 한계 정합)
       max_torque: 13.7   # Nm
 

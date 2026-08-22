@@ -434,7 +434,7 @@ def test_accel_ff_from_v_sp_derivative(CascadeController):
     """
     M_eff = np.array([70.2, 62.0, 63.9, 0.24])
     c = _make_cascade(
-        CascadeController, M_eff_diag=M_eff,
+        CascadeController, M_eff_diag=M_eff, accel_ff_cutoff_hz=2.0,
         Kp_inner=np.zeros(4), Ki_inner=np.zeros(4), Kd_inner=np.zeros(4))
     pose_curr = np.zeros(6)
     vel_curr = np.zeros(6)
@@ -454,6 +454,7 @@ def test_accel_ff_zero_when_v_sp_constant(CascadeController):
     """P2-2: v_sp가 일정하면 ff=0 — 정상상태에서 유령 힘 없음(하위호환)."""
     c = _make_cascade(CascadeController,
                       M_eff_diag=np.array([70.2, 62.0, 63.9, 0.24]),
+                      accel_ff_cutoff_hz=2.0,
                       Ki_inner=np.zeros(4))
     pose_des = np.array([1.0, 0.5, -0.3, 0.2])
     tau1, _ = c.compute_control(pose_des, np.zeros(6), np.zeros(6), dt=0.1)
@@ -489,7 +490,7 @@ def test_accel_ff_saturation_engages_backcalc(CascadeController):
     """
     M_eff = np.array([70.2, 62.0, 63.9, 0.24])
     c = _make_cascade(
-        CascadeController, M_eff_diag=M_eff,
+        CascadeController, M_eff_diag=M_eff, accel_ff_cutoff_hz=2.0,
         Kp_inner=np.zeros(4), Ki_inner=np.array([1.0, 1.0, 1.0, 1.0]),
         Kd_inner=np.zeros(4), max_force=10.0, max_torque=10.0)
     dt = 0.1
