@@ -26,8 +26,8 @@ class HybridController:
         Kb_pos: np.ndarray,
         mass: float,
         inertia_zz: float,
-        max_force_vel: float = 800.0,
-        max_torque_vel: float = 160.0,
+        max_force_vel: float = 55.0,
+        max_torque_vel: float = 13.7,
         max_force_pos: float = 200.0,
         max_torque_pos: float = 50.0,
         integral_safety_factor_vel: float = 0.5,
@@ -39,8 +39,8 @@ class HybridController:
         Kd_inner: np.ndarray = None,
         Kb_inner: np.ndarray = None,
         v_sp_limit: np.ndarray = None,
-        max_force_cascade: float = 800.0,
-        max_torque_cascade: float = 160.0,
+        max_force_cascade: float = 55.0,
+        max_torque_cascade: float = 13.7,
         integral_safety_factor_cascade: float = 0.5,
         initial_mode: str = 'velocity'
     ):

@@ -36,8 +36,8 @@ class CascadeController:
         mass: float,
         inertia_zz: float,
         v_sp_limit: np.ndarray,
-        max_force: float = 800.0,
-        max_torque: float = 160.0,
+        max_force: float = 55.0,
+        max_torque: float = 13.7,
         integral_safety_factor: float = 0.5,
     ):
         """
