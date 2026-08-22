@@ -39,8 +39,12 @@ All notable changes to this project will be documented in this file.
 ### Changed
 
 - **P2 — cascade 게인 실측 재산정·속도 상한 실측 정합**: inner
-  Kp=M_eff·ω_c(2 rad/s)=[140,124,128], Ki=Kp/2 (yaw는 I_zz 실측 불확실로
-  P1 검증값 유지). `v_sp_limit[surge]` 1.2→0.6, `cruise_speed` 1.0→0.6 —
+  Kp=M_eff·ω_c=[70,62,64], Ki=Kp/2 (yaw는 I_zz 실측 불확실로
+  P1 검증값 유지). ω_c는 설계 2 rad/s가 폐루프에서 반증되어 1 rad/s로
+  하향: 기동 정렬 대과도(~150°)에서 병진 수요가 allocator per-thruster
+  예산(20.68 N)을 2배+ 초과, 균등 스케일링이 인가 wrench를 반감하는데
+  back-calculation은 자체 55 N clip만 인지해 적분 오염 → 정렬 성공이
+  런별 확률적(4런 중 1런 — 청정/사행/발산/구조물 충돌 고착). `v_sp_limit[surge]` 1.2→0.6, `cruise_speed` 1.0→0.6 —
   실측 v_max 0.911 m/s에 더해, 0.8 이상에서는 allocator 균등 스케일링의
   yaw 권한이 3 N·m 이하로 붕괴(실측 항력 기반 권한 표는 config 주석).
   0.7도 폐루프에서 반증: 정상 항력이 55 N의 73%라 여유 부족 → 초기
