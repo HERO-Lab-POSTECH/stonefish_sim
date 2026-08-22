@@ -13,7 +13,7 @@ The thruster manager converts 6DOF wrench commands (forces and torques) into ind
 - **TAM-based allocation**: Pseudo-inverse method for overdetermined systems
 - **Configurable TAM**: Load from YAML files for different vehicles
 - **Timeout safety**: Automatic thruster shutdown on command timeout
-- **PWM normalization**: Converts forces to PWM setpoints for Stonefish
+- **Inverse thrust map**: Converts forces [N] to Stonefish setpoints via pwm = sign(F)·√(|F|/max_thrust) (thrust ∝ n|n|)
 - **Python API**: Use thruster allocation in custom scripts
 
 ---
@@ -113,7 +113,7 @@ ros2 launch stonefish_thruster_manager thruster_manager.launch.py \
     tam_file:=/custom/path/TAM.yaml \
     update_rate:=50.0 \
     timeout:=1.0 \
-    max_thrust:=100.0
+    max_thrust:=20.68
 ```
 
 ---
@@ -126,7 +126,7 @@ ros2 launch stonefish_thruster_manager thruster_manager.launch.py \
 | `tam_file` | string | (auto) | Path to TAM YAML file. If empty, auto-detects from `vehicle_name` |
 | `update_rate` | float | `50.0` | Update rate (Hz) |
 | `timeout` | float | `1.0` | Command timeout (seconds). Set to 0 to disable |
-| `max_thrust` | float | `100.0` | Maximum thrust per thruster (N). Used for PWM normalization |
+| `max_thrust` | float | `20.68` | Physical max thrust per thruster (N) — √ inverse thrust map scale, derived from `bluerov2.scn` specs |
 
 ---
 
@@ -175,7 +175,7 @@ Frame: **Body FRD (Forward-Right-Down)**
 | `tam_file` | string | (auto) | TAM YAML file path |
 | `update_rate` | float | `50.0` | Control loop rate (Hz) |
 | `timeout` | float | `1.0` | Command timeout for safety shutdown |
-| `max_thrust` | float | `100.0` | Max thrust per thruster for PWM scaling |
+| `max_thrust` | float | `20.68` | Physical max thrust per thruster (N); √ inverse thrust map scale |
 
 ---
 

@@ -190,12 +190,12 @@ ros2 launch stonefish_control control.launch.py \
 |-----------|------|---------|-------------|
 | `vehicle_name` | string | `bluerov2` | Vehicle namespace |
 | `control_rate` | float | `50.0` | Control loop rate (Hz) |
-| `Kp` | float[4] | `[300, 300, 400, 200]` | Proportional gains [surge, sway, heave, yaw] |
-| `Kd` | float[4] | `[150, 150, 200, 100]` | Derivative gains |
-| `Ki` | float[4] | `[10, 10, 20, 5]` | Integral gains |
+| `Kp` | float[4] | `[45, 45, 55, 3]` | Proportional gains [surge, sway, heave, yaw] |
+| `Kd` | float[4] | `[40, 40, 50, 1.5]` | Derivative gains |
+| `Ki` | float[4] | `[5, 5, 10, 0.5]` | Integral gains |
 | `Kb` | float[4] | `[0.8, 0.8, 0.8, 0.8]` | Anti-windup back-calculation gains |
-| `max_force` | float | `800.0` | Maximum force per axis (N) |
-| `max_torque` | float | `160.0` | Maximum torque for yaw (Nm) |
+| `max_force` | float | `55.0` | Maximum force per axis (N) — physical single-axis limit |
+| `max_torque` | float | `13.7` | Maximum torque for yaw (Nm) — physical single-axis limit |
 | `integral_safety_factor` | float | `2.0` | Integral limit multiplier |
 | `position_error_threshold` | float | `0.1` | Position acceptance radius (m) |
 | `angle_error_threshold` | float | `0.087` | Angle acceptance threshold (rad, ~5°) |
@@ -210,20 +210,20 @@ ros2 launch stonefish_control control.launch.py \
 | `control_rate` | float | `50.0` | Control loop rate (Hz) |
 | `initial_mode` | string | `velocity` | Starting mode: `velocity` or `position` |
 | **Velocity Mode** | | | |
-| `velocity_mode.Kp` | float[4] | `[200, 200, 250, 150]` | Velocity mode proportional gains |
-| `velocity_mode.Kd` | float[4] | `[0, 100, 120, 80]` | Velocity mode derivative gains |
-| `velocity_mode.Ki` | float[4] | `[50, 50, 60, 10]` | Velocity mode integral gains |
+| `velocity_mode.Kp` | float[4] | `[40, 40, 50, 4]` | Velocity mode proportional gains |
+| `velocity_mode.Kd` | float[4] | `[0, 20, 20, 1]` | Velocity mode derivative gains |
+| `velocity_mode.Ki` | float[4] | `[20, 20, 25, 2]` | Velocity mode integral gains |
 | `velocity_mode.Kb` | float[4] | `[0.8, 0.8, 0.8, 0.8]` | Velocity mode anti-windup gains |
-| `velocity_mode.max_force` | float | `800.0` | Velocity mode force limit (N) |
-| `velocity_mode.max_torque` | float | `160.0` | Velocity mode torque limit (Nm) |
+| `velocity_mode.max_force` | float | `55.0` | Velocity mode force limit (N) |
+| `velocity_mode.max_torque` | float | `13.7` | Velocity mode torque limit (Nm) |
 | `velocity_mode.integral_safety_factor` | float | `0.5` | Velocity mode integral safety |
 | **Position Mode** | | | |
-| `position_mode.Kp` | float[4] | `[300, 300, 400, 200]` | Position mode proportional gains |
-| `position_mode.Kd` | float[4] | `[150, 150, 200, 100]` | Position mode derivative gains |
-| `position_mode.Ki` | float[4] | `[10, 10, 20, 5]` | Position mode integral gains |
+| `position_mode.Kp` | float[4] | `[45, 45, 55, 3]` | Position mode proportional gains |
+| `position_mode.Kd` | float[4] | `[40, 40, 50, 1.5]` | Position mode derivative gains |
+| `position_mode.Ki` | float[4] | `[5, 5, 10, 0.5]` | Position mode integral gains |
 | `position_mode.Kb` | float[4] | `[0.8, 0.8, 0.8, 0.8]` | Position mode anti-windup gains |
-| `position_mode.max_force` | float | `200.0` | Position mode force limit (N) |
-| `position_mode.max_torque` | float | `50.0` | Position mode torque limit (Nm) |
+| `position_mode.max_force` | float | `55.0` | Position mode force limit (N) |
+| `position_mode.max_torque` | float | `13.7` | Position mode torque limit (Nm) |
 | `position_mode.integral_safety_factor` | float | `2.0` | Position mode integral safety |
 
 ---
@@ -239,14 +239,14 @@ position_controller_4dof:
     control_rate: 50.0
 
     # PID Gains
-    Kp: [300.0, 300.0, 400.0, 200.0]  # [surge, sway, heave, yaw]
-    Kd: [150.0, 150.0, 200.0, 100.0]
-    Ki: [10.0, 10.0, 20.0, 5.0]
+    Kp: [45.0, 45.0, 55.0, 3.0]  # [surge, sway, heave, yaw]
+    Kd: [40.0, 40.0, 50.0, 1.5]
+    Ki: [5.0, 5.0, 10.0, 0.5]
     Kb: [0.8, 0.8, 0.8, 0.8]
 
-    # Saturation
-    max_force: 800.0
-    max_torque: 160.0
+    # Saturation (physical single-axis limits — see hybrid_controller.yaml header)
+    max_force: 55.0
+    max_torque: 13.7
 
     # Integral limits
     integral_safety_factor: 2.0
@@ -262,21 +262,21 @@ hybrid_controller_4dof:
     initial_mode: 'velocity'
 
     velocity_mode:
-      Kp: [200.0, 200.0, 250.0, 150.0]
-      Kd: [0.0, 100.0, 100.0, 80.0]
-      Ki: [50.0, 50.0, 60.0, 10.0]
+      Kp: [40.0, 40.0, 50.0, 4.0]
+      Kd: [0.0, 20.0, 20.0, 1.0]
+      Ki: [20.0, 20.0, 25.0, 2.0]
       Kb: [0.8, 0.8, 0.8, 0.8]
-      max_force: 800.0
-      max_torque: 160.0
+      max_force: 55.0
+      max_torque: 13.7
       integral_safety_factor: 0.5
 
     position_mode:
-      Kp: [300.0, 300.0, 400.0, 200.0]
-      Kd: [150.0, 150.0, 200.0, 100.0]
-      Ki: [10.0, 10.0, 20.0, 5.0]
+      Kp: [45.0, 45.0, 55.0, 3.0]
+      Kd: [40.0, 40.0, 50.0, 1.5]
+      Ki: [5.0, 5.0, 10.0, 0.5]
       Kb: [0.8, 0.8, 0.8, 0.8]
-      max_force: 800.0
-      max_torque: 160.0
+      max_force: 55.0
+      max_torque: 13.7
       integral_safety_factor: 2.0
 ```
 

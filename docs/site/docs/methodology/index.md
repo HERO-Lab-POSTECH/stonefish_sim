@@ -41,7 +41,7 @@ flowchart TD
 
 **보간(Path Generator)** — 경유점을 Cubic Spline(C2 연속), LIPB(Monotone Cubic Hermite, 오버슈팅 없음), Linear 세 방식으로 보간해 경로를 생성한다(분석 사실 §4.2). 상세: [궤적 생성과 추력 배분](trajectory-thruster.md).
 
-**추력 배분(Thruster Manager)** — TAM(Thruster Allocation Matrix)의 의사역으로 6DOF wrench를 8개 추진기 힘으로 분배하는 최소노름 해. `F = TAM_pinv · Wrench` 후 PWM 정규화(`max_thrust` 200)한다(분석 사실 §4.4). 상세: [궤적 생성과 추력 배분](trajectory-thruster.md).
+**추력 배분(Thruster Manager)** — TAM(Thruster Allocation Matrix)의 의사역으로 6DOF wrench를 8개 추진기 힘으로 분배하는 최소노름 해. `F = TAM_pinv · Wrench` 후 √ 역추력맵(`max_thrust` = 물리 최대 추력 20.68 N)으로 setpoint 변환한다. 상세: [궤적 생성과 추력 배분](trajectory-thruster.md).
 
 **Stonefish 물리** — `StepSimulation(dt=1/rate)`마다 강체동역학·유체항력·부력·센서 시뮬레이션을 수행하고 센서 데이터를 publish, 액추에이터 입력을 receive하는 C++ 시뮬레이션 루프(`stonefish_simulator.cpp:1-120`, `ROS2Interface.h:59-85`).
 
