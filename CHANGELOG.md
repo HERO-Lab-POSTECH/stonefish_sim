@@ -6,13 +6,14 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
-- **`sonar_yolo_ros2` 패키지** (김민종 colcon_ws2 통합): FLS 소나 이미지 YOLO 추론 노드
-  (`sonar_yolo/detections` JSON + `sonar_yolo/annotated`). pip 전용 `ultralytics` 필요,
-  가중치(`stonefish_yolo_sofa.pt`)는 repo 미포함 — README 참조.
-  ⚠️ `stonefish_` 접두사 명명 규칙(.omp/rules.json) 위반 상태 — 개명 여부 팀 결정 필요
+- **`stonefish_sonar_yolo` 패키지** (김민종 colcon_ws2 통합, 원명 `sonar_yolo_ros2`):
+  FLS 소나 이미지 YOLO 추론 노드 (`sonar_yolo/detections` JSON + `sonar_yolo/annotated`).
+  `stonefish_` 접두사 규칙에 맞춰 albc 선례대로 개명(디렉토리·모듈·resource 마커·
+  entry point 일괄). ROS 노드/실행자명은 `sonar_yolo_node` 유지.
+  pip 전용 `ultralytics` 필요, 가중치(`stonefish_yolo_sofa.pt`)는 repo 미포함 — README 참조
 - **`nav_interfaces` 패키지** (김민종 통합): 실해역 bag 디코드용 항법 메시지
   (`LIGnav`/`NavAtt`/`NavVel`). bag에 기록된 타입명 호환 때문에 `stonefish_` 접두사
-  개명 불가 — 명명 규칙 예외로 문서화 필요
+  개명 불가 — 워크스페이스 `.omp` 명명 규칙에 예외로 등록(stonefish_ws PR 참조)
 - README Docker 설치 안내 — 전용 배포 repo
   [`stonefish_bringup`](https://github.com/HERO-Lab-POSTECH/stonefish_bringup) 참조
   (core+sim+slam 소스를 bake하는 멀티스테이지 GPU 이미지, 호스트 실빌드 검증 완료)

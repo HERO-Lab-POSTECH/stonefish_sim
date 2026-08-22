@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>sonar_yolo_ros2</name>
+  <name>stonefish_sonar_yolo</name>
   <version>0.5.0</version>
   <description>YOLO object detection on FLS sonar images (JSON detections + annotated image)</description>
   <maintainer email="luckkim123@gmail.com">Seungmin Kim</maintainer>

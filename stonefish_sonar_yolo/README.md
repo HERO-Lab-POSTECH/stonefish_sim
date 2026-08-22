@@ -1,4 +1,4 @@
-# sonar_yolo_ros2
+# stonefish_sonar_yolo
 
 FLS 소나 이미지에 YOLO 추론을 수행해 탐지 결과를 발행하는 노드.
 
@@ -15,7 +15,7 @@ FLS 소나 이미지에 YOLO 추론을 수행해 탐지 결과를 발행하는 �
 ## 실행
 
 ```bash
-ros2 run sonar_yolo_ros2 sonar_yolo_node --ros-args \
+ros2 run stonefish_sonar_yolo sonar_yolo_node --ros-args \
   -p model:=/path/to/stonefish_yolo_sofa.pt \
   -p image_topic:=/bluerov2/fls/image \
   -p device:=cuda:0 -p conf:=0.25 -p iou:=0.7 -p imgsz:=640

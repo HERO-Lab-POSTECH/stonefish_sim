@@ -4,7 +4,7 @@
 
 from setuptools import find_packages, setup
 
-package_name = 'sonar_yolo_ros2'
+package_name = 'stonefish_sonar_yolo'
 
 setup(
     name=package_name,
@@ -28,7 +28,7 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'sonar_yolo_node = sonar_yolo_ros2.sonar_yolo_node:main',
+            'sonar_yolo_node = stonefish_sonar_yolo.sonar_yolo_node:main',
         ],
     },
 )

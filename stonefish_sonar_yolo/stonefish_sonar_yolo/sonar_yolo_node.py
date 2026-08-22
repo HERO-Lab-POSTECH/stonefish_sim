@@ -16,9 +16,9 @@ from cv_bridge import CvBridge
 
 from ultralytics import YOLO
 
-# ros2 run sonar_yolo_ros2 sonar_yolo_node \
+# ros2 run stonefish_sonar_yolo sonar_yolo_node \
 #   --ros-args \
-#   -p model:=/home/colcon_ws2/src/stonefish_sim/sonar_yolo_ros2/stonefish_yolo_sofa.pt \
+#   -p model:=/path/to/stonefish_yolo_sofa.pt \
 #   -p image_topic:=/bluerov2/fls/image \
 #   -p device:=cuda:0 \
 #   -p conf:=0.25 \
