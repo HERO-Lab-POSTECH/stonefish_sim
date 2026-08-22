@@ -34,6 +34,9 @@ class HybridController4DOFNode(Node):
             max_torque_cascade=self.max_torque_cascade,
             integral_safety_factor_cascade=self.integral_safety_factor_cascade,
             M_eff_diag=self.dynamics.effective_mass_4dof,
+            d1_diag=self.dynamics.linear_damping_4dof,
+            d2_diag=self.dynamics.quad_damping_4dof,
+            static_ff=np.array([0.0, 0.0, self.dynamics.residual_buoyancy_force, 0.0]),
             initial_mode=self.initial_mode
         )
         

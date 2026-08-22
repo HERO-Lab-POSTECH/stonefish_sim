@@ -18,6 +18,9 @@ Architecture:
       clip(리뷰 BLOCKER-1) 때문에 unmatched disturbance가 되어 금지.
       M_eff = 실측 유효질량 대각(dynamics_params.yaml added_mass_diag 합산).
       한계: 강체 가속만 반영 — Coriolis/구심 항(ω×v, 선회 시 sway r·u)은 미모델.
+    - damping/static ff (P2): d1·v_sp + d2·v_sp|v_sp| + 정적(부력) — 정상상태
+      유지력을 모델이 선지불해 적분기 상한(sat·safety_factor)에 걸린 정상상태
+      droop을 제거. 계수는 실측(dynamics_params.yaml), 미공급 시 0.
 
 Frame:
     World: NED, Body: FRD. 단위 SI.
@@ -47,6 +50,9 @@ class CascadeController:
         integral_safety_factor: float = 0.5,
         M_eff_diag: Optional[np.ndarray] = None,
         accel_ff_cutoff_hz: float = 2.0,
+        d1_diag: Optional[np.ndarray] = None,
+        d2_diag: Optional[np.ndarray] = None,
+        static_ff: Optional[np.ndarray] = None,
     ):
         """
         Args:
@@ -60,6 +66,10 @@ class CascadeController:
                 — accel ff의 M. 미공급 시 강체 질량만 사용(부가질량 무시).
             accel_ff_cutoff_hz: v_sp 미분 저역필터 차단주파수 [Hz].
                 0 이하 = accel ff 비활성(기존 동작).
+            d1_diag, d2_diag: [4] 실측 감쇠 대각 — damping ff
+                `d1·v_sp + d2·v_sp|v_sp|` (v_sp 유지에 필요한 정상상태 힘을
+                모델이 선지불, 적분기 부담 제거). 미공급 시 0.
+            static_ff: [4] 정적 상쇄력 (heave 잔류부력 등). 미공급 시 0.
         """
         self.Kp_outer = np.asarray(Kp_outer, dtype=float)
         self.Kp_inner = np.asarray(Kp_inner, dtype=float)
@@ -83,6 +93,12 @@ class CascadeController:
         self.integral_limit = self.sat_limit / Ki_diag * integral_safety_factor
 
         self.accel_ff_cutoff_hz = accel_ff_cutoff_hz
+        self.d1 = (np.asarray(d1_diag, dtype=float)
+                   if d1_diag is not None else np.zeros(4))
+        self.d2 = (np.asarray(d2_diag, dtype=float)
+                   if d2_diag is not None else np.zeros(4))
+        self.static_ff = (np.asarray(static_ff, dtype=float)
+                          if static_ff is not None else np.zeros(4))
 
         # 상태
         self.integral_inner = np.zeros(4)
@@ -168,8 +184,11 @@ class CascadeController:
         i_in = self.Ki_inner * self.integral_inner
         self.prev_e_inner = e_inner.copy()
 
-        # M_eff·a feedforward (P2): setpoint 가감속 부하를 피드백이 아닌 모델이 선지불
-        ff = self.M @ self._acc_ff
+        # 모델 feedforward (P2): 가속(M_eff·v̇_sp) + 감쇠(d1·v_sp+d2·v_sp|v_sp|)
+        # + 정적(부력) — setpoint 유지·가감속 부하를 피드백이 아닌 모델이 선지불
+        ff = (self.M @ self._acc_ff
+              + self.d1 * v_sp + self.d2 * v_sp * np.abs(v_sp)
+              + self.static_ff)
 
         tau = p_in + d_in + i_in + ff
         tau_sat = np.clip(tau, -self.sat_limit, self.sat_limit)

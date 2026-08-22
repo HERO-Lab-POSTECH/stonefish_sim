@@ -503,3 +503,35 @@ def test_accel_ff_saturation_engages_backcalc(CascadeController):
     # 순수 사다리꼴 적분(0.5·(e2+e1)·dt, e1=0, e2=5.0)보다 작아야 back-calc 발동
     pure_trapezoid = 0.5 * (5.0 + 0.0) * dt
     assert info['integral_inner'][0] < pure_trapezoid
+
+
+def test_damping_static_ff_oracle(CascadeController):
+    """P2-6 (리뷰 MINOR-2): ff = d1·v_sp + d2·v_sp|v_sp| + static (게인 0 격리).
+
+    accel ff는 cutoff=0으로 끄고 v_sp=[0.5,0,-0.2,0.3] 강제(vel_ff 경유).
+    """
+    d1 = np.array([1.65, 11.30, 17.95, 0.31])
+    d2 = np.array([80.28, 44.25, 157.51, 0.45])
+    static = np.array([0.0, 0.0, 7.27, 0.0])
+    c = _make_cascade(
+        CascadeController,
+        Kp_outer=np.zeros(4), Kp_inner=np.zeros(4), Ki_inner=np.zeros(4),
+        accel_ff_cutoff_hz=0.0, d1_diag=d1, d2_diag=d2, static_ff=static)
+    vel_ff = np.array([0.5, 0.0, -0.2, 0.3])
+    tau, info = c.compute_control(np.zeros(4), np.zeros(6), np.zeros(6),
+                                  dt=0.1, vel_ff=vel_ff)
+    expected = d1 * vel_ff + d2 * vel_ff * np.abs(vel_ff) + static
+    np.testing.assert_allclose(info['tau_ff'], expected, atol=1e-9)
+    np.testing.assert_allclose(
+        tau, [expected[0], expected[1], expected[2], 0.0, 0.0, expected[3]],
+        atol=1e-9)
+
+
+def test_damping_ff_default_off(CascadeController):
+    """P2-7: d1/d2/static 미공급 → damping ff 0 (하위호환)."""
+    c = _make_cascade(CascadeController,
+                      Kp_outer=np.zeros(4), Kp_inner=np.zeros(4),
+                      Ki_inner=np.zeros(4), accel_ff_cutoff_hz=0.0)
+    tau, _ = c.compute_control(np.zeros(4), np.zeros(6), np.zeros(6),
+                               dt=0.1, vel_ff=np.array([0.5, 0.0, 0.0, 0.0]))
+    np.testing.assert_allclose(tau, np.zeros(6), atol=1e-9)
