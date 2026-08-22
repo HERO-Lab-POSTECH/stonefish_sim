@@ -15,14 +15,22 @@ All notable changes to this project will be documented in this file.
   `CascadeController`에 accel feedforward 추가: clip 후 v_sp를 내부
   수치미분(1차 LPF)해 `M_eff·v̇_sp`를 inner에 합산(포화 전) —
   guidance 원신호 미분은 outer surge 상시 clip 때문에 unmatched
-  disturbance가 되어 리뷰에서 기각. **폐루프 어블레이션(runE vs runF,
-  단일 스택 검증)에서 accel ff ON이 직선 leg 사행·allocator 포화를
-  유발함이 실측되어 기본 비활성**(`accel_ff_cutoff_hz: 0.0` — v_sp가
-  outer P 경유로 차량 위치의 함수라 그 미분이 폐루프 자기되먹임이 됨;
-  ON: e_y RMS 0.456·포화 경고 1459건 → OFF: 0.227·0건).
-  damping·부력 ff는 순기능으로 유지(e_y RMS 0.227 m vs P1 0.323 m).
-  게이트 테스트: 실측치↔게인 정합
+  disturbance가 되어 리뷰에서 기각. **accel ff는 기본 비활성**
+  (`accel_ff_cutoff_hz: 0.0`): 단일 스택 폐루프 4런에서 이득 미입증 —
+  leg 사행은 ON/OFF 무관 발생(원인은 아래 guidance 속도 권위 항목의
+  감속 무력화 쌍안정으로 판정)이고, v_sp가 outer P 경유로 차량 위치의
+  함수라 그 미분은 자기되먹임 경로가 됨.
+  damping·부력 ff는 순기능으로 유지(청정 런 e_y RMS 0.227~0.228 m vs
+  P1 0.323 m). 게이트 테스트: 실측치↔게인 정합
   (`Kp=M_eff·ω_c`)·node 기본값 drift·v_sp_limit≤실측 v_max
+
+- **P2 — guidance 속도 권위(`guidance_speed_margin`, 기본 0.1 m/s)**:
+  cascade에서 vel_ff 공급 시 surge v_sp를 |명령속도|+margin으로 동적 캡.
+  단일 스택 재현 실험(runM 청정 0.228 vs runN 사행 0.459, 동일 설정)에서
+  사행 런이 코너 감속 명령 0.30을 u 0.68~0.70으로 무시함을 실측 —
+  outer 위치항(Kp 0.4 × carrot ~3 m)이 v_sp clip을 상시 쳐 guidance
+  감속이 무력화되고, 그 실효가 carrot 기하(동역학 상태)에 좌우되는
+  사행 쌍안정이 생긴다. 캡이 감속 권위를 컨트롤러 레벨에서 보장
 
 - **`stonefish_sonar_yolo` 패키지** (김민종 colcon_ws2 통합, 원명 `sonar_yolo_ros2`):
   FLS 소나 이미지 YOLO 추론 노드 (`sonar_yolo/detections` JSON + `sonar_yolo/annotated`).

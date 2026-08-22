@@ -16,12 +16,15 @@ Architecture:
       (1차 LPF)해 M_eff·v̇_sp를 inner에 합산. inner가 추종하는 setpoint의
       미분이므로 matched feedforward다 — guidance 원신호 미분은 outer surge
       상시 clip(리뷰 BLOCKER-1) 때문에 unmatched disturbance가 되어 금지.
-      ⚠ 폐루프 어블레이션(2026-08-22 runE vs runF, 단일 스택 검증)에서
-      ON(2 Hz)이 직선 leg 사행 + allocator 포화를 유발(e_y RMS 0.456→OFF
-      0.227, 포화 경고 1459→0건): v_sp는 outer P를 통해 차량 위치의
-      함수라, v_sp 미분은 차량 운동을 힘으로 되먹이는 폐루프 자기되먹임이
-      된다(개루프 오라클 테스트로는 안 잡힘). 기본 cutoff 0(off) —
-      켜려면 폐루프 재검증 필수.
+      ⚠ 기본 cutoff 0(off): 폐루프 계측(2026-08-22, 단일 스택 4런)에서
+      이득 미입증 — leg 사행은 ON/OFF 무관하게 발생(ON 1/1, OFF 1/3;
+      원인은 guidance 감속 무력화 쌍안정으로 별도 판정, 아래 guidance
+      속도 권위 참조)이고, v_sp가 outer P 경유 차량 위치의 함수라 그
+      미분은 자기되먹임 경로가 된다. 켜려면 폐루프 재검증 필수.
+    - guidance 속도 권위 (P2): vel_ff 공급 시 surge v_sp를 |명령속도|+
+      margin으로 동적 캡. outer 위치항이 v_sp clip을 상시 치면 코너 감속
+      명령이 무력화되어(사행 런: 명령 0.30에 u 0.68~0.70) 감속 실효가
+      carrot 기하에 좌우되는 사행 쌍안정이 생긴다 — 그 차단.
       한계: 강체 가속만 반영 — Coriolis/구심 항(ω×v, 선회 시 sway r·u)은 미모델.
     - damping/static ff (P2): d1·v_sp + d2·v_sp|v_sp| + 정적(부력) — 정상상태
       유지력을 모델이 선지불해 적분기 상한(sat·safety_factor)에 걸린 정상상태
@@ -58,6 +61,7 @@ class CascadeController:
         d1_diag: Optional[np.ndarray] = None,
         d2_diag: Optional[np.ndarray] = None,
         static_ff: Optional[np.ndarray] = None,
+        guidance_speed_margin: float = 0.1,
     ):
         """
         Args:
@@ -70,12 +74,16 @@ class CascadeController:
             M_eff_diag: [4] 실측 유효질량 대각 [m+Ma_u, m+Ma_v, m+Ma_w, Izz_eff]
                 — accel ff의 M. 미공급 시 강체 질량만 사용(부가질량 무시).
             accel_ff_cutoff_hz: v_sp 미분 저역필터 차단주파수 [Hz].
-                0 이하 = accel ff 비활성. 기본 0 — 폐루프 어블레이션에서
-                사행 유발 실측(모듈 docstring 참조), 켜려면 재검증 필수.
+                0 이하 = accel ff 비활성. 기본 0 — 이득 미입증 +
+                자기되먹임 위험(모듈 docstring 참조), 켜려면 재검증 필수.
             d1_diag, d2_diag: [4] 실측 감쇠 대각 — damping ff
                 `d1·v_sp + d2·v_sp|v_sp|` (v_sp 유지에 필요한 정상상태 힘을
                 모델이 선지불, 적분기 부담 제거). 미공급 시 0.
             static_ff: [4] 정적 상쇄력 (heave 잔류부력 등). 미공급 시 0.
+            guidance_speed_margin: vel_ff 공급 시 surge v_sp 동적 캡
+                |vel_ff_u|+margin [m/s]. 음수 = 비활성(캡 없음, 기존 동작).
+                근거: 코너 감속 명령(0.3)이 outer 위치항의 v_sp clip 포화에
+                구조적으로 무력화되는 사행 쌍안정 실측(모듈 docstring).
         """
         self.Kp_outer = np.asarray(Kp_outer, dtype=float)
         self.Kp_inner = np.asarray(Kp_inner, dtype=float)
@@ -105,6 +113,7 @@ class CascadeController:
                    if d2_diag is not None else np.zeros(4))
         self.static_ff = (np.asarray(static_ff, dtype=float)
                           if static_ff is not None else np.zeros(4))
+        self.guidance_speed_margin = guidance_speed_margin
 
         # 상태
         self.integral_inner = np.zeros(4)
@@ -166,6 +175,16 @@ class CascadeController:
             v_sp = v_sp + np.asarray(vel_ff, dtype=float)  # path-tangent ff
 
         v_sp = np.clip(v_sp, -self.v_sp_limit, self.v_sp_limit)  # ff 합산 후 포화
+
+        # ===== guidance 속도 권위 (P2): surge v_sp를 명령 속도+margin으로 캡 =====
+        # outer 위치항(Kp 0.4 × carrot 거리 ~3 m ≈ 1.2)이 v_sp clip을 상시
+        # 치면 guidance의 코너 감속(vel_ff u 0.3)이 무력화된다 — 실측: 사행
+        # 런은 코너 명령 0.30에서 u 0.68~0.70으로 통과(청정 런은 0.32 순종).
+        # 감속 실효가 carrot 기하(동역학 상태)에 좌우되는 쌍안정의 차단.
+        if vel_ff is not None and self.guidance_speed_margin >= 0.0:
+            u_cap = min(self.v_sp_limit[0],
+                        abs(float(vel_ff[0])) + self.guidance_speed_margin)
+            v_sp[0] = np.clip(v_sp[0], -u_cap, u_cap)
 
         # ===== accel ff: clip 후 v_sp 수치미분 + 1차 LPF (P2 모델 주입) =====
         # inner가 추종하는 setpoint 자체의 미분이라 matched ff. raw는 물리 달성

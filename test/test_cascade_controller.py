@@ -506,6 +506,41 @@ def test_accel_ff_saturation_engages_backcalc(CascadeController):
     assert info['integral_inner'][0] < pure_trapezoid
 
 
+def test_guidance_speed_cap_enforced(CascadeController):
+    """P2-8: vel_ff 공급 시 surge v_sp ≤ |vel_ff_u|+margin — 코너 감속 권위.
+
+    outer 위치항이 커도(e_x=3 m → Kp_outer·e=3) 명령 0.3+margin 0.1=0.4로
+    캡. 캡 제거 시 v_sp[0]=v_sp_limit(0.7)이 되어 FAIL.
+    """
+    c = _make_cascade(CascadeController,
+                      v_sp_limit=np.array([0.7, 0.5, 0.25, 0.6]),
+                      guidance_speed_margin=0.1,
+                      Ki_inner=np.zeros(4))
+    pose_des = np.array([3.0, 0.0, 0.0, 0.0])
+    _, info = c.compute_control(pose_des, np.zeros(6), np.zeros(6), dt=0.1,
+                                vel_ff=np.array([0.3, 0.0, 0.0, 0.0]))
+    assert info['v_sp'][0] == pytest.approx(0.4, abs=1e-9), \
+        'surge v_sp가 명령속도 0.3+margin 0.1로 캡되어야 한다'
+    # sway/heave/yaw는 캡 비대상
+    assert info['v_sp'][1] == pytest.approx(0.0, abs=1e-9)
+
+
+def test_guidance_speed_cap_disabled_and_no_velff(CascadeController):
+    """P2-9: margin<0 또는 vel_ff=None이면 캡 없음(기존 동작)."""
+    pose_des = np.array([3.0, 0.0, 0.0, 0.0])
+    lim = np.array([0.7, 0.5, 0.25, 0.6])
+    c = _make_cascade(CascadeController, v_sp_limit=lim,
+                      guidance_speed_margin=-1.0, Ki_inner=np.zeros(4))
+    _, info = c.compute_control(pose_des, np.zeros(6), np.zeros(6), dt=0.1,
+                                vel_ff=np.array([0.3, 0.0, 0.0, 0.0]))
+    assert info['v_sp'][0] == pytest.approx(0.7, abs=1e-9)   # clip만 적용
+    c2 = _make_cascade(CascadeController, v_sp_limit=lim,
+                       guidance_speed_margin=0.1, Ki_inner=np.zeros(4))
+    _, info2 = c2.compute_control(pose_des, np.zeros(6), np.zeros(6), dt=0.1,
+                                  vel_ff=None)
+    assert info2['v_sp'][0] == pytest.approx(0.7, abs=1e-9)  # vel_ff 없음 → 캡 없음
+
+
 def test_damping_static_ff_oracle(CascadeController):
     """P2-6 (리뷰 MINOR-2): ff = d1·v_sp + d2·v_sp|v_sp| + static (게인 0 격리).
 

@@ -47,6 +47,7 @@ class HybridController:
         d1_diag: np.ndarray = None,
         d2_diag: np.ndarray = None,
         static_ff: np.ndarray = None,
+        guidance_speed_margin: float = 0.1,
         initial_mode: str = 'velocity'
     ):
         self.velocity_controller = PositionController(
@@ -80,6 +81,7 @@ class HybridController:
                 M_eff_diag=M_eff_diag,
                 accel_ff_cutoff_hz=accel_ff_cutoff_hz,
                 d1_diag=d1_diag, d2_diag=d2_diag, static_ff=static_ff,
+                guidance_speed_margin=guidance_speed_margin,
             )
 
         self.control_mode = initial_mode
