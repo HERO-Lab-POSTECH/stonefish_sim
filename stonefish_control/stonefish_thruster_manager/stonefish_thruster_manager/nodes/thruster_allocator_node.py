@@ -19,7 +19,7 @@ from pathlib import Path
 from geometry_msgs.msg import WrenchStamped
 from std_msgs.msg import Float64MultiArray
 
-from ..thruster_manager import ThrusterManager
+from ..thruster_manager import ThrusterManager, force_to_pwm
 
 
 class ThrusterAllocatorNode(Node):
@@ -44,7 +44,10 @@ class ThrusterAllocatorNode(Node):
         self.declare_parameter('base_link', 'base_link')
         self.declare_parameter('update_rate', 50.0)
         self.declare_parameter('timeout', 1.0)
-        self.declare_parameter('max_thrust', 200.0)  # PWM normalization scale (NOT physical limit)
+        # 추진기당 물리 최대 추력 T_max [N] — bluerov2.scn specs 유도:
+        # T_max = ρ·kT·n_max²·D⁴ = 1027.9 · 0.167 · 60² · 0.076⁴ ≈ 20.62 N
+        # (thrust_coeff=0.167, max_rpm=3600 → n_max=60 rev/s, D=0.076 m, 해수 ρ=1027.9)
+        self.declare_parameter('max_thrust', 20.62)
 
         # Get parameters
         tam_file = self.get_parameter('tam_file').value
@@ -158,8 +161,9 @@ class ThrusterAllocatorNode(Node):
             self.max_thrust
         )
 
-        # Normalize to PWM range (-1.0 to 1.0) for Stonefish
-        self.thrust_pwm = self.thrust_forces / self.max_thrust
+        # Inverse thrust map: Stonefish는 setpoint를 rpm 분율로 해석하고
+        # 추력은 T ∝ n|n| — 선형 나눗셈은 추력을 제곱 왜곡하므로 √ 역맵 사용
+        self.thrust_pwm = force_to_pwm(self.thrust_forces, self.max_thrust)
 
         # Publish PWM setpoints
         self.publish_thrust_forces()

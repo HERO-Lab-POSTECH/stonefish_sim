@@ -40,8 +40,9 @@ def generate_launch_description():
 
     max_thrust_arg = DeclareLaunchArgument(
         'max_thrust',
-        default_value='100.0',
-        description='Maximum thrust force per thruster [N]'
+        # bluerov2.scn specs 유도: T_max = ρ·kT·n_max²·D⁴ ≈ 20.62 N
+        default_value='20.62',
+        description='Physical maximum thrust per thruster [N] (inverse thrust map scale)'
     )
 
     use_sim_time_arg = DeclareLaunchArgument(

@@ -166,3 +166,23 @@ class ThrusterManager:
             )
 
         return self._tam @ thrust_forces
+
+
+def force_to_pwm(forces, max_thrust):
+    """추력 명령[N] → Stonefish 추진기 setpoint(rpm 분율, -1~1) 역추력맵.
+
+    Stonefish `Thruster`는 setpoint를 최대 회전수 분율 n/n_max로 해석하고
+    정적 추력은 T = ρ·kT·n|n|·D⁴ ∝ n² 이다. 따라서 힘 F를 얻으려면
+    pwm = sign(F)·√(|F|/T_max) 가 필요하다 — 종전의 선형 나눗셈(F/scale)은
+    실제 추력을 제곱으로 왜곡했다(예: scale=100일 때 100 N 명령 → 실추력 7.3 N).
+
+    Args:
+        forces: 추진기별 추력 명령 [N] (array-like).
+        max_thrust: 추진기당 물리 최대 추력 T_max [N]. |F| > T_max는 ±1로 클립.
+
+    Returns:
+        np.ndarray: setpoint ∈ [-1, 1].
+    """
+    forces = np.asarray(forces, dtype=float)
+    ratio = np.minimum(np.abs(forces) / max_thrust, 1.0)
+    return np.sign(forces) * np.sqrt(ratio)
