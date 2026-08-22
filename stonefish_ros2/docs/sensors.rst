@@ -43,7 +43,7 @@ Message type: ``sensor_msgs::msg::NavSatFix``
 Doppler velocity log (DVL)
 ==========================
 
-Message type: ``cola2_msgs::msg::DVL``
+Message type: ``stonefish_msgs::msg::DVL``
 
 Second message type: ``sensor_msgs::msg::Range``
 
