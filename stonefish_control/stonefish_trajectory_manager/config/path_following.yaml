@@ -13,8 +13,11 @@
     # PRIMARY PARAMETERS
     # =========================================
 
-    # Target speed (m/s) - max 2 knots recommended
-    cruise_speed: 1.0
+    # Target speed (m/s). 실측 상한 정합 (P2 2026-08-22): surge 최대속도
+    # v_ss(55 N)=0.911 m/s — 종전 1.0은 물리적으로 도달 불가해 상시 포화를
+    # 만들었다. 0.9도 정상항력 ≈54 N(포화의 98%)로 헤드룸이 거의 없다.
+    # (Open Q1: 실기 요구 속도 결정 시 0.8 이하 하향 권고)
+    cruise_speed: 0.9
 
     # Lookahead distance (m)
     lookahead_distance: 3.0

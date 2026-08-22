@@ -99,20 +99,28 @@
         Kp: [0.4, 0.5, 0.3, 0.8]   # [x, y, z, yaw]
         Ki: [0.0, 0.0, 0.0, 0.0]   # outer I 비활성 — 적분은 inner만(windup 차단)
       inner_loop:
-        # 속도오차[m/s,rad/s] → 힘/토크[N,Nm] — 물리 기반 초기값 (헤더 도출 참조)
-        # 포화 정합: 정지→cruise 스텝(e≈1.2)에서 Kp·e ≈ 48 N < max_force 55 —
-        # 최악 e=2.4(역방향 운동 중 반전)는 포화 → back-calculation이 처리
-        Kp: [40.0, 40.0, 50.0, 4.0]
-        Ki: [20.0, 20.0, 25.0, 2.0]
-        Kd: [0.0, 20.0, 20.0, 1.0]
+        # 속도오차[m/s,rad/s] → 힘/토크[N,Nm] — 실측 플랜트 기반 (P2 2026-08-22
+        # open-loop 스텝 프로브, dynamics_params.yaml 참조).
+        # 유효질량 M_eff = [70.2, 62.0, 63.9] kg (부가질량 포함 — 건질량 20.13의
+        # 3.1~3.5배). 종전 Kp=40은 가정 질량 20.13 기준 ω_c=2 설계였으나 실측
+        # 질량으론 실효 ω_c=0.57 rad/s(설계의 29%)에 불과했다.
+        # Kp = M_eff·ω_c (ω_c=2 rad/s), Ki = Kp/2 (적분시정수 4/ω_c).
+        # yaw는 I_zz 실측이 진동 잡음으로 부정확(~0.24, order만 신뢰) →
+        # P1에서 검증된 기존값 유지.
+        # 포화: Kp·e = 55 N은 e≈0.4 m/s — 코너 과도의 순간 포화는
+        # back-calculation + M·a feedforward(acc_ff)가 부담 분산.
+        Kp: [140.0, 124.0, 128.0, 4.0]
+        Ki: [70.0, 62.0, 64.0, 2.0]
+        Kd: [0.0, 20.0, 20.0, 1.0]   # 실측 유도 아님 — P0 경험값 유지
         Kb: [0.8, 0.8, 0.8, 0.8]
         integral_safety_factor: 0.5
       # 속도 setpoint 포화 [u,v,w,r].
-      # surge 1.2: cruise_speed 1.0(path_following.yaml) + 20% 헤드룸 —
-      #   종전 0.5는 cruise 1.0과 모순돼 상시 windup 압력을 만들었다.
-      #   (Open Q1: 실기 요구 속도가 0.5면 cruise와 함께 하향 조정)
+      # surge 0.9: 실측 최대속도 v_ss(55 N)=0.911 m/s — 종전 1.2는 물리적으로
+      #   도달 불가한 상한이라 상시 포화·windup 압력원이었다. 0.9에서도 정상
+      #   항력 ≈54 N(포화의 98%)라 직선 헤드룸이 거의 없다.
+      #   (Open Q1 갱신: cruise 1.0도 도달 불가 — 0.8 이하 하향 권고, 사용자 결정)
       # sway 0.5: 곡률 feedforward 헤드룸 (P6), heave/yaw 기존 유지
-      v_sp_limit: [1.2, 0.5, 0.25, 0.6]
+      v_sp_limit: [0.9, 0.5, 0.25, 0.6]
       max_force: 55.0    # N (물리 한계 정합)
       max_torque: 13.7   # Nm
 
