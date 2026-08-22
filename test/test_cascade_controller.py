@@ -415,3 +415,47 @@ def test_hybrid_velocity_position_unchanged():
     finally:
         for name in to_clean:
             sys.modules.pop(name, None)
+
+
+# ============================================================
+# P2 모델 주입: M_eff·a feedforward (acc_ff)
+# ============================================================
+
+def test_acc_ff_adds_M_eff_times_accel(CascadeController):
+    """P2-1: M_eff_diag 공급 + 오차 0 → tau = M_eff·acc_ff (포화 이하)."""
+    M_eff = np.array([70.2, 62.0, 63.9, 0.24])
+    c = _make_cascade(CascadeController, M_eff_diag=M_eff)
+    pose_des = np.array([0.0, 0.0, 0.0, 0.0])
+    pose_curr = np.zeros(6)
+    vel_curr = np.zeros(6)
+    acc_ff = np.array([0.1, -0.2, 0.05, 1.0])
+    tau, info = c.compute_control(pose_des, pose_curr, vel_curr, dt=0.1,
+                                  vel_ff=None, acc_ff=acc_ff)
+    expected = M_eff * acc_ff
+    np.testing.assert_allclose(
+        tau, [expected[0], expected[1], expected[2], 0.0, 0.0, expected[3]],
+        atol=1e-9)
+    np.testing.assert_allclose(info['tau_ff'], expected, atol=1e-9)
+
+
+def test_acc_ff_none_equals_zero_ff(CascadeController):
+    """P2-2: acc_ff 미공급 == acc_ff=0 — 기존 동작 보존(하위호환)."""
+    c1 = _make_cascade(CascadeController, M_eff_diag=np.array([70.2, 62.0, 63.9, 0.24]))
+    c2 = _make_cascade(CascadeController, M_eff_diag=np.array([70.2, 62.0, 63.9, 0.24]))
+    pose_des = np.array([1.0, 0.5, -0.3, 0.2])
+    pose_curr = np.zeros(6)
+    vel_curr = np.zeros(6)
+    tau1, _ = c1.compute_control(pose_des, pose_curr, vel_curr, dt=0.1)
+    tau2, _ = c2.compute_control(pose_des, pose_curr, vel_curr, dt=0.1,
+                                 acc_ff=np.zeros(4))
+    np.testing.assert_allclose(tau1, tau2, atol=1e-9)
+
+
+def test_M_eff_fallback_rigid_mass(CascadeController):
+    """P2-3: M_eff_diag 미공급 → 강체 질량 fallback (M = diag[m,m,m,Izz])."""
+    c = _make_cascade(CascadeController)   # mass=11.5, inertia_zz=0.16
+    np.testing.assert_allclose(np.diag(c.M), [11.5, 11.5, 11.5, 0.16], atol=1e-9)
+    pose_des = np.array([0.0, 0.0, 0.0, 0.0])
+    tau, _ = c.compute_control(pose_des, np.zeros(6), np.zeros(6), dt=0.1,
+                               acc_ff=np.array([1.0, 0.0, 0.0, 0.0]))
+    assert tau[0] == pytest.approx(11.5, abs=1e-9)
