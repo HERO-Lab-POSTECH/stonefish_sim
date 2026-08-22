@@ -171,6 +171,14 @@ opus 적대검증 CONFIRMED 4건을 수정했다. 컨테이너는 GPU 없어 닫
   위 P6 항목 참조).
 - **[ros2.parser] `ActuatorType::PUSH` 미와이어링**: 이미 `RCLCPP_WARN`으로
   "not supported"를 내보내고 있어 현상 유지가 최소 diff — 손대지 않았다.
+- **[control.cascade] anti-windup이 allocator 스케일링을 인지하지 못함 (P2 2026-08-22 발견)**:
+  back-calculation은 컨트롤러 자체 55 N clip 기준으로만 적분을 되돌리는데, 하류
+  thruster_allocator가 per-thruster T_max 20.68 N 초과 시 wrench를 균등 스케일링
+  (실측 0.43~0.7배)하므로 실제 인가 wrench는 컨트롤러 인지값보다 작다 — 대과도에서
+  적분 오염으로 정렬 실패가 확률적으로 발생(runF~I, 4런 중 1런만 생존). P2에서는
+  inner ω_c 2→1 하향(f79092e)으로 예산 초과 자체를 회피했으나 근본 처방은
+  allocator 인가율 피드백(스케일 계수를 컨트롤러에 회신) 또는 우선순위 할당
+  (yaw 권한 보전) — 신규 동작이라 owner 채택 결정 필요.
 - **[control.docs] 패키지 README에 cascade 모드 부재**: `stonefish_control/stonefish_control/README.md`가
   Position/Hybrid(velocity·position)만 서술하고 P5의 cascade 모드·CascadeController를
   다루지 않는다(mode 목록도 두 개뿐). P5 이전부터의 공백으로 P2 범위 밖 — README
