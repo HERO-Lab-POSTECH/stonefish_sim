@@ -46,6 +46,22 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **추진기 힘→PWM 제곱 왜곡 수정 (경로추종 실패 근본 원인)**: allocator가
+  힘[N]을 `max_thrust`로 선형 나눗셈해 발행한 setpoint를 Stonefish가 rpm 분율로
+  해석(추력 ∝ n|n|)해 실제 추력이 명령의 제곱으로 붕괴했다(스케일 100 기준
+  100 N 명령 → 실추력 7.3 N). `force_to_pwm()` √ 역추력맵으로 교체하고
+  `max_thrust`를 물리 최대 추력 20.62 N(.scn 사양 유도)으로 재정의
+- **컨트롤러 포화 한계 물리 정합**: 전 모드 `max_force` 800→55 N,
+  `max_torque` 160→13.7 N·m (TAM×T_max 축별 한계 58.3 N/13.73 N·m 이내) —
+  종전 ~14배 초과 설정으로 anti-windup이 미발동해 코너 적분 폭주 유발.
+  물리 정합 게이트 테스트(`test_thrust_saturation_consistency.py`) 추가
+- **cascade `v_sp_limit[surge]` 0.5→1.2**: guidance `cruise_speed` 1.0과의
+  모순(상시 windup 압력) 해소
+- **게인 물리 기반 재산정**: 종전 게인(Kp 200~400)은 제곱 왜곡 플랜트 위에서
+  튜닝된 값이라 승계 불가 — inner/velocity Kp≈m·ω_c(≈40), position Kp≈m·ω_n²
+  초기값으로 교체(P1 닫힌루프 튜닝 대상). declare_parameter 기본값·컨트롤러
+  시그니처 기본값도 YAML과 동기화(silent-fallback 시 구 플랜트 부활 차단)
+
 - `albc_smoke.launch.py`: `/workspace` 절대경로 하드코딩 → `FindPackageShare` (타 머신 이식성)
 - `albc_bridge` 메타데이터 placeholder 제거 (버전 0.4.0 통일, GPL-3.0, 실제 description)
 - `obs_builder.py`·`bridge_node.py` docstring·`test_obs_builder.py` 라벨의 "69D" 서술을
