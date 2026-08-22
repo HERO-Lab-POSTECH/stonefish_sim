@@ -15,10 +15,11 @@
 
     # Target speed (m/s). 실측 상한 정합 (P2 2026-08-22): surge 최대속도
     # v_ss(55 N)=0.911 m/s — 종전 1.0은 도달 불가해 상시 포화를 만들었다.
-    # 0.7 선정 근거: 0.8 이상은 allocator 균등 스케일링에서 yaw 권한이
-    # 3 N·m 이하로 붕괴(hybrid_controller.yaml v_sp_limit 주석의 표 참조).
+    # 0.6 선정 근거: 0.7은 폐루프에서 surge 포화⇄사행 쌍안정이 실측되어
+    # 반증(hybrid_controller.yaml v_sp_limit 주석), 0.8 이상은 yaw 권한
+    # 3 N·m 이하로 붕괴(같은 주석의 표 참조).
     # (Open Q1: 실기 요구 속도는 사용자 결정 — 위 표가 판단 근거)
-    cruise_speed: 0.7
+    cruise_speed: 0.6
 
     # Lookahead distance (m)
     lookahead_distance: 3.0

@@ -15,11 +15,12 @@ All notable changes to this project will be documented in this file.
   `CascadeController`에 accel feedforward 추가: clip 후 v_sp를 내부
   수치미분(1차 LPF)해 `M_eff·v̇_sp`를 inner에 합산(포화 전) —
   guidance 원신호 미분은 outer surge 상시 clip 때문에 unmatched
-  disturbance가 되어 리뷰에서 기각. **폐루프 어블레이션(runE/runF)에서
-  accel ff ON이 직선 leg 사행을 유발함이 실측되어 기본 비활성**
-  (`accel_ff_cutoff_hz: 0.0` — v_sp가 outer P 경유로 차량 위치의 함수라
-  그 미분이 폐루프 자기되먹임이 됨; damping·부력 ff는 순기능으로 유지,
-  e_y RMS 0.227 m vs P1 0.323 m). 게이트 테스트: 실측치↔게인 정합
+  disturbance가 되어 리뷰에서 기각. **accel ff는 기본 비활성**
+  (`accel_ff_cutoff_hz: 0.0`): 폐루프 계측(runE/F/G)에서 이득 미입증
+  (직선 leg 사행의 원인은 acc_ff가 아니라 아래 surge 포화 쌍안정으로
+  재판정)이고 자기되먹임 경로(v_sp가 outer P 경유로 차량 위치의 함수)를
+  더하기 때문. damping·부력 ff는 순기능으로 유지(청정 런 e_y RMS
+  0.227 m vs P1 0.323 m). 게이트 테스트: 실측치↔게인 정합
   (`Kp=M_eff·ω_c`)·node 기본값 drift·v_sp_limit≤실측 v_max
 
 - **`stonefish_sonar_yolo` 패키지** (김민종 colcon_ws2 통합, 원명 `sonar_yolo_ros2`):
@@ -39,9 +40,13 @@ All notable changes to this project will be documented in this file.
 
 - **P2 — cascade 게인 실측 재산정·속도 상한 실측 정합**: inner
   Kp=M_eff·ω_c(2 rad/s)=[140,124,128], Ki=Kp/2 (yaw는 I_zz 실측 불확실로
-  P1 검증값 유지). `v_sp_limit[surge]` 1.2→0.7, `cruise_speed` 1.0→0.7 —
+  P1 검증값 유지). `v_sp_limit[surge]` 1.2→0.6, `cruise_speed` 1.0→0.6 —
   실측 v_max 0.911 m/s에 더해, 0.8 이상에서는 allocator 균등 스케일링의
   yaw 권한이 3 N·m 이하로 붕괴(실측 항력 기반 권한 표는 config 주석).
+  0.7도 폐루프에서 반증: 정상 항력이 55 N의 73%라 여유 부족 → 초기
+  과도 미감쇠 시 surge 포화(duty 32%)⇄사행 쌍안정 잠김(동일 설정 2런이
+  0.227/0.403으로 갈림, corr(포화 duty, v_y_std)=0.56) — 0.6은 정상
+  54%·yaw 여유 15.2 N·m로 복원.
   실기 요구 속도는 Open Q1(사용자 결정)
 
 - BlueROV2 FLS 장착 pitch 60°→80° 하향 (`bluerov2.scn`, 김민종 통합) — 측량 고도에서
