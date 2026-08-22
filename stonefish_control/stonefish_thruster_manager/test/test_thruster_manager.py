@@ -33,7 +33,7 @@ def test_wrench_shape_validation(load_module):
 # force_to_pwm 역추력맵 (fix/thrust-map)
 # ---------------------------------------------------------------------------
 
-T_MAX = 20.62  # bluerov2.scn 유도 추진기당 물리 최대 추력 [N]
+T_MAX = 20.68  # bluerov2.scn + environment.scn(ρ=1031) 유도 추진기당 물리 최대 추력 [N]
 
 
 def _f2p(load_module):
@@ -83,3 +83,46 @@ def test_force_to_pwm_roundtrip_static_thrust(load_module):
     forces = np.linspace(-T_MAX, T_MAX, 41)
     pwm = f2p(forces, T_MAX)
     np.testing.assert_allclose(T_MAX * pwm * np.abs(pwm), forces, atol=1e-9)
+
+
+# ---------------------------------------------------------------------------
+# scale_thrust_to_limit 방향보존 균등 스케일링 (fix/thrust-map)
+# ---------------------------------------------------------------------------
+
+
+def _scaler(load_module):
+    return load_module(REL, "thruster_manager_under_test").scale_thrust_to_limit
+
+
+def test_scale_noop_within_limit(load_module):
+    scale = _scaler(load_module)
+    forces = np.array([5.0, -10.0, T_MAX])
+    out, factor = scale(forces, T_MAX)
+    assert factor == 1.0
+    np.testing.assert_array_equal(out, forces)
+
+
+def test_scale_caps_peak_at_limit(load_module):
+    scale = _scaler(load_module)
+    out, factor = scale(np.array([2 * T_MAX, 0.0, -T_MAX]), T_MAX)
+    assert factor < 1.0
+    assert np.max(np.abs(out)) == pytest.approx(T_MAX)
+
+
+def test_scale_preserves_direction(load_module):
+    """스케일링 후에도 추진기 간 비율(=wrench 방향)이 보존돼야 한다.
+
+    element-wise 클립으로 회귀하면 이 테스트가 fail한다 — 초과 성분만
+    잘려 비율이 깨지기 때문(코너 surge+yaw 동시명령의 yaw 붕괴 결함).
+    """
+    scale = _scaler(load_module)
+    forces = np.array([30.0, -15.0, 7.5, 3.75])
+    out, _ = scale(forces, T_MAX)
+    np.testing.assert_allclose(out / out[0], forces / forces[0], atol=1e-12)
+
+
+def test_scale_zero_vector_safe(load_module):
+    scale = _scaler(load_module)
+    out, factor = scale(np.zeros(8), T_MAX)
+    assert factor == 1.0
+    np.testing.assert_array_equal(out, np.zeros(8))
