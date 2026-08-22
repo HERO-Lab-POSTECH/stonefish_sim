@@ -34,6 +34,7 @@ class HybridController4DOFNode(Node):
             max_torque_cascade=self.max_torque_cascade,
             integral_safety_factor_cascade=self.integral_safety_factor_cascade,
             M_eff_diag=self.dynamics.effective_mass_4dof,
+            accel_ff_cutoff_hz=self.accel_ff_cutoff_hz,
             d1_diag=self.dynamics.linear_damping_4dof,
             d2_diag=self.dynamics.quad_damping_4dof,
             static_ff=np.array([0.0, 0.0, self.dynamics.residual_buoyancy_force, 0.0]),
@@ -85,6 +86,7 @@ class HybridController4DOFNode(Node):
         self.declare_parameter('cascade.inner_loop.Kb', [0.8, 0.8, 0.8, 0.8])
         self.declare_parameter('cascade.inner_loop.integral_safety_factor', 0.5)
         self.declare_parameter('cascade.v_sp_limit', [0.7, 0.5, 0.25, 0.6])
+        self.declare_parameter('cascade.accel_ff_cutoff_hz', 2.0)
         self.declare_parameter('cascade.max_force', 55.0)
         self.declare_parameter('cascade.max_torque', 13.7)
 
@@ -114,6 +116,7 @@ class HybridController4DOFNode(Node):
         self.Kb_inner = np.array(self.get_parameter('cascade.inner_loop.Kb').value)
         self.integral_safety_factor_cascade = self.get_parameter('cascade.inner_loop.integral_safety_factor').value
         self.v_sp_limit = np.array(self.get_parameter('cascade.v_sp_limit').value)
+        self.accel_ff_cutoff_hz = self.get_parameter('cascade.accel_ff_cutoff_hz').value
         self.max_force_cascade = self.get_parameter('cascade.max_force').value
         self.max_torque_cascade = self.get_parameter('cascade.max_torque').value
 

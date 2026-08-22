@@ -43,6 +43,7 @@ class HybridController:
         max_torque_cascade: float = 13.7,
         integral_safety_factor_cascade: float = 0.5,
         M_eff_diag: np.ndarray = None,
+        accel_ff_cutoff_hz: float = 2.0,
         d1_diag: np.ndarray = None,
         d2_diag: np.ndarray = None,
         static_ff: np.ndarray = None,
@@ -77,6 +78,7 @@ class HybridController:
                 max_force=max_force_cascade, max_torque=max_torque_cascade,
                 integral_safety_factor=integral_safety_factor_cascade,
                 M_eff_diag=M_eff_diag,
+                accel_ff_cutoff_hz=accel_ff_cutoff_hz,
                 d1_diag=d1_diag, d2_diag=d2_diag, static_ff=static_ff,
             )
 

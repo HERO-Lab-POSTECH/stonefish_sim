@@ -127,6 +127,8 @@
       #   (Open Q1: 실기 요구 속도는 사용자 결정 — 이 표가 판단 근거)
       # sway 0.5: 곡률 feedforward 헤드룸 (P6), heave/yaw 기존 유지
       v_sp_limit: [0.7, 0.5, 0.25, 0.6]
+      # accel ff(v_sp 미분) LPF 차단주파수 [Hz]. 0 = accel ff 비활성.
+      accel_ff_cutoff_hz: 2.0
       max_force: 55.0    # N (물리 한계 정합)
       max_torque: 13.7   # Nm
 
