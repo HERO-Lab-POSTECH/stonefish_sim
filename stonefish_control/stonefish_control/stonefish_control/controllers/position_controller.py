@@ -59,8 +59,8 @@ class PositionController:
         Kb: np.ndarray,
         mass: float,
         inertia_zz: float,
-        max_force: float = 200.0,
-        max_torque: float = 50.0,
+        max_force: float = 55.0,
+        max_torque: float = 13.7,
         integral_safety_factor: float = 2.0,
         control_mode: str = 'position'
     ):

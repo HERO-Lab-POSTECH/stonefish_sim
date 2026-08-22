@@ -14,17 +14,22 @@ position_controller_4dof:
     # Kd: Derivative gain (velocity damping)
     # Ki: Integral gain (steady-state error elimination)
     # Kb: Anti-windup back-calculation gain
-    Kp: [300.0, 300.0, 400.0, 200.0]  # [surge, sway, heave, yaw]
-    Kd: [150.0, 150.0, 200.0, 100.0]  # Velocity damping
-    Ki: [10.0, 10.0, 20.0, 5.0]       # Integral action
+    # 물리 기반 재산정 초기값 (hybrid_controller.yaml 헤더 도출과 동일):
+    # Kp ≈ m·ω_n² (m=20.13 kg, ω_n≈1.5), Kd ≈ 2ζω_n·m (ζ≈0.7),
+    # yaw는 Izz 불확실(점질량 0.13, added inertia 미실측)로 포화 정합식
+    Kp: [45.0, 45.0, 55.0, 3.0]       # [surge, sway, heave, yaw]
+    Kd: [40.0, 40.0, 50.0, 1.5]       # Velocity damping
+    Ki: [5.0, 5.0, 10.0, 0.5]         # Integral action
     Kb: [0.8, 0.8, 0.8, 0.8]          # Anti-windup factor
 
     # ============================================
     # Saturation Limits
     # ============================================
     # Maximum wrench command to thruster allocator
-    max_force: 800.0   # N (linear forces: surge, sway, heave)
-    max_torque: 160.0  # Nm (rotational torques: roll, pitch, yaw)
+    # 물리 한계 정합 (fix/thrust-map): 추진기당 T_max≈20.68 N, 단일축 상한
+    # surge/sway 58.5 N · yaw 13.77 N·m — hybrid_controller.yaml 헤더 참조
+    max_force: 55.0    # N (linear forces: surge, sway, heave)
+    max_torque: 13.7   # Nm (rotational torques: roll, pitch, yaw)
 
     # ============================================
     # Integral Safety

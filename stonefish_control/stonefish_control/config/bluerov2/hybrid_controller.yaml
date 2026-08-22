@@ -12,13 +12,17 @@
 # ============================================
 # 포화 한계 물리 근거 (fix/thrust-map, 2026-08-22)
 # ============================================
-# 추진기당 T_max = ρ·kT·n_max²·D⁴ = 1027.9·0.167·60²·0.076⁴ ≈ 20.62 N
-# (bluerov2.scn: thrust_coeff=0.167, max_rpm=3600, D=0.076 m)
-# TAM(BlueROV2 Heavy) 축별 최대:
-#   surge/sway = 4·cos45°·20.62 ≈ 58.3 N, heave = 4·20.62 ≈ 82.5 N
-#   yaw = 4·0.16652·20.62 ≈ 13.73 N·m
+# 추진기당 T_max = ρ·kT·n_max²·D⁴ = 1031.0·0.167·60²·0.076⁴ ≈ 20.68 N
+# (bluerov2.scn: thrust_coeff=0.167, max_rpm=3600, D=0.076 m;
+#  ρ=1031.0은 data/worlds/common/environment.scn의 water density)
+# TAM(BlueROV2 Heavy) 축별 **단일축** 상한 (그 축만 단독 명령 시):
+#   surge/sway = 4·cos45°·20.68 ≈ 58.5 N, heave = 4·20.68 ≈ 82.7 N
+#   yaw = 4·0.16652·20.68 ≈ 13.77 N·m
+# 다축 동시명령은 이 한계 이내라도 추진기당 T_max를 넘을 수 있다
+# (예: surge 55 N + yaw 8 N·m → 추진기당 153%) — allocator가 방향보존
+# 균등 스케일링으로 처리하므로 wrench 방향은 보존되고 크기만 준다.
 # max_force는 3축 공통 스칼라이므로 surge/sway 기준 55 N(마진 6%)로 설정 —
-# heave는 물리 한계(82.5)보다 보수적이 된다. max_torque는 13.7 N·m.
+# heave는 물리 한계(82.7)보다 보수적이 된다. max_torque는 13.7 N·m.
 # 종전 800 N/160 N·m는 물리 한계의 ~14배로, anti-windup이 실효 영역에서
 # 발동하지 않아 코너 적분 폭주의 원인이었다.
 #
@@ -26,7 +30,10 @@
 #   inner/velocity Kp ≈ m·ω_c (m=20.13 kg, ω_c≈2 rad/s) ≈ 40 N/(m/s)
 #   Ki = Kp/T_i (T_i≈2 s), Kd는 구 게인 스케일비(/5) 승계
 #   yaw는 Izz=0.13(점질량 근사, added inertia 미실측)라 대역폭식 대신
-#   포화 정합(Kp_r·e_r_max ≲ max_torque/3)으로 4 N·m/(rad/s)
+#   포화 정합(Kp_r·e_r_max ≲ max_torque/3)으로 4 N·m/(rad/s) —
+#   명목 ω_c = Kp_r/Izz ≈ 31 rad/s로 선형축(≈2)보다 공격적: added
+#   inertia가 크면 완화되나 로터 지연(τ≈0.3s) 대비 진동 성향 가능성
+#   → 실기 sign-off에서 yaw 스텝 응답 오버슈트/진동 확인 필수
 # 종전 게인(Kp 200~400)은 제곱 왜곡된 플랜트 위에서 튜닝된 값이라 승계 불가.
 
 # Wildcard node-name match: binds regardless of the launch `name=` override
@@ -93,7 +100,8 @@
         Ki: [0.0, 0.0, 0.0, 0.0]   # outer I 비활성 — 적분은 inner만(windup 차단)
       inner_loop:
         # 속도오차[m/s,rad/s] → 힘/토크[N,Nm] — 물리 기반 초기값 (헤더 도출 참조)
-        # 포화 정합 검증: Kp·e_max ≈ 40·1.4 ≈ 56 N ≈ max_force
+        # 포화 정합: 정지→cruise 스텝(e≈1.2)에서 Kp·e ≈ 48 N < max_force 55 —
+        # 최악 e=2.4(역방향 운동 중 반전)는 포화 → back-calculation이 처리
         Kp: [40.0, 40.0, 50.0, 4.0]
         Ki: [20.0, 20.0, 25.0, 2.0]
         Kd: [0.0, 20.0, 20.0, 1.0]
