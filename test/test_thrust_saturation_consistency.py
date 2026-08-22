@@ -98,11 +98,9 @@ DYN_YAML = REPO / "stonefish_description/data/robots/bluerov2/config/dynamics_pa
 
 
 def test_cascade_inner_kp_matches_measured_effective_mass():
-    """P2 게이트: cascade inner Kp(병진 3축) = (mass+added_mass_diag)·ω_c (ω_c=1).
+    """P2 게이트: cascade inner Kp(병진 3축) = (mass+added_mass_diag)·ω_c (ω_c=2).
 
     실측 질량(dynamics_params.yaml)과 게인(hybrid_controller.yaml)의 drift 방지.
-    ω_c=2는 폐루프에서 반증(allocator per-thruster 예산 초과 → 기동 정렬
-    불안정, yaml 주석 참조) — 1 rad/s로 하향.
     yaw는 I_zz 실측 불확실로 경험값 유지라 제외(설정 주석 참조).
     """
     dyn = yaml.safe_load(DYN_YAML.read_text())["/**"]["ros__parameters"]
@@ -111,7 +109,7 @@ def test_cascade_inner_kp_matches_measured_effective_mass():
     ma = dyn["added_mass_diag"]
     assert len(ma) == 6 and all(v >= 0.0 for v in ma)
     kp_inner = hyb["cascade"]["inner_loop"]["Kp"]
-    omega_c = 1.0
+    omega_c = 2.0
     for i in range(3):
         expected = (mass + ma[i]) * omega_c
         assert math.isclose(kp_inner[i], expected, rel_tol=0.02), (

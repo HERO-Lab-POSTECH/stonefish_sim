@@ -16,11 +16,12 @@ Architecture:
       (1차 LPF)해 M_eff·v̇_sp를 inner에 합산. inner가 추종하는 setpoint의
       미분이므로 matched feedforward다 — guidance 원신호 미분은 outer surge
       상시 clip(리뷰 BLOCKER-1) 때문에 unmatched disturbance가 되어 금지.
-      ⚠ 폐루프 계측(2026-08-22 runE/F/G): 직선 leg 사행의 원인은 acc_ff가
-      아니라 surge 포화⇄사행 쌍안정로 재판정(OFF에서도 사행 런 존재 —
-      hybrid_controller.yaml v_sp_limit 주석). acc_ff는 이득 미입증에
-      자기되먹임 경로(v_sp가 outer P 경유 차량 위치의 함수)를 더하므로
-      기본 cutoff 0(off) — 켜려면 폐루프 재검증 필수.
+      ⚠ 폐루프 어블레이션(2026-08-22 runE vs runF, 단일 스택 검증)에서
+      ON(2 Hz)이 직선 leg 사행 + allocator 포화를 유발(e_y RMS 0.456→OFF
+      0.227, 포화 경고 1459→0건): v_sp는 outer P를 통해 차량 위치의
+      함수라, v_sp 미분은 차량 운동을 힘으로 되먹이는 폐루프 자기되먹임이
+      된다(개루프 오라클 테스트로는 안 잡힘). 기본 cutoff 0(off) —
+      켜려면 폐루프 재검증 필수.
       한계: 강체 가속만 반영 — Coriolis/구심 항(ω×v, 선회 시 sway r·u)은 미모델.
     - damping/static ff (P2): d1·v_sp + d2·v_sp|v_sp| + 정적(부력) — 정상상태
       유지력을 모델이 선지불해 적분기 상한(sat·safety_factor)에 걸린 정상상태
@@ -69,8 +70,8 @@ class CascadeController:
             M_eff_diag: [4] 실측 유효질량 대각 [m+Ma_u, m+Ma_v, m+Ma_w, Izz_eff]
                 — accel ff의 M. 미공급 시 강체 질량만 사용(부가질량 무시).
             accel_ff_cutoff_hz: v_sp 미분 저역필터 차단주파수 [Hz].
-                0 이하 = accel ff 비활성. 기본 0 — 이득 미입증 +
-                자기되먹임 위험(모듈 docstring 참조), 켜려면 재검증 필수.
+                0 이하 = accel ff 비활성. 기본 0 — 폐루프 어블레이션에서
+                사행 유발 실측(모듈 docstring 참조), 켜려면 재검증 필수.
             d1_diag, d2_diag: [4] 실측 감쇠 대각 — damping ff
                 `d1·v_sp + d2·v_sp|v_sp|` (v_sp 유지에 필요한 정상상태 힘을
                 모델이 선지불, 적분기 부담 제거). 미공급 시 0.
