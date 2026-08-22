@@ -19,7 +19,7 @@ from pathlib import Path
 from geometry_msgs.msg import WrenchStamped
 from std_msgs.msg import Float64MultiArray
 
-from ..thruster_manager import ThrusterManager
+from ..thruster_manager import ThrusterManager, force_to_pwm, scale_thrust_to_limit
 
 
 class ThrusterAllocatorNode(Node):
@@ -44,7 +44,12 @@ class ThrusterAllocatorNode(Node):
         self.declare_parameter('base_link', 'base_link')
         self.declare_parameter('update_rate', 50.0)
         self.declare_parameter('timeout', 1.0)
-        self.declare_parameter('max_thrust', 200.0)  # PWM normalization scale (NOT physical limit)
+        # 추진기당 물리 최대 추력 T_max [N] — bluerov2.scn specs 유도:
+        # T_max = ρ·kT·n_max²·D⁴ = 1031.0 · 0.167 · 60² · 0.076⁴ ≈ 20.68 N
+        # (thrust_coeff=0.167, max_rpm=3600 → n_max=60 rev/s, D=0.076 m,
+        #  ρ=1031.0은 data/worlds/common/environment.scn의 water density —
+        #  albc 담수 시나리오(ρ=998)에서는 3% 과대이나 허용 오차)
+        self.declare_parameter('max_thrust', 20.68)
 
         # Get parameters
         tam_file = self.get_parameter('tam_file').value
@@ -57,6 +62,9 @@ class ThrusterAllocatorNode(Node):
         update_rate = self.get_parameter('update_rate').value
         self.timeout = self.get_parameter('timeout').value
         self.max_thrust = self.get_parameter('max_thrust').value
+        if self.max_thrust <= 0.0:
+            raise ValueError(
+                f'max_thrust must be positive, got {self.max_thrust}')
 
         # Initialize TAM if file is provided
         if tam_file:
@@ -151,15 +159,19 @@ class ThrusterAllocatorNode(Node):
         # Compute thrust forces using TAM pseudo-inverse
         self.thrust_forces = self.tam_manager.compute_thrust_forces(wrench)
 
-        # Apply saturation (Force in Newton)
-        self.thrust_forces = np.clip(
-            self.thrust_forces,
-            -self.max_thrust,
-            self.max_thrust
-        )
+        # 방향보존 균등 스케일링 (Force in Newton) — element-wise 클립은
+        # 다축 동시명령에서 wrench 방향을 왜곡하므로 전체를 균등 축소
+        self.thrust_forces, scale = scale_thrust_to_limit(
+            self.thrust_forces, self.max_thrust)
+        if scale < 1.0:
+            self.get_logger().warning(
+                f'Thruster demand exceeds T_max={self.max_thrust:.2f} N '
+                f'- wrench scaled by {scale:.2f}',
+                throttle_duration_sec=1.0)
 
-        # Normalize to PWM range (-1.0 to 1.0) for Stonefish
-        self.thrust_pwm = self.thrust_forces / self.max_thrust
+        # Inverse thrust map: Stonefish는 setpoint를 rpm 분율로 해석하고
+        # 추력은 T ∝ n|n| — 선형 나눗셈은 추력을 제곱 왜곡하므로 √ 역맵 사용
+        self.thrust_pwm = force_to_pwm(self.thrust_forces, self.max_thrust)
 
         # Publish PWM setpoints
         self.publish_thrust_forces()

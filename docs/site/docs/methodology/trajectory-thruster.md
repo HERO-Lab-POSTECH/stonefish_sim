@@ -39,7 +39,7 @@ F = \mathrm{TAM}^{+} \cdot \tau
 flowchart TD
     A["6DOF wrench (WrenchStamped)"] --> B["TAM_pinv 곱 (numpy 의사역)"]
     B --> C["추진기 추력 F1~F8 (최소노름 해)"]
-    C --> D["PWM 정규화 (max_thrust=200)"]
+    C --> D["√ 역추력맵 (max_thrust=20.68)"]
     D --> E["/{vehicle}/setpoint/pwm (Float64MultiArray)"]
 ```
 
@@ -60,9 +60,9 @@ TAM은 6행(Surge/Sway/Heave/Roll/Pitch/Yaw) × 8열(추진기 T1~T8)의 행렬�
 
 근거: `TAM.yaml:1-52` (분석 사실 §3.5).
 
-### PWM 정규화
+### 역추력맵 (힘 → setpoint)
 
-추진기 추력은 `max_thrust` 척도로 PWM 정규화된다. 기본값은 `200.0`이다.
+추진기 추력[N]은 `pwm = sign(F)·√(|F|/max_thrust)` 역추력맵으로 setpoint(rpm 분율)로 변환된다 — Stonefish의 추력이 T ∝ n|n| 이기 때문이다. `max_thrust` 기본값은 물리 최대 추력 `20.68` N(`bluerov2.scn` 사양 유도)이다.
 
 | 파라미터 | 기본값 | 의미 |
 |----------|--------|------|
@@ -71,12 +71,12 @@ TAM은 6행(Surge/Sway/Heave/Roll/Pitch/Yaw) × 8열(추진기 T1~T8)의 행렬�
 | `base_link` | `'base_link'` | 기준 프레임 |
 | `update_rate` | `50.0` | 갱신 Hz |
 | `timeout` | `1.0` | 입력 타임아웃 s |
-| `max_thrust` | `200.0` | PWM 정규화 척도 |
+| `max_thrust` | `20.68` | 추진기당 물리 최대 추력[N], 역추력맵 척도 |
 
-근거: `thruster_allocator_node.py:41-59` (분석 사실 §3.3).
+근거: `thruster_allocator_node.py`.
 
-!!! warning "max_thrust는 물리 한계가 아니다"
-    `max_thrust`(`200.0`)는 PWM 정규화에 쓰이는 척도이며 추진기의 물리적 추력 한계가 아니다. 이 값을 바꾸면 같은 wrench에 대한 PWM 출력 스케일이 함께 바뀐다. 근거: 분석 사실 §3.3.
+!!! warning "max_thrust는 물리 한계다 — 임의 변경 금지"
+    `max_thrust`(`20.68`)는 `bluerov2.scn` 사양에서 유도한 추진기당 물리 최대 추력[N]이며 역추력맵의 척도다. 임의 값으로 바꾸면 같은 wrench에 대한 실추력이 왜곡된다. 근거: `thruster_manager.py`의 `force_to_pwm`.
 
 ## 관련 파라미터
 

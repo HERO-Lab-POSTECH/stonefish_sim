@@ -166,3 +166,42 @@ class ThrusterManager:
             )
 
         return self._tam @ thrust_forces
+
+
+def force_to_pwm(forces, max_thrust):
+    """추력 명령[N] → Stonefish 추진기 setpoint(rpm 분율, -1~1) 역추력맵.
+
+    Stonefish `Thruster`는 setpoint를 최대 회전수 분율 n/n_max로 해석하고
+    정적 추력은 T = ρ·kT·n|n|·D⁴ ∝ n² 이다. 따라서 힘 F를 얻으려면
+    pwm = sign(F)·√(|F|/T_max) 가 필요하다 — 종전의 선형 나눗셈(F/scale)은
+    실제 추력을 제곱으로 왜곡했다(예: scale=100일 때 100 N 명령 → 실추력 7.3 N).
+
+    Args:
+        forces: 추진기별 추력 명령 [N] (array-like).
+        max_thrust: 추진기당 물리 최대 추력 T_max [N]. |F| > T_max는 ±1로 클립.
+
+    Returns:
+        np.ndarray: setpoint ∈ [-1, 1].
+    """
+    forces = np.asarray(forces, dtype=float)
+    ratio = np.minimum(np.abs(forces) / max_thrust, 1.0)
+    return np.sign(forces) * np.sqrt(ratio)
+
+
+def scale_thrust_to_limit(forces, max_thrust):
+    """다축 동시명령이 추진기당 한계를 넘으면 방향보존 균등 스케일링.
+
+    element-wise 클립은 초과한 추진기만 잘라 wrench 방향(선회 기하)을
+    왜곡한다 — 예: surge 55 N + yaw 8 N·m 동시 명령은 추진기당 31.5 N
+    (T_max의 153%)을 요구하는데, 클립하면 yaw가 4.4 N·m로 붕괴한다.
+    균등 스케일링은 크기만 줄이고 wrench 방향을 보존한다.
+
+    Returns:
+        (scaled_forces, factor): factor < 1.0 이면 스케일링이 발동한 것.
+    """
+    forces = np.asarray(forces, dtype=float)
+    peak = np.max(np.abs(forces)) if forces.size else 0.0
+    if peak <= max_thrust:
+        return forces, 1.0
+    factor = max_thrust / peak
+    return forces * factor, factor

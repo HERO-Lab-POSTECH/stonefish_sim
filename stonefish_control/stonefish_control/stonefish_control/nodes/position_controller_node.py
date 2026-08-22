@@ -159,14 +159,14 @@ class PID4DOFNode(Node):
     def _setup_pid_parameters(self):
         """Declare PID-specific ROS2 parameters"""
         # PID Gains
-        self.declare_parameter('Kp', [300.0, 300.0, 400.0, 200.0])
-        self.declare_parameter('Kd', [150.0, 150.0, 200.0, 100.0])
-        self.declare_parameter('Ki', [10.0, 10.0, 20.0, 5.0])
+        self.declare_parameter('Kp', [45.0, 45.0, 55.0, 3.0])
+        self.declare_parameter('Kd', [40.0, 40.0, 50.0, 1.5])
+        self.declare_parameter('Ki', [5.0, 5.0, 10.0, 0.5])
         self.declare_parameter('Kb', [0.8, 0.8, 0.8, 0.8])
 
         # Saturation
-        self.declare_parameter('max_force', 200.0)
-        self.declare_parameter('max_torque', 50.0)
+        self.declare_parameter('max_force', 55.0)
+        self.declare_parameter('max_torque', 13.7)
         # integral_limit is auto-derived inside PositionController from
         # sat_limit / Ki * integral_safety_factor (see position_controller.py:108-115).
         # Match the package-wide pattern (hybrid/velocity nodes, position_controller.yaml).

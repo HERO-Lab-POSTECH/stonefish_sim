@@ -8,6 +8,33 @@
 # Mode switching: Controlled by path_following_4dof_node
 #   - Path following → velocity mode
 #   - Last waypoint → position mode
+#
+# ============================================
+# 포화 한계 물리 근거 (fix/thrust-map, 2026-08-22)
+# ============================================
+# 추진기당 T_max = ρ·kT·n_max²·D⁴ = 1031.0·0.167·60²·0.076⁴ ≈ 20.68 N
+# (bluerov2.scn: thrust_coeff=0.167, max_rpm=3600, D=0.076 m;
+#  ρ=1031.0은 data/worlds/common/environment.scn의 water density)
+# TAM(BlueROV2 Heavy) 축별 **단일축** 상한 (그 축만 단독 명령 시):
+#   surge/sway = 4·cos45°·20.68 ≈ 58.5 N, heave = 4·20.68 ≈ 82.7 N
+#   yaw = 4·0.16652·20.68 ≈ 13.77 N·m
+# 다축 동시명령은 이 한계 이내라도 추진기당 T_max를 넘을 수 있다
+# (예: surge 55 N + yaw 8 N·m → 추진기당 153%) — allocator가 방향보존
+# 균등 스케일링으로 처리하므로 wrench 방향은 보존되고 크기만 준다.
+# max_force는 3축 공통 스칼라이므로 surge/sway 기준 55 N(마진 6%)로 설정 —
+# heave는 물리 한계(82.7)보다 보수적이 된다. max_torque는 13.7 N·m.
+# 종전 800 N/160 N·m는 물리 한계의 ~14배로, anti-windup이 실효 영역에서
+# 발동하지 않아 코너 적분 폭주의 원인이었다.
+#
+# 게인은 물리 기반 재산정 초기값(P1 닫힌루프 튜닝 대상):
+#   inner/velocity Kp ≈ m·ω_c (m=20.13 kg, ω_c≈2 rad/s) ≈ 40 N/(m/s)
+#   Ki = Kp/T_i (T_i≈2 s), Kd는 구 게인 스케일비(/5) 승계
+#   yaw는 Izz=0.13(점질량 근사, added inertia 미실측)라 대역폭식 대신
+#   포화 정합(Kp_r·e_r_max ≲ max_torque/3)으로 4 N·m/(rad/s) —
+#   명목 ω_c = Kp_r/Izz ≈ 31 rad/s로 선형축(≈2)보다 공격적: added
+#   inertia가 크면 완화되나 로터 지연(τ≈0.3s) 대비 진동 성향 가능성
+#   → 실기 sign-off에서 yaw 스텝 응답 오버슈트/진동 확인 필수
+# 종전 게인(Kp 200~400)은 제곱 왜곡된 플랜트 위에서 튜닝된 값이라 승계 불가.
 
 # Wildcard node-name match: binds regardless of the launch `name=` override
 # (repo convention, cf. path_following.yaml / path_generator.yaml). Without this
@@ -26,15 +53,15 @@
     # Fast, responsive control for path tracking
     # Lower precision, accepts some drift
     velocity_mode:
-      # PID Gains (tuned for velocity tracking)
-      Kp: [200.0, 200.0, 250.0, 150.0]  # [surge, sway, heave, yaw]
-      Kd: [0.0, 100.0, 100.0, 80.0]     # Surge Kd=0 (no damping)
-      Ki: [50.0, 50.0, 60.0, 10.0]
-      Kb: [0.8, 0.8, 0.8, 0.8]          # Anti-windup back-calculation
+      # PID Gains — 물리 기반 초기값 (헤더 도출 참조)
+      Kp: [40.0, 40.0, 50.0, 4.0]   # [surge, sway, heave, yaw]
+      Kd: [0.0, 20.0, 20.0, 1.0]    # Surge Kd=0 (no damping)
+      Ki: [20.0, 20.0, 25.0, 2.0]
+      Kb: [0.8, 0.8, 0.8, 0.8]      # Anti-windup back-calculation
 
-      # Saturation limits (higher for aggressive path following)
-      max_force: 800.0   # N
-      max_torque: 160.0  # Nm
+      # Saturation limits (물리 한계 정합 — 헤더 도출 참조)
+      max_force: 55.0    # N
+      max_torque: 13.7   # Nm
 
       # Integral safety factor (lower = less integral authority)
       # Formula: integral_limit = (sat_limit / Ki) × safety_factor
@@ -46,15 +73,15 @@
     # Precise, stable control for waypoint arrival
     # High precision, zero drift
     position_mode:
-      # PID Gains (tuned for position holding)
-      Kp: [300.0, 300.0, 400.0, 200.0]  # [surge, sway, heave, yaw]
-      Kd: [150.0, 150.0, 200.0, 100.0]
-      Ki: [10.0, 10.0, 20.0, 5.0]
+      # PD 축: Kp ≈ m·ω_n² (ω_n≈1.5), Kd ≈ 2ζω_n·m (ζ≈0.7)
+      Kp: [45.0, 45.0, 55.0, 3.0]   # [surge, sway, heave, yaw]
+      Kd: [40.0, 40.0, 50.0, 1.5]
+      Ki: [5.0, 5.0, 10.0, 0.5]
       Kb: [0.8, 0.8, 0.8, 0.8]
 
-      # Saturation limits (conservative for stable positioning)
-      max_force: 800.0   # N
-      max_torque: 160.0   # Nm
+      # Saturation limits (물리 한계 정합)
+      max_force: 55.0    # N
+      max_torque: 13.7   # Nm
 
       # Integral safety factor (higher = more integral authority)
       integral_safety_factor: 2.0
@@ -67,36 +94,41 @@
     cascade:
       outer_loop:
         # 위치오차[m,rad] → 속도 setpoint[m/s,rad/s] (느린 루프)
-        # [P6] sway Kp 0.4→0.5: feedforward 잔차 복귀 강화
-        Kp: [0.4, 0.5, 0.3, 0.8]   # [x, y, z, yaw] (추정 초기값, P4 실기 튜닝)
+        # 운동학적 게인이라 추력맵 왜곡과 무관 — 기존값 유지 (P6 이력 포함)
+        # 대역 분리: outer ~0.4 rad/s ≪ inner ~2 rad/s (5×)
+        Kp: [0.4, 0.5, 0.3, 0.8]   # [x, y, z, yaw]
         Ki: [0.0, 0.0, 0.0, 0.0]   # outer I 비활성 — 적분은 inner만(windup 차단)
       inner_loop:
-        # 속도오차[m/s,rad/s] → 힘/토크[N,Nm] (빠른 루프, velocity_mode 실효값 F6)
-        Kp: [200.0, 200.0, 250.0, 150.0]
-        Ki: [50.0, 50.0, 60.0, 10.0]
-        Kd: [0.0, 100.0, 100.0, 80.0]   # F6: bluerov2 YAML 실효값
+        # 속도오차[m/s,rad/s] → 힘/토크[N,Nm] — 물리 기반 초기값 (헤더 도출 참조)
+        # 포화 정합: 정지→cruise 스텝(e≈1.2)에서 Kp·e ≈ 48 N < max_force 55 —
+        # 최악 e=2.4(역방향 운동 중 반전)는 포화 → back-calculation이 처리
+        Kp: [40.0, 40.0, 50.0, 4.0]
+        Ki: [20.0, 20.0, 25.0, 2.0]
+        Kd: [0.0, 20.0, 20.0, 1.0]
         Kb: [0.8, 0.8, 0.8, 0.8]
         integral_safety_factor: 0.5
-      # 속도 setpoint 포화 [u,v,w,r]. OWNER DECISION #1(c): ALIGN 진입속도 0.3에
-      # 맞춰 surge/sway 보수 설정. FOLLOW 정착 후 P4 실기 튜닝으로 상향.
-      # [P6] sway v_sp_limit 0.3→0.5: 곡률 feedforward 헤드룸
-      v_sp_limit: [0.5, 0.5, 0.25, 0.6]
-      max_force: 800.0
-      max_torque: 160.0
+      # 속도 setpoint 포화 [u,v,w,r].
+      # surge 1.2: cruise_speed 1.0(path_following.yaml) + 20% 헤드룸 —
+      #   종전 0.5는 cruise 1.0과 모순돼 상시 windup 압력을 만들었다.
+      #   (Open Q1: 실기 요구 속도가 0.5면 cruise와 함께 하향 조정)
+      # sway 0.5: 곡률 feedforward 헤드룸 (P6), heave/yaw 기존 유지
+      v_sp_limit: [1.2, 0.5, 0.25, 0.6]
+      max_force: 55.0    # N (물리 한계 정합)
+      max_torque: 13.7   # Nm
 
 # Design Notes:
 #
 # Velocity Mode:
-#   - Higher Kp, Ki for aggressive tracking
 #   - Kd[0]=0 to avoid surge damping
-#   - High saturation limits for fast response
 #   - Low integral_safety_factor to prevent windup
 #
 # Position Mode:
-#   - Moderate Kp, low Ki for stability
-#   - Non-zero Kd for damping
-#   - Lower saturation limits for smooth motion
+#   - PD-dominant gains for stability, low Ki
 #   - High integral_safety_factor for steady-state accuracy
+#
+# Saturation:
+#   - 모든 모드 공통: 물리 한계 정합 55 N / 13.7 N·m (헤더 도출 참조)
+#   - allocator(thruster_allocator_node)가 추진기당 ±20.62 N로 최종 클립
 #
 # Switching Logic:
 #   - Handled by path_following_4dof_node

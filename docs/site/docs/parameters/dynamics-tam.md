@@ -64,12 +64,12 @@ flowchart TD
 | `base_link` | `'base_link'` | 기준 링크 프레임 |
 | `update_rate` | `50.0` | 배분 갱신 주기(Hz) |
 | `timeout` | `1.0` | 입력 타임아웃(s) |
-| `max_thrust` | `200.0` | PWM 정규화 척도(물리 한계 아님) |
+| `max_thrust` | `20.68` | 추진기당 물리 최대 추력[N] — √ 역추력맵 척도 |
 
-!!! warning "`max_thrust`는 물리적 추력 한계가 아니다"
-    `max_thrust`(`200.0`)는 추진기 출력을 PWM 신호로 정규화할 때 쓰는 척도이며, 물리적 최대 추력(N)이 아니다(`thruster_allocator_node.py:41-59`). 이 값을 실제 추력 한계로 해석하지 말 것.
+!!! warning "`max_thrust`는 물리적 추력 한계다 — 임의 변경 금지"
+    `max_thrust`(`20.68`)는 `bluerov2.scn` 사양에서 유도한 추진기당 물리 최대 추력이다: T_max = ρ·kT·n_max²·D⁴ = 1031.0·0.167·60²·0.076⁴ ≈ 20.68 N. 역추력맵 `pwm = sign(F)·√(|F|/max_thrust)`의 척도이므로 임의 값으로 바꾸면 실추력이 왜곡된다(예: 150으로 올리면 같은 명령의 실추력이 약 1/7로 저하). 근거: `thruster_allocator_node.py`, `thruster_manager.py`.
 
-추력 배분의 동작은 의사역(pseudo-inverse) 기반이다. 6DOF wrench를 입력받아 TAM의 의사역을 곱해 8개 추진기 추력 \(F_1 \sim F_8\)을 구하고, `max_thrust`로 PWM 정규화한 뒤 `Float64MultiArray` 형식으로 `/{vehicle}/setpoint/pwm`에 발행한다(`thruster_allocator_node.py`).
+추력 배분의 동작은 의사역(pseudo-inverse) 기반이다. 6DOF wrench를 입력받아 TAM의 의사역을 곱해 8개 추진기 추력 \(F_1 \sim F_8\)을 구하고, √ 역추력맵(`force_to_pwm`)으로 setpoint(rpm 분율)로 변환한 뒤 `Float64MultiArray` 형식으로 `/{vehicle}/setpoint/pwm`에 발행한다(`thruster_allocator_node.py`).
 
 \[
 \mathbf{F} = \mathrm{TAM}^{+} \cdot \boldsymbol{\tau}
@@ -96,7 +96,7 @@ flowchart TD
 flowchart LR
     W["6DOF Wrench (τ)"] --> P["TAM⁺ (의사역, 8×6)"]
     P --> F["F1 ~ F8 (8추진기 추력)"]
-    F --> N["PWM 정규화 (max_thrust=200)"]
+    F --> N["√ 역추력맵 (max_thrust=20.68)"]
     N --> O["/{vehicle}/setpoint/pwm"]
 ```
 

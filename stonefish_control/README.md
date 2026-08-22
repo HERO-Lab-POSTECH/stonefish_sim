@@ -100,7 +100,7 @@ ros2 launch stonefish_thruster_manager thruster_manager.launch.py \
 ros2 launch stonefish_thruster_manager thruster_manager.launch.py \
     vehicle_name:=bluerov2 \
     tam_file:=/path/to/custom/TAM.yaml \
-    max_thrust:=150.0 \
+    max_thrust:=20.68 \
     timeout:=1.0
 ```
 

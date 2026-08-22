@@ -1,5 +1,6 @@
 ## hybrid position_mode max_force/torque: yaml ↔ code default 불일치 (release 발견, latent)
 `hybrid_controller_node.py:73-74`의 declare_parameter default는 `position_mode.max_force=200.0`/`max_torque=50.0`인데, `config/bluerov2/hybrid_controller.yaml:56-57`은 position_mode를 `800.0`/`160.0`(velocity_mode와 동일값)으로 override한다. yaml이 우선하므로 bluerov2 런타임 실제값은 800/160 — 즉 position 모드 포화한계가 velocity 모드와 같아져 "position=정밀(낮은 한계)" 설계 의도와 어긋날 수 있다. README는 코드 default(200/50)를 문서화하도록 교정했으나(release), 어느 값이 진짜 의도인지(yaml 800을 default로 내릴지, default 200을 yaml에도 반영할지)는 owner/런타임(RTX4070) 판단 필요. 동작 변경이라 release에선 미수정.
+**[해소 — fix/thrust-map, 2026-08-22]** 힘→PWM 제곱 왜곡 수정과 함께 전 모드 yaml·declare 기본값을 물리 한계 55 N/13.7 N·m로 동기. 위 서술은 이력.
 
 ## T4.5 C++ 동시성·QoS 표준정합 제안 (P4 문서화만, RTX4070 sign-off 대상)
 
@@ -78,6 +79,7 @@ P3에서 **코드 변경 없이 목록화만**. 전부 상태 적분기·수치 
 
 ## P4 sign-off 의무 (P3 변경의 런타임 검증 — runnable ROS2 필요)
 P3 안전망은 정적·국소 검증이라 런타임 rclpy registry 의미를 못 덮는다. 아래는 `colcon build`+`ros2 launch` 환경에서 확인할 것.
+- **[fix/thrust-map] yaw 스텝 응답 오버슈트/진동 확인**: inner yaw Kp=4는 Izz=0.13(점질량, added inertia 미실측) 기준 명목 ω_c≈31 rad/s로 선형축(≈2)보다 공격적 — 로터 지연(τ≈0.3 s) 대비 진동 성향 가능. 실기 yaw 스텝으로 오버슈트/진동 확인, 필요시 Kp_r 하향. 역추력맵·물리 포화 전체(P1 lawnmower A/B)도 동일 sign-off 대상.
 - **T5 VehicleParams 추출 런타임 검증**: runnable ROS2에서 (a) 컨트롤러 노드의 `ros2 param list`와 `Vehicle` 생성이 동결된 36-call 골든 마스터 + 8개 raise 타이밍을 재현하는지, (b) `ParameterAlreadyDeclaredException` 미발생, (c) 실제 rclpy의 list→array 타입 변환 하에서 `len(cog)!=3` 검증이 동일하게 동작하는지 확인. 통과 전까지 §4 git-revert 롤백(loader-split 커밋) armed 유지.
 - **T3 노드 이동/import 변환 런타임 검증**: 각 launch 파일에 대해 `colcon build` 후 `ros2 launch` 스모크 1회로 (a) console_scripts 좌변이 여전히 노드를 해석하는지, (b) 상대 import가 런타임에 올바른 심볼로 binding되는지(정적 target-set diff가 못 보는 동명이클래스·__init__ 섀도잉), (c) install 트리에 stale `thruster_allocator` 모듈이 안 남는지 확인.
 
@@ -90,7 +92,7 @@ P3 characterization이 못 덮는 값 정확성 측면(code-reviewer 지적). �
 ## P5 cascade 재설계 이월 (경로추종 position-cascade — p5-path-cascade)
 P5에서 ILOS의 cross-track 이중보정(heading arctan + 비표준 sway PID)을 제거하고, 별도 `CascadeController`(outer position-P → inner velocity-PI)로 cross-track을 단일 채널 처리하도록 재설계했다. 아래는 이번 범위에서 의도적으로 단순화·이월한 천장으로, RTX4070 실기 측정 후 검토한다. 설계 SSOT: `/workspace/.sp/plans/2026-06-25-path-following-position-cascade.md`.
 - **inner M·a feedforward (accel_ff = M·v̇_sp)**: `v_sp` 수치미분이 노이즈를 증폭할 위험으로 미구현. 현재 `CascadeController`는 생성자에서 `mass`/`inertia_zz`를 받되 `compute_control`에서 미사용(시그니처 동형성 유지 — P4에서 필터링 후 추가 시 호출부 무변경). 추가 시 v̇_sp 저역통과 필터 설계 선행.
-- **outer Kp=[0.4,0.4,0.3,0.8] / v_sp_limit=[0.5,0.3,0.25,0.6]**: 시간상수 분리 원칙(outer가 inner보다 느림)에서 도출한 초기값. 닫힌루프 정착시간·오버슈트는 컨테이너 미검증이라 RTX4070 실기 측정으로 미세조정. v_sp_limit는 OWNER DECISION #1(c) ALIGN 보수값.
+- **outer Kp=[0.4,0.4,0.3,0.8] / v_sp_limit=[0.5,0.3,0.25,0.6]**: 시간상수 분리 원칙(outer가 inner보다 느림)에서 도출한 초기값. 닫힌루프 정착시간·오버슈트는 컨테이너 미검증이라 RTX4070 실기 측정으로 미세조정. v_sp_limit는 OWNER DECISION #1(c) ALIGN 보수값. **[갱신 — fix/thrust-map]** cruise 1.0과의 모순 해소로 surge 0.5→1.2(게이트 테스트로 강제), sway는 P6에서 0.5.
 - **모드 전환 첫 tick 점프**: velocity→cascade 진입 시 `set_mode`의 reset + outer 출력 clamp(v_sp_limit)로 1차 완화. integral preloading(전환 시 적분기를 직전 속도로 시드)은 실기 관측 후 검토. 또한 cascade_controller 미생성 환경에서 `set_mode('cascade')` 시 `active_mode='cascade'`로 보고하나 실제 라우팅은 position으로 폴백하는 latent footgun(Task 4 리뷰 지적) — 가드 추가는 P4.
 - **코너 추종 (sway=0 + 고정 lookahead 3m)**: cross-track sway 채널 제거로 코너에서 cascade outer만 횡오차를 닫는다. adaptive lookahead 재활성·curvature preview는 미구현(현재 `adaptive_lookahead: false`). 코너 추종 정확도는 실기 sign-off 항목.
 - **닫힌루프 안정성·정착시간·thruster allocation 포화**: 단위테스트(84 passed)는 순수 산술(CascadeController 손계산·ILOS 축소 골든)과 정적 게이트만 덮는다. 닫힌루프 안정성·정착시간·thruster 포화는 컨테이너 골든 미검증 → `colcon build` + `ros2 launch` + RTX4070 실기 sign-off 필요. 통과 전까지 cascade 모드는 검증 미완 상태로 간주.
