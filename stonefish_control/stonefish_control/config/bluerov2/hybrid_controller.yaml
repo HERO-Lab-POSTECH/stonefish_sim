@@ -29,10 +29,10 @@
 # 게인은 물리 기반 재산정 초기값(P1 닫힌루프 튜닝 대상):
 #   inner/velocity Kp ≈ m·ω_c (m=20.13 kg, ω_c≈2 rad/s) ≈ 40 N/(m/s)
 #   Ki = Kp/T_i (T_i≈2 s), Kd는 구 게인 스케일비(/5) 승계
-#   yaw는 Izz=0.13(점질량 근사, added inertia 미실측)라 대역폭식 대신
-#   포화 정합(Kp_r·e_r_max ≲ max_torque/3)으로 4 N·m/(rad/s) —
-#   명목 ω_c = Kp_r/Izz ≈ 31 rad/s로 선형축(≈2)보다 공격적: added
-#   inertia가 크면 완화되나 로터 지연(τ≈0.3s) 대비 진동 성향 가능성
+#   yaw는 P2 실측 I_zz_eff≈0.24(added inertia 0.11 포함, 진동 잡음으로
+#   order만 신뢰)라 대역폭식 대신 포화 정합으로 4 N·m/(rad/s) —
+#   실측 기준 ω_c = Kp_r/I_zz_eff ≈ 17 rad/s로 선형축(≈2)보다 공격적:
+#   로터 지연(τ≈0.12~0.2s 실측) 대비 진동 성향 가능성
 #   → 실기 sign-off에서 yaw 스텝 응답 오버슈트/진동 확인 필수
 # 종전 게인(Kp 200~400)은 제곱 왜곡된 플랜트 위에서 튜닝된 값이라 승계 불가.
 

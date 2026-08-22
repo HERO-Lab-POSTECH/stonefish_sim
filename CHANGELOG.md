@@ -6,6 +6,18 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- **P2 — 실측 모델 주입 (system identification)**: open-loop 스텝 프로브
+  (sim+allocator만, body wrench 직접 주입)로 플랜트 실측 —
+  유효질량 M_eff [70.2, 62.0, 63.9] kg(부가질량이 건질량의 3.1~3.5배)·
+  yaw I_zz≈0.24(order만 신뢰)·감쇠 d1/d2·heave 잔류부력 7.27 N·
+  v_max(55 N)=0.911 m/s. 산출을 `dynamics_params.yaml`에 기입
+  (`added_mass_diag` 등 flat diag — rcl 파라미터 타입 제약).
+  `CascadeController`에 accel feedforward 추가: clip 후 v_sp를 내부
+  수치미분(1차 LPF)해 `M_eff·v̇_sp`를 inner에 합산(포화 전) —
+  guidance 원신호 미분은 outer surge 상시 clip 때문에 unmatched
+  disturbance가 되어 리뷰에서 기각. 게이트 테스트: 실측치↔게인 정합
+  (`Kp=M_eff·ω_c`)·node 기본값 drift·v_sp_limit≤실측 v_max
+
 - **`stonefish_sonar_yolo` 패키지** (김민종 colcon_ws2 통합, 원명 `sonar_yolo_ros2`):
   FLS 소나 이미지 YOLO 추론 노드 (`sonar_yolo/detections` JSON + `sonar_yolo/annotated`).
   `stonefish_` 접두사 규칙에 맞춰 albc 선례대로 개명(디렉토리·모듈·resource 마커·
@@ -20,6 +32,13 @@ All notable changes to this project will be documented in this file.
 - 협업 규칙 `CONTRIBUTING.md` + PR 템플릿 (GitHub Flow · Conventional Commits, 발효 2026-07-23)
 
 ### Changed
+
+- **P2 — cascade 게인 실측 재산정·속도 상한 실측 정합**: inner
+  Kp=M_eff·ω_c(2 rad/s)=[140,124,128], Ki=Kp/2 (yaw는 I_zz 실측 불확실로
+  P1 검증값 유지). `v_sp_limit[surge]` 1.2→0.7, `cruise_speed` 1.0→0.7 —
+  실측 v_max 0.911 m/s에 더해, 0.8 이상에서는 allocator 균등 스케일링의
+  yaw 권한이 3 N·m 이하로 붕괴(실측 항력 기반 권한 표는 config 주석).
+  실기 요구 속도는 Open Q1(사용자 결정)
 
 - BlueROV2 FLS 장착 pitch 60°→80° 하향 (`bluerov2.scn`, 김민종 통합) — 측량 고도에서
   해저면이 소나 fan 안에 들어오도록 조정, SLAM 특징 추출이 지형 리턴을 보게 함
@@ -63,10 +82,12 @@ All notable changes to this project will be documented in this file.
   (yaw 붕괴)했다 — `scale_thrust_to_limit()`로 방향 보존, 발동 시
   throttled warning 노출
 - **cascade `v_sp_limit[surge]` 0.5→1.2**: guidance `cruise_speed` 1.0과의
-  모순(상시 windup 압력) 해소
+  모순(상시 windup 압력) 해소. (P2에서 실측 v_max 0.911 m/s로 재반증되어
+  1.2→0.7 재조정 — 아래 P2 항목)
 - **게인 물리 기반 재산정**: 종전 게인(Kp 200~400)은 제곱 왜곡 플랜트 위에서
   튜닝된 값이라 승계 불가 — inner/velocity Kp≈m·ω_c(≈40), position Kp≈m·ω_n²
-  초기값으로 교체(P1 닫힌루프 튜닝 대상). declare_parameter 기본값·컨트롤러
+  초기값으로 교체(P1 닫힌루프 튜닝 대상). (cascade inner는 P2 실측 유효질량
+  으로 재산정되어 140/124/128 — 아래 P2 항목; velocity/position 모드는 유지) declare_parameter 기본값·컨트롤러
   시그니처 기본값도 YAML과 동기화(silent-fallback 시 구 플랜트 부활 차단).
   README·docs/site의 구 의미 서술("PWM 정규화 척도, 물리 한계 아님")도
   물리 한계 정의로 전면 갱신
