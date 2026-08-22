@@ -12,6 +12,8 @@ Architecture:
     - inner: 속도오차 PI(+선택 D) + back-calculation anti-windup(F1과 동일 메커니즘).
     - vel_ff: ILOS feedforward 속도 [u, v_sway_ff, w_d, r]. sway(인덱스1)=곡률 ff(P6부터 비0).
     - v_sp clamp는 ff 합산 후 적용(inner 포화 사전차단).
+    - acc_ff: M_eff·a feedforward (P2 모델 주입). M_eff = 실측 유효질량 대각
+      (dynamics_params.yaml added_mass_diag 합산). 미공급 시 0 — 기존 동작 불변.
 
 Frame:
     World: NED, Body: FRD. 단위 SI.
@@ -39,15 +41,18 @@ class CascadeController:
         max_force: float = 55.0,
         max_torque: float = 13.7,
         integral_safety_factor: float = 0.5,
+        M_eff_diag: Optional[np.ndarray] = None,
     ):
         """
         Args:
             Kp_outer: [4] 위치 P 게인 (x,y,z,yaw) → 속도 setpoint
             Kp_inner, Ki_inner, Kd_inner, Kb_inner: [4] inner 속도 PI(+D)+back-calc
-            mass, inertia_zz: 시그니처 동형성용 (현 설계에서 inner는 M·a ff 미사용)
+            mass, inertia_zz: M_eff_diag 미공급 시 M·a ff의 fallback 질량
             v_sp_limit: [4] 속도 setpoint clamp [u,v,w,r]
             max_force, max_torque: 힘/토크 포화 한계
             integral_safety_factor: inner 적분 한계 자동계산 배율
+            M_eff_diag: [4] 실측 유효질량 대각 [m+Ma_u, m+Ma_v, m+Ma_w, Izz_eff]
+                — acc_ff의 M. 미공급 시 강체 질량만 사용(부가질량 무시).
         """
         self.Kp_outer = np.asarray(Kp_outer, dtype=float)
         self.Kp_inner = np.asarray(Kp_inner, dtype=float)
@@ -55,8 +60,11 @@ class CascadeController:
         self.Kd_inner = np.asarray(Kd_inner, dtype=float)
         self.Kb_inner = np.asarray(Kb_inner, dtype=float)
 
-        # M·a feedforward는 P4 이월 — 시그니처 동형성용으로만 보관
-        self.M = np.diag([mass, mass, mass, inertia_zz])
+        # M·a feedforward 질량 (P2 모델 주입): 실측 유효질량 우선, 없으면 강체
+        if M_eff_diag is not None:
+            self.M = np.diag(np.asarray(M_eff_diag, dtype=float))
+        else:
+            self.M = np.diag([mass, mass, mass, inertia_zz])
 
         self.v_sp_limit = np.asarray(v_sp_limit, dtype=float)
         self.max_force = max_force
@@ -85,6 +93,7 @@ class CascadeController:
         vel_curr: np.ndarray,
         dt: float,
         vel_ff: Optional[np.ndarray] = None,
+        acc_ff: Optional[np.ndarray] = None,
     ) -> Tuple[np.ndarray, dict]:
         """
         Args:
@@ -93,6 +102,8 @@ class CascadeController:
             vel_curr: [u,v,w,p,q,r] (FRD body)
             dt: 시간 스텝 (s)
             vel_ff: [u,v,w,r] (FRD body) path-tangent feedforward, 또는 None
+            acc_ff: [u̇,v̇,ẇ,ṙ] (FRD body) 가속 feedforward — inner에 M_eff·acc_ff
+                합산(포화 전). None이면 0.
         Returns:
             (tau_6dof [Fx,Fy,Fz,0,0,Mz], debug_info)
         """
@@ -133,7 +144,12 @@ class CascadeController:
         i_in = self.Ki_inner * self.integral_inner
         self.prev_e_inner = e_inner.copy()
 
-        tau = p_in + d_in + i_in
+        # M_eff·a feedforward (P2): 코너 가감속 부하를 피드백이 아닌 모델이 선지불
+        ff = np.zeros(4)
+        if acc_ff is not None:
+            ff = self.M @ np.asarray(acc_ff, dtype=float)
+
+        tau = p_in + d_in + i_in + ff
         tau_sat = np.clip(tau, -self.sat_limit, self.sat_limit)
 
         saturated = not np.allclose(tau, tau_sat, atol=0.01)
@@ -153,6 +169,7 @@ class CascadeController:
             'e_outer': e_outer,
             'e_inner': e_inner,
             'integral_inner': self.integral_inner.copy(),
+            'tau_ff': ff,
             'tau': tau,
             'tau_sat': tau_sat,
             'saturated': saturated,

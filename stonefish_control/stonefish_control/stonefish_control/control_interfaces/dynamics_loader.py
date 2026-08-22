@@ -105,6 +105,18 @@ class DynamicsLoader:
             raise ValueError(f'Invalid volume: {self._volume}. Must be positive.')
 
         # ============================================================
+        # Load Added Mass (optional — 2026-08-22 open-loop step probe 실측)
+        # ============================================================
+        # diag [surge, sway, heave, roll, pitch, yaw]. 미기재 시 0(강체만).
+        self._node.declare_parameter('added_mass_diag',
+                                     [0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+        self._added_mass_diag = np.array(
+            self._node.get_parameter('added_mass_diag').value)
+        if len(self._added_mass_diag) != 6:
+            raise ValueError(
+                f'Invalid added_mass_diag: {self._added_mass_diag}. Must have 6 entries.')
+
+        # ============================================================
         # Load Fluid Properties (optional)
         # ============================================================
         self._node.declare_parameter('density', 1028.0)
@@ -163,6 +175,21 @@ class DynamicsLoader:
     def inertia_zz(self) -> float:
         """Yaw axis inertia (kg·m²)"""
         return self._inertial['izz']
+
+    @property
+    def added_mass_diag(self) -> np.ndarray:
+        """Added mass diagonal [surge, sway, heave, roll, pitch, yaw] (kg | kg·m²)"""
+        return self._added_mass_diag
+
+    @property
+    def effective_mass_4dof(self) -> np.ndarray:
+        """실측 유효질량 대각 [m+Ma_u, m+Ma_v, m+Ma_w, Izz+Ma_r] — M·a ff용"""
+        return np.array([
+            self._mass + self._added_mass_diag[0],
+            self._mass + self._added_mass_diag[1],
+            self._mass + self._added_mass_diag[2],
+            self._inertial['izz'] + self._added_mass_diag[5],
+        ])
 
     @property
     def cog(self) -> np.ndarray:

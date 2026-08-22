@@ -33,6 +33,7 @@ class HybridController4DOFNode(Node):
             max_force_cascade=self.max_force_cascade,
             max_torque_cascade=self.max_torque_cascade,
             integral_safety_factor_cascade=self.integral_safety_factor_cascade,
+            M_eff_diag=self.dynamics.effective_mass_4dof,
             initial_mode=self.initial_mode
         )
         
@@ -42,6 +43,7 @@ class HybridController4DOFNode(Node):
         self.current_vel = np.zeros(6)
         self.desired_pose = np.zeros(4)
         self.desired_vel = None
+        self.desired_acc = None
         self.last_time = None
         self.control_dt = 1.0 / self.control_rate
         
@@ -137,6 +139,7 @@ class HybridController4DOFNode(Node):
         _, _, yaw = r.as_euler('xyz', degrees=False)
         self.desired_pose[3] = yaw
         self.desired_vel = np.array([msg.velocity.linear.x, msg.velocity.linear.y, msg.velocity.linear.z, msg.velocity.angular.z])
+        self.desired_acc = np.array([msg.acceleration.linear.x, msg.acceleration.linear.y, msg.acceleration.linear.z, msg.acceleration.angular.z])
         self.cmd_received = True
     
     def control_loop(self):
@@ -150,7 +153,7 @@ class HybridController4DOFNode(Node):
             dt = max(0.001, min(dt, 0.1))
         self.last_time = current_time
         
-        tau_6dof, _ = self.controller.compute_control(self.desired_pose, self.current_pose, self.current_vel, dt, self.desired_vel)
+        tau_6dof, _ = self.controller.compute_control(self.desired_pose, self.current_pose, self.current_vel, dt, self.desired_vel, self.desired_acc)
         
         wrench_msg = WrenchStamped()
         wrench_msg.header.stamp = current_time.to_msg()

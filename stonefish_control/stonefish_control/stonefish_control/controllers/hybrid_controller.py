@@ -42,6 +42,7 @@ class HybridController:
         max_force_cascade: float = 55.0,
         max_torque_cascade: float = 13.7,
         integral_safety_factor_cascade: float = 0.5,
+        M_eff_diag: np.ndarray = None,
         initial_mode: str = 'velocity'
     ):
         self.velocity_controller = PositionController(
@@ -72,6 +73,7 @@ class HybridController:
                 v_sp_limit=v_sp_limit,
                 max_force=max_force_cascade, max_torque=max_torque_cascade,
                 integral_safety_factor=integral_safety_factor_cascade,
+                M_eff_diag=M_eff_diag,
             )
 
         self.control_mode = initial_mode
@@ -98,7 +100,8 @@ class HybridController:
         pose_curr: np.ndarray,
         vel_curr: np.ndarray,
         dt: float,
-        vel_des: Optional[np.ndarray] = None
+        vel_des: Optional[np.ndarray] = None,
+        acc_ff: Optional[np.ndarray] = None
     ) -> Tuple[np.ndarray, dict]:
         if self.control_mode == 'velocity':
             tau, info = self.velocity_controller.compute_control(
@@ -106,7 +109,7 @@ class HybridController:
             )
         elif self.control_mode == 'cascade' and self.cascade_controller is not None:
             tau, info = self.cascade_controller.compute_control(
-                pose_des, pose_curr, vel_curr, dt, vel_des
+                pose_des, pose_curr, vel_curr, dt, vel_des, acc_ff
             )
         else:
             tau, info = self.position_controller.compute_control(
