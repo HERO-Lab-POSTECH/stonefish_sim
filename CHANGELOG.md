@@ -6,6 +6,17 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- **P2 — ILOS cross-track 위치 피드백 (`cross_track_gain`, 기본 0.4 1/s)**:
+  velocity 모드는 위치 피드백이 heading(ILOS 조향각)뿐이라 직진 구간에
+  정적 cross-track 오프셋이 남는다 — 차량이 4-DOF로 sway를 낼 수 있는데도
+  guidance의 lateral 명령이 곡률 feedforward뿐이었다. FOLLOW 구간의
+  body sway를 `sway_ff_gain·U²·κ_signed − cross_track_gain·e_y`로 확장
+  (e_y>0=starboard 이탈 ⇒ 음의 sway 보정, 기존 `max_lateral_velocity`
+  클립 경로 유지, 0이면 종전 동작). 폐루프 runT에서 e_y RMS
+  0.227→0.076 m·max 0.531→0.254·leg RMS 0.263→0.042 (기준선 runO 대비,
+  둘 다 velocity 모드·게이트 2종 통과). cascade는 outer 위치 P가 같은
+  일을 하는 별 채널이라 영향 없음
+
 - **P2 — 실측 모델 주입 (system identification)**: open-loop 스텝 프로브
   (sim+allocator만, body wrench 직접 주입)로 플랜트 실측 —
   유효질량 M_eff [70.2, 62.0, 63.9] kg(부가질량이 건질량의 3.1~3.5배)·
@@ -31,6 +42,17 @@ All notable changes to this project will be documented in this file.
   outer 위치항(Kp 0.4 × carrot ~3 m)이 v_sp clip을 상시 쳐 guidance
   감속이 무력화되고, 그 실효가 carrot 기하(동역학 상태)에 좌우되는
   사행 쌍안정이 생긴다. 캡이 감속 권위를 컨트롤러 레벨에서 보장
+
+  **측정 귀인 정정 (2026-08-23)**: 위 "쌍안정 제거" 귀인은 반증됐다.
+  runM(velocity)와 runN(cascade)은 `control_mode` 레이스 때문에 **동일
+  설정이 아니라 서로 다른 컨트롤러**였고, 캡 도입 후 청정했던 runO/P/Q는
+  셋 다 velocity 모드라 `cascade_controller.py`에만 있는 이 캡을 **한 번도
+  실행하지 않았다**. 19런 전수는 모드로 완벽히 갈린다(velocity 10런
+  RMS 0.227~0.272 / cascade 8런 0.459~0.603). 캡의 실효는 **미검증**이며
+  코드는 cascade 경로에 그대로 둔다. 같은 이유로 위 accel ff 항목의
+  "사행 원인 = 감속 무력화 쌍안정" 판정과 P2 모델 주입(M_eff·a_ff·damping ff·
+  inner Kp 140/124/128)의 폐루프 실증도 **velocity 정본에서는 미실행**이라
+  성립하지 않는다 — 재검증은 cascade 모드를 명시 지정한 별도 캠페인 대상
 
 - **`stonefish_sonar_yolo` 패키지** (김민종 colcon_ws2 통합, 원명 `sonar_yolo_ros2`):
   FLS 소나 이미지 YOLO 추론 노드 (`sonar_yolo/detections` JSON + `sonar_yolo/annotated`).
@@ -80,6 +102,19 @@ All notable changes to this project will be documented in this file.
   passed)으로 갱신, 잔여 `--symlink-install`/`/workspace/colcon_ws` 서술 제거
 
 ### Fixed
+
+- **`control_mode` 발행을 latched QoS로 — 런마다 제어기가 갈리던 레이스 차단**:
+  `path_following_node`가 초기 모드를 생성자에서 1회만 발행하고 이후
+  값이 바뀔 때만 재발행하는데(변경 가드), pub/sub QoS가 기본 volatile이라
+  아직 매칭되지 않은 late-joiner(`hybrid_controller_node`·`ros2 bag`)에게
+  그 1회가 유실된다. 컨트롤러는 자기 `initial_mode`에 눌러앉고 **에러는
+  나지 않는다**. 노드 기동·DDS discovery 타이밍에 좌우되므로 같은
+  바이너리·같은 설정에서 활성 제어기가 런마다 바뀐다. 양쪽 QoS를
+  `TRANSIENT_LOCAL`+`RELIABLE` depth 1로 교체(한쪽만으로는 전달 안 됨)하고,
+  경로추종 모드를 하드코딩에서 `path_following_mode` 파라미터로 노출
+  (기본 `velocity`). 검증: 스모크 런에서 기동 14 ms 만에 `velocity→cascade`
+  전환 — 수정 전에는 그 전환이 로그에 아예 없었다.
+  **이 레이스가 P2 폐루프 측정 19런을 오염시켰다** — 위 Added의 "측정 귀인 정정" 참조
 
 - **추진기 힘→PWM 제곱 왜곡 수정 (경로추종 실패 근본 원인)**: allocator가
   힘[N]을 `max_thrust`로 선형 나눗셈해 발행한 setpoint를 Stonefish가 rpm 분율로
