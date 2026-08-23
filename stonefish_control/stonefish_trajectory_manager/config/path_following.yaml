@@ -54,6 +54,10 @@
     max_lateral_velocity: 0.5
     max_heave_velocity: 0.4
 
-    # [P6] 곡률 sway feedforward 게인 (≈m/Kp_inner≈0.1 s). 코너 원심력 선제 상쇄.
-    # 0이면 비활성(직선만). 실기 튜닝 대상.
-    sway_ff_gain: 0.1
+    # [P6] 곡률 sway feedforward 게인 = M_sway/Kp_inner [s]. 코너 원심력
+    # (M·v²·κ)을 inner P가 공급하도록 속도 오프셋으로 환산하는 설계식.
+    # 0.1은 가정 강체질량(20.131)·구 게인 기준 — P2 실측(2026-08-22)
+    # M_eff_sway 62.0 kg·Kp_inner 124로 재산정: 62.0/124 ≈ 0.5.
+    # (0.1로는 원심 보상이 5배 과소 → 전 코너 바깥 오버슈트 실측,
+    # runO 피크 5/5 OUTSIDE.) 0이면 비활성(직선만). 실기 튜닝 대상.
+    sway_ff_gain: 0.5
