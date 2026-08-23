@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import rclpy
 from rclpy.node import Node
-from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
+from rclpy.qos import QoSProfile, DurabilityPolicy, ReliabilityPolicy, HistoryPolicy
 import numpy as np
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import WrenchStamped
@@ -33,6 +33,12 @@ class HybridController4DOFNode(Node):
             max_force_cascade=self.max_force_cascade,
             max_torque_cascade=self.max_torque_cascade,
             integral_safety_factor_cascade=self.integral_safety_factor_cascade,
+            M_eff_diag=self.dynamics.effective_mass_4dof,
+            accel_ff_cutoff_hz=self.accel_ff_cutoff_hz,
+            d1_diag=self.dynamics.linear_damping_4dof,
+            d2_diag=self.dynamics.quad_damping_4dof,
+            static_ff=np.array([0.0, 0.0, self.dynamics.residual_buoyancy_force, 0.0]),
+            guidance_speed_margin=self.guidance_speed_margin,
             initial_mode=self.initial_mode
         )
         
@@ -48,7 +54,14 @@ class HybridController4DOFNode(Node):
         qos = QoSProfile(reliability=ReliabilityPolicy.BEST_EFFORT, history=HistoryPolicy.KEEP_LAST, depth=1)
         self.odom_sub = self.create_subscription(Odometry, 'odometry', self.odom_callback, qos)
         self.cmd_sub = self.create_subscription(TrajectoryPoint, 'cmd_pose', self.cmd_callback, 10)
-        self.mode_sub = self.create_subscription(String, 'control_mode', self.mode_callback, 10)
+        # control_mode는 latched state topic — 발행측(path_following_node)이
+        # TRANSIENT_LOCAL로 내보내므로 구독측도 맞춰야 늦게 붙어도 마지막
+        # 모드를 받는다. VOLATILE로 두면 생성자 1회 발행을 놓치고 initial_mode에
+        # 눌러앉는다(런마다 제어기가 갈리는 레이스, 2026-08-23 실측).
+        mode_qos = QoSProfile(durability=DurabilityPolicy.TRANSIENT_LOCAL,
+                              reliability=ReliabilityPolicy.RELIABLE,
+                              history=HistoryPolicy.KEEP_LAST, depth=1)
+        self.mode_sub = self.create_subscription(String, 'control_mode', self.mode_callback, mode_qos)
         self.wrench_pub = self.create_publisher(WrenchStamped, 'thruster_manager/input_stamped', 10)
         self.control_timer = self.create_timer(self.control_dt, self.control_loop)
         self.log_timer = self.create_timer(2.0, self.log_status)
@@ -75,12 +88,14 @@ class HybridController4DOFNode(Node):
         self.declare_parameter('position_mode.integral_safety_factor', 2.0)
         self.declare_parameter('cascade.outer_loop.Kp', [0.4, 0.5, 0.3, 0.8])
         self.declare_parameter('cascade.outer_loop.Ki', [0.0, 0.0, 0.0, 0.0])
-        self.declare_parameter('cascade.inner_loop.Kp', [40.0, 40.0, 50.0, 4.0])
-        self.declare_parameter('cascade.inner_loop.Ki', [20.0, 20.0, 25.0, 2.0])
+        self.declare_parameter('cascade.inner_loop.Kp', [140.0, 124.0, 128.0, 4.0])
+        self.declare_parameter('cascade.inner_loop.Ki', [70.0, 62.0, 64.0, 2.0])
         self.declare_parameter('cascade.inner_loop.Kd', [0.0, 20.0, 20.0, 1.0])
         self.declare_parameter('cascade.inner_loop.Kb', [0.8, 0.8, 0.8, 0.8])
         self.declare_parameter('cascade.inner_loop.integral_safety_factor', 0.5)
-        self.declare_parameter('cascade.v_sp_limit', [1.2, 0.5, 0.25, 0.6])
+        self.declare_parameter('cascade.v_sp_limit', [0.7, 0.5, 0.25, 0.6])
+        self.declare_parameter('cascade.accel_ff_cutoff_hz', 0.0)
+        self.declare_parameter('cascade.guidance_speed_margin', 0.1)
         self.declare_parameter('cascade.max_force', 55.0)
         self.declare_parameter('cascade.max_torque', 13.7)
 
@@ -110,6 +125,8 @@ class HybridController4DOFNode(Node):
         self.Kb_inner = np.array(self.get_parameter('cascade.inner_loop.Kb').value)
         self.integral_safety_factor_cascade = self.get_parameter('cascade.inner_loop.integral_safety_factor').value
         self.v_sp_limit = np.array(self.get_parameter('cascade.v_sp_limit').value)
+        self.accel_ff_cutoff_hz = self.get_parameter('cascade.accel_ff_cutoff_hz').value
+        self.guidance_speed_margin = self.get_parameter('cascade.guidance_speed_margin').value
         self.max_force_cascade = self.get_parameter('cascade.max_force').value
         self.max_torque_cascade = self.get_parameter('cascade.max_torque').value
 

@@ -92,3 +92,67 @@ def test_cascade_surge_limit_covers_cruise_speed():
     p = yaml.safe_load(HYBRID_YAML.read_text())["/**"]["ros__parameters"]
     cruise = yaml.safe_load(PF_YAML.read_text())["/**"]["ros__parameters"]["cruise_speed"]
     assert p["cascade"]["v_sp_limit"][0] >= cruise
+
+
+DYN_YAML = REPO / "stonefish_description/data/robots/bluerov2/config/dynamics_params.yaml"
+
+
+def test_cascade_inner_kp_matches_measured_effective_mass():
+    """P2 게이트: cascade inner Kp(병진 3축) = (mass+added_mass_diag)·ω_c (ω_c=2).
+
+    실측 질량(dynamics_params.yaml)과 게인(hybrid_controller.yaml)의 drift 방지.
+    yaw는 I_zz 실측 불확실로 경험값 유지라 제외(설정 주석 참조).
+    """
+    dyn = yaml.safe_load(DYN_YAML.read_text())["/**"]["ros__parameters"]
+    hyb = yaml.safe_load(HYBRID_YAML.read_text())["/**"]["ros__parameters"]
+    mass = dyn["mass"]
+    ma = dyn["added_mass_diag"]
+    assert len(ma) == 6 and all(v >= 0.0 for v in ma)
+    kp_inner = hyb["cascade"]["inner_loop"]["Kp"]
+    omega_c = 2.0
+    for i in range(3):
+        expected = (mass + ma[i]) * omega_c
+        assert math.isclose(kp_inner[i], expected, rel_tol=0.02), (
+            f"axis {i}: Kp {kp_inner[i]} != (m+Ma)·ω_c {expected:.1f}")
+
+
+def test_cascade_surge_limit_within_measured_max_speed():
+    """P2 게이트: v_sp_limit[0] ≤ 실측 최대속도 0.911 m/s (55 N 프로브).
+
+    도달 불가 setpoint 상한은 상시 포화·windup 압력원(P2에서 1.2→0.7 교정).
+    """
+    hyb = yaml.safe_load(HYBRID_YAML.read_text())["/**"]["ros__parameters"]
+    assert hyb["cascade"]["v_sp_limit"][0] <= 0.911
+
+
+HYBRID_NODE = REPO / ("stonefish_control/stonefish_control/stonefish_control/"
+                      "nodes/hybrid_controller_node.py")
+
+
+def _node_declared_default(param_name):
+    """hybrid_controller_node.py의 declare_parameter 기본값 리스트 파싱."""
+    src = HYBRID_NODE.read_text()
+    m = re.search(
+        rf"declare_parameter\('{re.escape(param_name)}',\s*(\[[^\]]*\])", src)
+    assert m, f"declare_parameter('{param_name}', ...) not found"
+    return [float(x) for x in re.findall(r"[-\d.]+", m.group(1))]
+
+
+def test_node_defaults_match_yaml_for_p2_values():
+    """P2 게이트(리뷰 MAJOR-2): node declare 기본값 == YAML (silent-fallback 방어).
+
+    YAML만 갱신하면 launch 경유(정상)에서는 안 보이지만, YAML 누락 시
+    구 플랜트 게인이 부활한다 — 기본값 drift 자체를 게이트로 차단.
+    """
+    hyb = yaml.safe_load(HYBRID_YAML.read_text())["/**"]["ros__parameters"]
+    for pname, ypath in [
+        ("cascade.inner_loop.Kp", ("cascade", "inner_loop", "Kp")),
+        ("cascade.inner_loop.Ki", ("cascade", "inner_loop", "Ki")),
+        ("cascade.v_sp_limit", ("cascade", "v_sp_limit")),
+    ]:
+        node_val = _node_declared_default(pname)
+        yaml_val = hyb
+        for k in ypath:
+            yaml_val = yaml_val[k]
+        assert node_val == [float(v) for v in yaml_val], (
+            f"{pname}: node default {node_val} != yaml {yaml_val}")

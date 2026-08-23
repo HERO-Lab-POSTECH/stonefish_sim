@@ -105,6 +105,38 @@ class DynamicsLoader:
             raise ValueError(f'Invalid volume: {self._volume}. Must be positive.')
 
         # ============================================================
+        # Load Added Mass (optional — 2026-08-22 open-loop step probe 실측)
+        # ============================================================
+        # diag [surge, sway, heave, roll, pitch, yaw]. 미기재 시 0(강체만).
+        self._node.declare_parameter('added_mass_diag',
+                                     [0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+        self._added_mass_diag = np.array(
+            self._node.get_parameter('added_mass_diag').value)
+        if len(self._added_mass_diag) != 6:
+            raise ValueError(
+                f'Invalid added_mass_diag: {self._added_mass_diag}. Must have 6 entries.')
+
+        # ============================================================
+        # Load Damping / Residual Buoyancy (optional — P2 실측)
+        # ============================================================
+        # diag [surge, sway, heave, roll, pitch, yaw]. 미기재 시 0(ff 비활성).
+        self._node.declare_parameter('linear_damping_diag',
+                                     [0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+        self._linear_damping_diag = np.array(
+            self._node.get_parameter('linear_damping_diag').value)
+        self._node.declare_parameter('quad_damping_diag',
+                                     [0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+        self._quad_damping_diag = np.array(
+            self._node.get_parameter('quad_damping_diag').value)
+        for name, arr in (('linear_damping_diag', self._linear_damping_diag),
+                          ('quad_damping_diag', self._quad_damping_diag)):
+            if len(arr) != 6:
+                raise ValueError(f'Invalid {name}: {arr}. Must have 6 entries.')
+        self._node.declare_parameter('residual_buoyancy_force', 0.0)
+        self._residual_buoyancy_force = self._node.get_parameter(
+            'residual_buoyancy_force').value
+
+        # ============================================================
         # Load Fluid Properties (optional)
         # ============================================================
         self._node.declare_parameter('density', 1028.0)
@@ -163,6 +195,38 @@ class DynamicsLoader:
     def inertia_zz(self) -> float:
         """Yaw axis inertia (kg·m²)"""
         return self._inertial['izz']
+
+    @property
+    def linear_damping_4dof(self) -> np.ndarray:
+        """실측 선형 감쇠 d1 [u,v,w,r] (N·s/m | N·m·s/rad)"""
+        d = self._linear_damping_diag
+        return np.array([d[0], d[1], d[2], d[5]])
+
+    @property
+    def quad_damping_4dof(self) -> np.ndarray:
+        """실측 2차 감쇠 d2 [u,v,w,r] (N·s²/m² | N·m·s²/rad²)"""
+        d = self._quad_damping_diag
+        return np.array([d[0], d[1], d[2], d[5]])
+
+    @property
+    def residual_buoyancy_force(self) -> float:
+        """잔류 부력 상쇄력 [N] — v=0 심도 유지에 필요한 하향(+z NED) 힘"""
+        return self._residual_buoyancy_force
+
+    @property
+    def added_mass_diag(self) -> np.ndarray:
+        """Added mass diagonal [surge, sway, heave, roll, pitch, yaw] (kg | kg·m²)"""
+        return self._added_mass_diag
+
+    @property
+    def effective_mass_4dof(self) -> np.ndarray:
+        """실측 유효질량 대각 [m+Ma_u, m+Ma_v, m+Ma_w, Izz+Ma_r] — M·a ff용"""
+        return np.array([
+            self._mass + self._added_mass_diag[0],
+            self._mass + self._added_mass_diag[1],
+            self._mass + self._added_mass_diag[2],
+            self._inertial['izz'] + self._added_mass_diag[5],
+        ])
 
     @property
     def cog(self) -> np.ndarray:

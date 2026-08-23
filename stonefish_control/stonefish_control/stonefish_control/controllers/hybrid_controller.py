@@ -42,6 +42,12 @@ class HybridController:
         max_force_cascade: float = 55.0,
         max_torque_cascade: float = 13.7,
         integral_safety_factor_cascade: float = 0.5,
+        M_eff_diag: np.ndarray = None,
+        accel_ff_cutoff_hz: float = 0.0,
+        d1_diag: np.ndarray = None,
+        d2_diag: np.ndarray = None,
+        static_ff: np.ndarray = None,
+        guidance_speed_margin: float = 0.1,
         initial_mode: str = 'velocity'
     ):
         self.velocity_controller = PositionController(
@@ -72,6 +78,10 @@ class HybridController:
                 v_sp_limit=v_sp_limit,
                 max_force=max_force_cascade, max_torque=max_torque_cascade,
                 integral_safety_factor=integral_safety_factor_cascade,
+                M_eff_diag=M_eff_diag,
+                accel_ff_cutoff_hz=accel_ff_cutoff_hz,
+                d1_diag=d1_diag, d2_diag=d2_diag, static_ff=static_ff,
+                guidance_speed_margin=guidance_speed_margin,
             )
 
         self.control_mode = initial_mode
@@ -100,6 +110,8 @@ class HybridController:
         dt: float,
         vel_des: Optional[np.ndarray] = None
     ) -> Tuple[np.ndarray, dict]:
+        # accel ff는 CascadeController 내부(v_sp 미분)에서 생성 — 인자로 받지
+        # 않는다. position/velocity 모드는 accel ff 비대상(정지점·수동 운용).
         if self.control_mode == 'velocity':
             tau, info = self.velocity_controller.compute_control(
                 pose_des, pose_curr, vel_curr, dt, vel_des

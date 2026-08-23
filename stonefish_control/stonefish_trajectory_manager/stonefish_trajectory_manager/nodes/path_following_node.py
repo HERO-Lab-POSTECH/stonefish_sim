@@ -28,6 +28,7 @@ import numpy as np
 from transforms3d.euler import euler2quat, quat2euler
 from tf2_ros import Buffer, TransformListener
 from rclpy.duration import Duration
+from rclpy.qos import QoSProfile, DurabilityPolicy, ReliabilityPolicy, HistoryPolicy
 
 from ..path_following import ILOSGuidance, ALOSGuidance
 
@@ -73,6 +74,14 @@ class PathFollowing4DOFNode(Node):
 
         # [P6] Sway feedforward gain for curvature compensation
         self.declare_parameter('sway_ff_gain', 0.1)
+        # [2026-08-23 B3] cross-track sway feedback P-gain [1/s]. 0이면 비활성.
+        self.declare_parameter('cross_track_gain', 0.4)
+        # 경로추종 중 컨트롤러에게 요구할 모드. 'velocity'(정본) 또는 'cascade'.
+        # 종료 시 'position'으로 전환하는 것은 이 값과 무관하게 고정.
+        # 하드코딩하지 않는 이유: 두 모드의 실측 성능이 상보적이라
+        # (velocity 코너 RMS 0.217·leg 0.263 / cascade 코너 0.537·leg 0.057)
+        # A/B 재측정이 계획에 남아 있고, 그때 코드 수정 없이 고정하기 위함.
+        self.declare_parameter('path_following_mode', 'velocity')
 
         # Get parameters
         self.vehicle_name = self.get_parameter('vehicle_name').value
@@ -95,6 +104,12 @@ class PathFollowing4DOFNode(Node):
         use_alos = self.get_parameter('use_alos').value
         adaptive_lookahead = self.get_parameter('adaptive_lookahead').value
         sway_ff_gain = self.get_parameter('sway_ff_gain').value
+        cross_track_gain = self.get_parameter('cross_track_gain').value
+        self.path_following_mode = self.get_parameter('path_following_mode').value
+        if self.path_following_mode not in ('velocity', 'cascade'):
+            raise ValueError(
+                f"path_following_mode must be 'velocity' or 'cascade', "
+                f"got {self.path_following_mode!r}")
 
         # State
         self._path_received = False
@@ -125,6 +140,7 @@ class PathFollowing4DOFNode(Node):
             # Let auto-calculation handle the rest (or override if specified)
             heading_align_threshold=heading_align_threshold,
             sway_ff_gain=sway_ff_gain,  # [P6] curvature sway feedforward — shared by ALOS and ILOS
+            cross_track_gain=cross_track_gain,  # [B3] cross-track sway feedback — shared
         )
 
         if use_alos:
@@ -158,11 +174,21 @@ class PathFollowing4DOFNode(Node):
             10
         )
 
-        # Publisher: control_mode
+        # Publisher: control_mode — latched(TRANSIENT_LOCAL) state topic.
+        # 초기 'cascade'는 생성자에서 1회만 발행되고 이후 변경 시에만 재발행된다
+        # (L~385 변경 가드). 기본 VOLATILE이면 그 1회가 아직 매칭되지 않은
+        # late-joiner(hybrid_controller·rosbag)에게 유실되어 컨트롤러가 자기
+        # initial_mode('velocity')에 눌러앉는다 — 런마다 제어기가 무작위로
+        # 갈리는 레이스로 실측됨(2026-08-23: cascade A·B·C·E·I·L·N·R /
+        # velocity F·G·H·J·K·M·O·P·Q·S). TRANSIENT_LOCAL이 마지막 샘플을
+        # 뒤늦게 붙는 구독자에게 전달해 순서 의존을 없앤다.
+        # ※구독측(hybrid_controller_node)도 TRANSIENT_LOCAL이어야 전달된다.
         self.mode_pub = self.create_publisher(
             String,
             f'/{self.vehicle_name}/control_mode',
-            10
+            QoSProfile(durability=DurabilityPolicy.TRANSIENT_LOCAL,
+                       reliability=ReliabilityPolicy.RELIABLE,
+                       history=HistoryPolicy.KEEP_LAST, depth=1)
         )
 
         # Publisher: actual_trajectory (for visualization/analysis)
@@ -179,8 +205,8 @@ class PathFollowing4DOFNode(Node):
             10
         )
 
-        # Control mode state (cascade: velocity + position)
-        self.current_control_mode = 'cascade'
+        # Control mode state — 경로추종 중 요구 모드(파라미터), 종료 시 'position'.
+        self.current_control_mode = self.path_following_mode
 
         # Service: Reset trajectory
         self._reset_service = self.create_service(
@@ -380,8 +406,8 @@ class PathFollowing4DOFNode(Node):
         # Check path completion
         path_finished = self.guidance.is_path_finished()
 
-        # Switch control mode: cascade during path following, position when finished
-        new_mode = 'position' if path_finished else 'cascade'
+        # Switch control mode: path_following_mode during path following, position when finished
+        new_mode = 'position' if path_finished else self.path_following_mode
         if new_mode != self.current_control_mode:
             self.current_control_mode = new_mode
             mode_msg = String()

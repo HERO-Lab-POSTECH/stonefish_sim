@@ -13,8 +13,13 @@
     # PRIMARY PARAMETERS
     # =========================================
 
-    # Target speed (m/s) - max 2 knots recommended
-    cruise_speed: 1.0
+    # Target speed (m/s). 실측 상한 정합 (P2 2026-08-22): surge 최대속도
+    # v_ss(55 N)=0.911 m/s — 종전 1.0은 도달 불가해 상시 포화를 만들었다.
+    # 0.7 선정 근거: 0.8 이상은 allocator 균등 스케일링에서 yaw 권한이
+    # 3 N·m 이하로 붕괴(hybrid_controller.yaml v_sp_limit 주석의 표 참조).
+    # 0.7은 단일 스택 폐루프(runF)에서 무포화·청정 실증.
+    # (Open Q1: 실기 요구 속도는 사용자 결정 — 위 표가 판단 근거)
+    cruise_speed: 0.7
 
     # Lookahead distance (m)
     lookahead_distance: 3.0
@@ -52,3 +57,20 @@
     # [P6] 곡률 sway feedforward 게인 (≈m/Kp_inner≈0.1 s). 코너 원심력 선제 상쇄.
     # 0이면 비활성(직선만). 실기 튜닝 대상.
     sway_ff_gain: 0.1
+
+    # [2026-08-23 B3] cross-track sway feedback P-gain [1/s] — v_sway_fb = -gain·e_y.
+    # 0이면 비활성. P5가 이 피드백을 ILOS heading에서 떼어 cascade outer로
+    # 넘겼으나 정본 모드가 velocity라 실행되지 않았다(직진 leg e_y 0.28 m에
+    # sway 힘 0.0 N 실측). 4DOF sway로 직접 잡는다.
+    # 초기값 0.4: leg 시정수 목표 ~2.5 s(1/0.4). cascade outer sway Kp=0.5가
+    # leg RMS 0.057을 냈으므로 0.3~0.5 구간. 실기 튜닝 대상.
+    cross_track_gain: 0.4
+
+    # 경로추종 중 컨트롤러에게 요구할 모드 — 'velocity'(정본) 또는 'cascade'.
+    # 종료 시 'position' 전환은 이 값과 무관하게 고정.
+    # 2026-08-23: 이 값이 없던 시절 'cascade'가 하드코딩돼 있었으나 발행 QoS가
+    # volatile이라 late-joiner에게 유실되어 런마다 모드가 갈렸다(레이스).
+    # 실측 성능은 상보적 — velocity: 코너 RMS 0.217 / leg 0.263,
+    #                    cascade : 코너 RMS 0.537 / leg 0.057.
+    # velocity를 정본으로 두고 leg 오차는 cross-track 피드백 복원으로 해결한다.
+    path_following_mode: velocity

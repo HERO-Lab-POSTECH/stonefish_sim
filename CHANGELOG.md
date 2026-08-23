@@ -6,6 +6,54 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- **P2 — ILOS cross-track 위치 피드백 (`cross_track_gain`, 기본 0.4 1/s)**:
+  velocity 모드는 위치 피드백이 heading(ILOS 조향각)뿐이라 직진 구간에
+  정적 cross-track 오프셋이 남는다 — 차량이 4-DOF로 sway를 낼 수 있는데도
+  guidance의 lateral 명령이 곡률 feedforward뿐이었다. FOLLOW 구간의
+  body sway를 `sway_ff_gain·U²·κ_signed − cross_track_gain·e_y`로 확장
+  (e_y>0=starboard 이탈 ⇒ 음의 sway 보정, 기존 `max_lateral_velocity`
+  클립 경로 유지, 0이면 종전 동작). 폐루프 runT에서 e_y RMS
+  0.227→0.076 m·max 0.531→0.254·leg RMS 0.263→0.042 (기준선 runO 대비,
+  둘 다 velocity 모드·게이트 2종 통과). cascade는 outer 위치 P가 같은
+  일을 하는 별 채널이라 영향 없음
+
+- **P2 — 실측 모델 주입 (system identification)**: open-loop 스텝 프로브
+  (sim+allocator만, body wrench 직접 주입)로 플랜트 실측 —
+  유효질량 M_eff [70.2, 62.0, 63.9] kg(부가질량이 건질량의 3.1~3.5배)·
+  yaw I_zz≈0.24(order만 신뢰)·감쇠 d1/d2·heave 잔류부력 7.27 N·
+  v_max(55 N)=0.911 m/s. 산출을 `dynamics_params.yaml`에 기입
+  (`added_mass_diag` 등 flat diag — rcl 파라미터 타입 제약).
+  `CascadeController`에 accel feedforward 추가: clip 후 v_sp를 내부
+  수치미분(1차 LPF)해 `M_eff·v̇_sp`를 inner에 합산(포화 전) —
+  guidance 원신호 미분은 outer surge 상시 clip 때문에 unmatched
+  disturbance가 되어 리뷰에서 기각. **accel ff는 기본 비활성**
+  (`accel_ff_cutoff_hz: 0.0`): 단일 스택 폐루프 4런에서 이득 미입증 —
+  leg 사행은 ON/OFF 무관 발생(원인은 아래 guidance 속도 권위 항목의
+  감속 무력화 쌍안정으로 판정)이고, v_sp가 outer P 경유로 차량 위치의
+  함수라 그 미분은 자기되먹임 경로가 됨.
+  damping·부력 ff는 순기능으로 유지(청정 런 e_y RMS 0.227~0.228 m vs
+  P1 0.323 m). 게이트 테스트: 실측치↔게인 정합
+  (`Kp=M_eff·ω_c`)·node 기본값 drift·v_sp_limit≤실측 v_max
+
+- **P2 — guidance 속도 권위(`guidance_speed_margin`, 기본 0.1 m/s)**:
+  cascade에서 vel_ff 공급 시 surge v_sp를 |명령속도|+margin으로 동적 캡.
+  단일 스택 재현 실험(runM 청정 0.228 vs runN 사행 0.459, 동일 설정)에서
+  사행 런이 코너 감속 명령 0.30을 u 0.68~0.70으로 무시함을 실측 —
+  outer 위치항(Kp 0.4 × carrot ~3 m)이 v_sp clip을 상시 쳐 guidance
+  감속이 무력화되고, 그 실효가 carrot 기하(동역학 상태)에 좌우되는
+  사행 쌍안정이 생긴다. 캡이 감속 권위를 컨트롤러 레벨에서 보장
+
+  **측정 귀인 정정 (2026-08-23)**: 위 "쌍안정 제거" 귀인은 반증됐다.
+  runM(velocity)와 runN(cascade)은 `control_mode` 레이스 때문에 **동일
+  설정이 아니라 서로 다른 컨트롤러**였고, 캡 도입 후 청정했던 runO/P/Q는
+  셋 다 velocity 모드라 `cascade_controller.py`에만 있는 이 캡을 **한 번도
+  실행하지 않았다**. 19런 전수는 모드로 완벽히 갈린다(velocity 10런
+  RMS 0.227~0.272 / cascade 8런 0.459~0.603). 캡의 실효는 **미검증**이며
+  코드는 cascade 경로에 그대로 둔다. 같은 이유로 위 accel ff 항목의
+  "사행 원인 = 감속 무력화 쌍안정" 판정과 P2 모델 주입(M_eff·a_ff·damping ff·
+  inner Kp 140/124/128)의 폐루프 실증도 **velocity 정본에서는 미실행**이라
+  성립하지 않는다 — 재검증은 cascade 모드를 명시 지정한 별도 캠페인 대상
+
 - **`stonefish_sonar_yolo` 패키지** (김민종 colcon_ws2 통합, 원명 `sonar_yolo_ros2`):
   FLS 소나 이미지 YOLO 추론 노드 (`sonar_yolo/detections` JSON + `sonar_yolo/annotated`).
   `stonefish_` 접두사 규칙에 맞춰 albc 선례대로 개명(디렉토리·모듈·resource 마커·
@@ -20,6 +68,15 @@ All notable changes to this project will be documented in this file.
 - 협업 규칙 `CONTRIBUTING.md` + PR 템플릿 (GitHub Flow · Conventional Commits, 발효 2026-07-23)
 
 ### Changed
+
+- **P2 — cascade 게인 실측 재산정·속도 상한 실측 정합**: inner
+  Kp=M_eff·ω_c=[70,62,64], Ki=Kp/2 (yaw는 I_zz 실측 불확실로
+  P1 검증값 유지, ω_c=2 rad/s — 단일 스택 폐루프 runF에서 무포화·청정
+  실증). `v_sp_limit[surge]` 1.2→0.7, `cruise_speed` 1.0→0.7 —
+  실측 v_max 0.911 m/s에 더해, 0.8 이상에서는 allocator 균등 스케일링의
+  yaw 권한이 3 N·m 이하로 붕괴(실측 항력 기반 권한 표는 config 주석).
+  0.7은 단일 스택 폐루프(runF)에서 무포화·청정 실증.
+  실기 요구 속도는 Open Q1(사용자 결정)
 
 - BlueROV2 FLS 장착 pitch 60°→80° 하향 (`bluerov2.scn`, 김민종 통합) — 측량 고도에서
   해저면이 소나 fan 안에 들어오도록 조정, SLAM 특징 추출이 지형 리턴을 보게 함
@@ -46,6 +103,19 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **`control_mode` 발행을 latched QoS로 — 런마다 제어기가 갈리던 레이스 차단**:
+  `path_following_node`가 초기 모드를 생성자에서 1회만 발행하고 이후
+  값이 바뀔 때만 재발행하는데(변경 가드), pub/sub QoS가 기본 volatile이라
+  아직 매칭되지 않은 late-joiner(`hybrid_controller_node`·`ros2 bag`)에게
+  그 1회가 유실된다. 컨트롤러는 자기 `initial_mode`에 눌러앉고 **에러는
+  나지 않는다**. 노드 기동·DDS discovery 타이밍에 좌우되므로 같은
+  바이너리·같은 설정에서 활성 제어기가 런마다 바뀐다. 양쪽 QoS를
+  `TRANSIENT_LOCAL`+`RELIABLE` depth 1로 교체(한쪽만으로는 전달 안 됨)하고,
+  경로추종 모드를 하드코딩에서 `path_following_mode` 파라미터로 노출
+  (기본 `velocity`). 검증: 스모크 런에서 기동 14 ms 만에 `velocity→cascade`
+  전환 — 수정 전에는 그 전환이 로그에 아예 없었다.
+  **이 레이스가 P2 폐루프 측정 19런을 오염시켰다** — 위 Added의 "측정 귀인 정정" 참조
+
 - **추진기 힘→PWM 제곱 왜곡 수정 (경로추종 실패 근본 원인)**: allocator가
   힘[N]을 `max_thrust`로 선형 나눗셈해 발행한 setpoint를 Stonefish가 rpm 분율로
   해석(추력 ∝ n|n|)해 실제 추력이 명령의 제곱으로 붕괴했다(스케일 100 기준
@@ -63,10 +133,12 @@ All notable changes to this project will be documented in this file.
   (yaw 붕괴)했다 — `scale_thrust_to_limit()`로 방향 보존, 발동 시
   throttled warning 노출
 - **cascade `v_sp_limit[surge]` 0.5→1.2**: guidance `cruise_speed` 1.0과의
-  모순(상시 windup 압력) 해소
+  모순(상시 windup 압력) 해소. (P2에서 실측 v_max 0.911 m/s로 재반증되어
+  1.2→0.7 재조정 — 아래 P2 항목)
 - **게인 물리 기반 재산정**: 종전 게인(Kp 200~400)은 제곱 왜곡 플랜트 위에서
   튜닝된 값이라 승계 불가 — inner/velocity Kp≈m·ω_c(≈40), position Kp≈m·ω_n²
-  초기값으로 교체(P1 닫힌루프 튜닝 대상). declare_parameter 기본값·컨트롤러
+  초기값으로 교체(P1 닫힌루프 튜닝 대상). (cascade inner는 P2 실측 유효질량
+  으로 재산정되어 140/124/128 — 아래 P2 항목; velocity/position 모드는 유지) declare_parameter 기본값·컨트롤러
   시그니처 기본값도 YAML과 동기화(silent-fallback 시 구 플랜트 부활 차단).
   README·docs/site의 구 의미 서술("PWM 정규화 척도, 물리 한계 아님")도
   물리 한계 정의로 전면 갱신

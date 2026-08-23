@@ -415,3 +415,159 @@ def test_hybrid_velocity_position_unchanged():
     finally:
         for name in to_clean:
             sys.modules.pop(name, None)
+
+
+# ============================================================
+# P2 모델 주입: accel ff = M_eff · d(v_sp)/dt (내부 미분, 리뷰 BLOCKER-1 반영)
+# ============================================================
+
+def _alpha(cutoff_hz, dt):
+    """컨트롤러와 동일한 1차 LPF 계수 오라클."""
+    return 1.0 - np.exp(-2.0 * np.pi * cutoff_hz * dt)
+
+
+def test_accel_ff_from_v_sp_derivative(CascadeController):
+    """P2-1: v_sp 변화 시 ff = M_eff·LPF(dv_sp/dt)가 tau에 합산된다.
+
+    inner 게인 전부 0으로 격리 → tau == ff. 첫 틱은 미분기 초기화라 ff=0,
+    둘째 틱에서 raw=(v_sp2-v_sp1)/dt, acc=alpha·raw.
+    """
+    M_eff = np.array([70.2, 62.0, 63.9, 0.24])
+    c = _make_cascade(
+        CascadeController, M_eff_diag=M_eff, accel_ff_cutoff_hz=2.0,
+        Kp_inner=np.zeros(4), Ki_inner=np.zeros(4), Kd_inner=np.zeros(4))
+    pose_curr = np.zeros(6)
+    vel_curr = np.zeros(6)
+    dt = 0.1
+    tau1, _ = c.compute_control(np.array([0.5, 0.0, 0.0, 0.0]), pose_curr,
+                                vel_curr, dt=dt)
+    np.testing.assert_allclose(tau1, np.zeros(6), atol=1e-9)  # 첫 틱 ff=0
+    tau2, info = c.compute_control(np.array([0.6, 0.0, 0.0, 0.0]), pose_curr,
+                                   vel_curr, dt=dt)
+    # v_sp: 0.5→0.6 (Kp_outer=1), raw=1.0 (clamp ±2.0 이내)
+    expected_acc = _alpha(2.0, dt) * 1.0
+    assert tau2[0] == pytest.approx(M_eff[0] * expected_acc, rel=1e-9)
+    assert info['tau_ff'][0] == pytest.approx(M_eff[0] * expected_acc, rel=1e-9)
+
+
+def test_accel_ff_zero_when_v_sp_constant(CascadeController):
+    """P2-2: v_sp가 일정하면 ff=0 — 정상상태에서 유령 힘 없음(하위호환)."""
+    c = _make_cascade(CascadeController,
+                      M_eff_diag=np.array([70.2, 62.0, 63.9, 0.24]),
+                      accel_ff_cutoff_hz=2.0,
+                      Ki_inner=np.zeros(4))
+    pose_des = np.array([1.0, 0.5, -0.3, 0.2])
+    tau1, _ = c.compute_control(pose_des, np.zeros(6), np.zeros(6), dt=0.1)
+    tau2, info = c.compute_control(pose_des, np.zeros(6), np.zeros(6), dt=0.1)
+    np.testing.assert_allclose(tau2, tau1, atol=1e-9)
+    np.testing.assert_allclose(info['tau_ff'], np.zeros(4), atol=1e-9)
+
+
+def test_accel_ff_cutoff_zero_disables(CascadeController):
+    """P2-3: accel_ff_cutoff_hz=0 → v_sp가 변해도 ff=0 (기존 동작)."""
+    c = _make_cascade(CascadeController,
+                      M_eff_diag=np.array([70.2, 62.0, 63.9, 0.24]),
+                      accel_ff_cutoff_hz=0.0,
+                      Kp_inner=np.zeros(4), Ki_inner=np.zeros(4))
+    c.compute_control(np.array([0.5, 0.0, 0.0, 0.0]), np.zeros(6), np.zeros(6), dt=0.1)
+    tau2, _ = c.compute_control(np.array([0.6, 0.0, 0.0, 0.0]), np.zeros(6),
+                                np.zeros(6), dt=0.1)
+    np.testing.assert_allclose(tau2, np.zeros(6), atol=1e-9)
+
+
+def test_M_eff_fallback_rigid_mass(CascadeController):
+    """P2-4: M_eff_diag 미공급 → 강체 질량 fallback (M = diag[m,m,m,Izz])."""
+    c = _make_cascade(CascadeController)   # mass=11.5, inertia_zz=0.16
+    np.testing.assert_allclose(np.diag(c.M), [11.5, 11.5, 11.5, 0.16], atol=1e-9)
+
+
+def test_accel_ff_saturation_engages_backcalc(CascadeController):
+    """P2-5 (리뷰 MINOR-7): ff 단독 포화 시 back-calculation이 적분기를 되돌린다.
+
+    Kp=0·Ki=1로 두면 tau = i_in + ff. 큰 v_sp 점프(raw clamp 2.0)로 ff가
+    max_force를 넘게 만들고, 적분기가 순수 사다리꼴 값보다 작아졌는지 확인
+    — ff에서 온 excess가 적분기로 전파되는 경로가 살아 있고 발산하지 않는다.
+    """
+    M_eff = np.array([70.2, 62.0, 63.9, 0.24])
+    c = _make_cascade(
+        CascadeController, M_eff_diag=M_eff, accel_ff_cutoff_hz=2.0,
+        Kp_inner=np.zeros(4), Ki_inner=np.array([1.0, 1.0, 1.0, 1.0]),
+        Kd_inner=np.zeros(4), max_force=10.0, max_torque=10.0)
+    dt = 0.1
+    c.compute_control(np.array([0.0, 0.0, 0.0, 0.0]), np.zeros(6), np.zeros(6), dt=dt)
+    tau, info = c.compute_control(np.array([5.0, 0.0, 0.0, 0.0]), np.zeros(6),
+                                  np.zeros(6), dt=dt)
+    # raw = 5.0/0.1 = 50 → clamp 2.0, acc = alpha·2.0, ff = 70.2·acc ≈ 100 N > 10
+    assert info['tau_ff'][0] > 10.0
+    assert tau[0] == pytest.approx(10.0, abs=1e-9)          # 포화 clip
+    assert info['saturated'] is True or info['saturation_count'] >= 1
+    # 순수 사다리꼴 적분(0.5·(e2+e1)·dt, e1=0, e2=5.0)보다 작아야 back-calc 발동
+    pure_trapezoid = 0.5 * (5.0 + 0.0) * dt
+    assert info['integral_inner'][0] < pure_trapezoid
+
+
+def test_guidance_speed_cap_enforced(CascadeController):
+    """P2-8: vel_ff 공급 시 surge v_sp ≤ |vel_ff_u|+margin — 코너 감속 권위.
+
+    outer 위치항이 커도(e_x=3 m → Kp_outer·e=3) 명령 0.3+margin 0.1=0.4로
+    캡. 캡 제거 시 v_sp[0]=v_sp_limit(0.7)이 되어 FAIL.
+    """
+    c = _make_cascade(CascadeController,
+                      v_sp_limit=np.array([0.7, 0.5, 0.25, 0.6]),
+                      guidance_speed_margin=0.1,
+                      Ki_inner=np.zeros(4))
+    pose_des = np.array([3.0, 0.0, 0.0, 0.0])
+    _, info = c.compute_control(pose_des, np.zeros(6), np.zeros(6), dt=0.1,
+                                vel_ff=np.array([0.3, 0.0, 0.0, 0.0]))
+    assert info['v_sp'][0] == pytest.approx(0.4, abs=1e-9), \
+        'surge v_sp가 명령속도 0.3+margin 0.1로 캡되어야 한다'
+    # sway/heave/yaw는 캡 비대상
+    assert info['v_sp'][1] == pytest.approx(0.0, abs=1e-9)
+
+
+def test_guidance_speed_cap_disabled_and_no_velff(CascadeController):
+    """P2-9: margin<0 또는 vel_ff=None이면 캡 없음(기존 동작)."""
+    pose_des = np.array([3.0, 0.0, 0.0, 0.0])
+    lim = np.array([0.7, 0.5, 0.25, 0.6])
+    c = _make_cascade(CascadeController, v_sp_limit=lim,
+                      guidance_speed_margin=-1.0, Ki_inner=np.zeros(4))
+    _, info = c.compute_control(pose_des, np.zeros(6), np.zeros(6), dt=0.1,
+                                vel_ff=np.array([0.3, 0.0, 0.0, 0.0]))
+    assert info['v_sp'][0] == pytest.approx(0.7, abs=1e-9)   # clip만 적용
+    c2 = _make_cascade(CascadeController, v_sp_limit=lim,
+                       guidance_speed_margin=0.1, Ki_inner=np.zeros(4))
+    _, info2 = c2.compute_control(pose_des, np.zeros(6), np.zeros(6), dt=0.1,
+                                  vel_ff=None)
+    assert info2['v_sp'][0] == pytest.approx(0.7, abs=1e-9)  # vel_ff 없음 → 캡 없음
+
+
+def test_damping_static_ff_oracle(CascadeController):
+    """P2-6 (리뷰 MINOR-2): ff = d1·v_sp + d2·v_sp|v_sp| + static (게인 0 격리).
+
+    accel ff는 cutoff=0으로 끄고 v_sp=[0.5,0,-0.2,0.3] 강제(vel_ff 경유).
+    """
+    d1 = np.array([1.65, 11.30, 17.95, 0.31])
+    d2 = np.array([80.28, 44.25, 157.51, 0.45])
+    static = np.array([0.0, 0.0, 7.27, 0.0])
+    c = _make_cascade(
+        CascadeController,
+        Kp_outer=np.zeros(4), Kp_inner=np.zeros(4), Ki_inner=np.zeros(4),
+        accel_ff_cutoff_hz=0.0, d1_diag=d1, d2_diag=d2, static_ff=static)
+    vel_ff = np.array([0.5, 0.0, -0.2, 0.3])
+    tau, info = c.compute_control(np.zeros(4), np.zeros(6), np.zeros(6),
+                                  dt=0.1, vel_ff=vel_ff)
+    expected = d1 * vel_ff + d2 * vel_ff * np.abs(vel_ff) + static
+    np.testing.assert_allclose(info['tau_ff'], expected, atol=1e-9)
+    np.testing.assert_allclose(
+        tau, [expected[0], expected[1], expected[2], 0.0, 0.0, expected[3]],
+        atol=1e-9)
+
+
+def test_damping_ff_default_off(CascadeController):
+    """P2-7: d1/d2/static 미공급 → damping ff 0 (하위호환)."""
+    c = _make_cascade(CascadeController,
+                      Kp_outer=np.zeros(4), Kp_inner=np.zeros(4),
+                      Ki_inner=np.zeros(4), accel_ff_cutoff_hz=0.0)
+    tau, _ = c.compute_control(np.zeros(4), np.zeros(6), np.zeros(6),
+                               dt=0.1, vel_ff=np.array([0.5, 0.0, 0.0, 0.0]))
+    np.testing.assert_allclose(tau, np.zeros(6), atol=1e-9)

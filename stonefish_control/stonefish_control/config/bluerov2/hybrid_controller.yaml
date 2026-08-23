@@ -29,10 +29,10 @@
 # 게인은 물리 기반 재산정 초기값(P1 닫힌루프 튜닝 대상):
 #   inner/velocity Kp ≈ m·ω_c (m=20.13 kg, ω_c≈2 rad/s) ≈ 40 N/(m/s)
 #   Ki = Kp/T_i (T_i≈2 s), Kd는 구 게인 스케일비(/5) 승계
-#   yaw는 Izz=0.13(점질량 근사, added inertia 미실측)라 대역폭식 대신
-#   포화 정합(Kp_r·e_r_max ≲ max_torque/3)으로 4 N·m/(rad/s) —
-#   명목 ω_c = Kp_r/Izz ≈ 31 rad/s로 선형축(≈2)보다 공격적: added
-#   inertia가 크면 완화되나 로터 지연(τ≈0.3s) 대비 진동 성향 가능성
+#   yaw는 P2 실측 I_zz_eff≈0.24(added inertia 0.11 포함, 진동 잡음으로
+#   order만 신뢰)라 대역폭식 대신 포화 정합으로 4 N·m/(rad/s) —
+#   실측 기준 ω_c = Kp_r/I_zz_eff ≈ 17 rad/s로 선형축(≈2)보다 공격적:
+#   로터 지연(τ≈0.12~0.2s 실측) 대비 진동 성향 가능성
 #   → 실기 sign-off에서 yaw 스텝 응답 오버슈트/진동 확인 필수
 # 종전 게인(Kp 200~400)은 제곱 왜곡된 플랜트 위에서 튜닝된 값이라 승계 불가.
 
@@ -99,20 +99,52 @@
         Kp: [0.4, 0.5, 0.3, 0.8]   # [x, y, z, yaw]
         Ki: [0.0, 0.0, 0.0, 0.0]   # outer I 비활성 — 적분은 inner만(windup 차단)
       inner_loop:
-        # 속도오차[m/s,rad/s] → 힘/토크[N,Nm] — 물리 기반 초기값 (헤더 도출 참조)
-        # 포화 정합: 정지→cruise 스텝(e≈1.2)에서 Kp·e ≈ 48 N < max_force 55 —
-        # 최악 e=2.4(역방향 운동 중 반전)는 포화 → back-calculation이 처리
-        Kp: [40.0, 40.0, 50.0, 4.0]
-        Ki: [20.0, 20.0, 25.0, 2.0]
-        Kd: [0.0, 20.0, 20.0, 1.0]
+        # 속도오차[m/s,rad/s] → 힘/토크[N,Nm] — 실측 플랜트 기반 (P2 2026-08-22
+        # open-loop 스텝 프로브, dynamics_params.yaml 참조).
+        # 유효질량 M_eff = [70.2, 62.0, 63.9] kg (부가질량 포함 — 건질량 20.13의
+        # 3.1~3.5배). 종전 Kp=40은 가정 질량 20.13 기준 ω_c=2 설계였으나 실측
+        # 질량으론 실효 ω_c=0.57 rad/s(설계의 29%)에 불과했다.
+        # Kp = M_eff·ω_c (ω_c=2 rad/s), Ki = Kp/2 (적분시정수 4/ω_c).
+        # 폐루프 검증(2026-08-22 runF, 단일 스택): 완주 e_y RMS 0.227 m·
+        #   allocator 포화 경고 0건 — 이 게인으로 무포화 청정 추종 실증.
+        # yaw는 I_zz 실측이 진동 잡음으로 부정확(~0.24, order만 신뢰) →
+        # P1에서 검증된 기존값 유지.
+        # 포화: Kp·e = 55 N은 e≈0.4 m/s — 코너 과도의 순간 포화는
+        # back-calculation이 흡수 (acc_ff는 기본 off — accel_ff_cutoff_hz 참조).
+        Kp: [140.0, 124.0, 128.0, 4.0]
+        Ki: [70.0, 62.0, 64.0, 2.0]
+        Kd: [0.0, 20.0, 20.0, 1.0]   # 실측 유도 아님 — P0 경험값 유지
         Kb: [0.8, 0.8, 0.8, 0.8]
         integral_safety_factor: 0.5
       # 속도 setpoint 포화 [u,v,w,r].
-      # surge 1.2: cruise_speed 1.0(path_following.yaml) + 20% 헤드룸 —
-      #   종전 0.5는 cruise 1.0과 모순돼 상시 windup 압력을 만들었다.
-      #   (Open Q1: 실기 요구 속도가 0.5면 cruise와 함께 하향 조정)
+      # surge 0.7: 실측 v_max(55 N)=0.911 m/s라 종전 1.2는 도달 불가(상시
+      #   포화·windup 압력원). 0.9도 배제 — allocator 균등 스케일링에서 수평
+      #   추진기 여유가 0이 되어 yaw 권한이 사라진다. 0.7은 단일 스택 폐루프
+      #   (2026-08-22 runF)에서 무포화·청정(e_y RMS 0.227) 실증. 실측 항력 기준:
+      #     v[m/s]  F_surge[N]  추진기당[N]  yaw 여유[N·m]
+      #      0.6      29.9        10.57        15.18
+      #      0.7      40.5        14.32         9.55
+      #      0.8      52.7        18.63         3.07
+      #      0.9      66.5        23.52         0.00
+      #   0.7에서 yaw 여유 9.6 N·m(max_torque의 70%) 확보.
+      #   (Open Q1: 실기 요구 속도는 사용자 결정 — 이 표가 판단 근거)
       # sway 0.5: 곡률 feedforward 헤드룸 (P6), heave/yaw 기존 유지
-      v_sp_limit: [1.2, 0.5, 0.25, 0.6]
+      v_sp_limit: [0.7, 0.5, 0.25, 0.6]
+      # accel ff(v_sp 미분) LPF 차단주파수 [Hz]. 0 = accel ff 비활성(기본).
+      # 폐루프 계측(2026-08-22, 단일 스택 4런): 이득 미입증 — leg 사행은
+      #   ON/OFF 무관 발생(ON 1/1: runE 0.456 / OFF 1/3: runN 0.459,
+      #   청정 runF 0.227·runM 0.228). 사행 원인은 guidance 감속 무력화
+      #   쌍안정으로 별도 판정(guidance_speed_margin 주석). v_sp가 outer P
+      #   경유 차량 위치의 함수라 그 미분은 자기되먹임 경로이기도 하다.
+      #   켜려면 폐루프 재검증 필수.
+      accel_ff_cutoff_hz: 0.0
+      # guidance 속도 권위: vel_ff 공급 시 surge v_sp를 |명령속도|+margin으로
+      # 동적 캡 [m/s]. 음수 = 비활성. 근거(2026-08-22 runM vs runN, 단일 스택):
+      #   outer 위치항(Kp 0.4 × carrot 거리 ~3 m)이 v_sp clip을 상시 치면
+      #   guidance 코너 감속(0.3)이 무력화된다 — 사행 런은 코너 명령 0.30에서
+      #   u 0.68~0.70으로 통과(청정 런은 0.32 순종), 감속 실효가 carrot
+      #   기하에 좌우되는 쌍안정(동일 설정에서 청정 0.228/사행 0.459)의 차단.
+      guidance_speed_margin: 0.1
       max_force: 55.0    # N (물리 한계 정합)
       max_torque: 13.7   # Nm
 

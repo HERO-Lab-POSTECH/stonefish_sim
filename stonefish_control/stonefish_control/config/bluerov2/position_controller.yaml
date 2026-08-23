@@ -16,7 +16,7 @@ position_controller_4dof:
     # Kb: Anti-windup back-calculation gain
     # 물리 기반 재산정 초기값 (hybrid_controller.yaml 헤더 도출과 동일):
     # Kp ≈ m·ω_n² (m=20.13 kg, ω_n≈1.5), Kd ≈ 2ζω_n·m (ζ≈0.7),
-    # yaw는 Izz 불확실(점질량 0.13, added inertia 미실측)로 포화 정합식
+    # yaw는 Izz 불확실(점질량 0.13, added inertia는 P2 실측 0.11 (I_zz_eff≈0.24, order만 신뢰))로 포화 정합식
     Kp: [45.0, 45.0, 55.0, 3.0]       # [surge, sway, heave, yaw]
     Kd: [40.0, 40.0, 50.0, 1.5]       # Velocity damping
     Ki: [5.0, 5.0, 10.0, 0.5]         # Integral action
