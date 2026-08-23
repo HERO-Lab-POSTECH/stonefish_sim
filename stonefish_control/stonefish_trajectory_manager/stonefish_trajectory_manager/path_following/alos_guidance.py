@@ -71,7 +71,7 @@ class ALOSGuidance(ILOSGuidance):
         max_lateral_velocity=None, max_heave_velocity=None,
         adaptive_lookahead=True,
         curvature_preview_enabled=True, curvature_preview_samples=8,
-        sway_ff_gain=0.1
+        sway_ff_gain=0.1, cross_track_gain=0.4
     ):
         """Initialize ALOS guidance.
 
@@ -106,7 +106,8 @@ class ALOSGuidance(ILOSGuidance):
             adaptive_lookahead=adaptive_lookahead,
             curvature_preview_enabled=curvature_preview_enabled,
             curvature_preview_samples=curvature_preview_samples,
-            sway_ff_gain=sway_ff_gain
+            sway_ff_gain=sway_ff_gain,
+            cross_track_gain=cross_track_gain
         )
 
         # ALOS-specific parameters

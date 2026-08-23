@@ -80,7 +80,7 @@ class ILOSGuidance:
                  adaptive_lookahead=True,
                  curvature_preview_enabled=True, curvature_preview_samples=8,
                  curvature_ff_gain=None,
-                 sway_ff_gain=0.1):
+                 sway_ff_gain=0.1, cross_track_gain=0.4):
         """Initialize ILOS guidance.
 
         Primary Parameters (tune these):
@@ -145,6 +145,13 @@ class ILOSGuidance:
         # v_sway_ff = +sway_ff_gain · v² · κ_signed 로 코너 원심력 선제 상쇄.
         # (구현 부호: _estimate_signed_curvature는 우회전→κ>0 → +sway=오른쪽=안쪽.)
         self._sway_ff_gain = sway_ff_gain
+        # [2026-08-23] cross-track sway feedback P-gain [1/s].
+        # P5가 ILOS heading의 cross-track 항을 제거하며 "cascade outer가 전담"으로
+        # 넘겼으나, control_mode 발행이 late-joiner에게 유실돼 cascade가 켜지지
+        # 않는 런에서는 루프 어디에도 e_y 피드백이 없었다(실측: 직진 leg e_y
+        # 0.28 m인데 sway 힘 명령 0.0 N). QoS는 db2c3e9에서 고쳤고 정본 모드는
+        # velocity이므로, 4DOF sway를 직접 쓰는 이 채널이 e_y 보정을 담당한다.
+        self._cross_track_gain = cross_track_gain
 
         # Velocity profiling parameters
         self._cruise_speed = cruise_speed
@@ -830,10 +837,22 @@ class ILOSGuidance:
         # v_sway_ff = +sway_ff_gain · v² · κ_signed.
         # ※구현 부호 관례: _estimate_signed_curvature는 우회전→κ>0(+), 좌회전→κ<0(-).
         #   (docstring L503-505는 반대로 적혀있으나 구현이 SSOT). 우회전 κ>0 → +sway=오른쪽=안쪽 ✓.
-        # feedback(e_y 보정)은 cascade outer가 전담 — 여기는 예측만(이중보정 아님).
+        # [2026-08-23] cross-track feedback을 여기로 되돌림. P5는 "cascade outer가
+        # 전담"으로 넘겼으나 정본 모드가 velocity라 그 경로는 실행되지 않는다.
+        # v_sway_fb = -cross_track_gain · e_y.
+        # ※부호 유도: e_y = -e_vec[0]·sin(χ_p) + e_vec[1]·cos(χ_p), e_vec=차량-경로점.
+        #   NED에서 (-sinχ, cosχ)는 우현(χ=0(북)→(0,1)=동=우현)이라 e_y>0 = 경로
+        #   오른쪽 이탈. body FRD의 +sway도 우현이므로 복귀는 -sway. 곡률 ff의
+        #   "우회전 κ>0 → +sway=오른쪽" 관례와 같은 축이다.
+        # ff(예측)와 fb(보정)를 합산한 뒤 한 번만 clip한다 — 개별 clip은 합이
+        # 한계를 넘을 때 어느 항이 잘렸는지 불분명해진다.
         if self._mode == PathFollowingMode.FOLLOW:
-            v_lateral = (self._sway_ff_gain * desired_speed * desired_speed
+            v_sway_ff = (self._sway_ff_gain * desired_speed * desired_speed
                          * self._signed_curvature_filtered)
+            v_sway_fb = -self._cross_track_gain * e_y
+            v_lateral = float(np.clip(v_sway_ff + v_sway_fb,
+                                      -self._max_lateral_velocity,
+                                      self._max_lateral_velocity))
         else:
             v_lateral = 0.0
 

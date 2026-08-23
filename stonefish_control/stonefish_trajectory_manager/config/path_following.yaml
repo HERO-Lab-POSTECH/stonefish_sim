@@ -58,6 +58,14 @@
     # 0이면 비활성(직선만). 실기 튜닝 대상.
     sway_ff_gain: 0.1
 
+    # [2026-08-23 B3] cross-track sway feedback P-gain [1/s] — v_sway_fb = -gain·e_y.
+    # 0이면 비활성. P5가 이 피드백을 ILOS heading에서 떼어 cascade outer로
+    # 넘겼으나 정본 모드가 velocity라 실행되지 않았다(직진 leg e_y 0.28 m에
+    # sway 힘 0.0 N 실측). 4DOF sway로 직접 잡는다.
+    # 초기값 0.4: leg 시정수 목표 ~2.5 s(1/0.4). cascade outer sway Kp=0.5가
+    # leg RMS 0.057을 냈으므로 0.3~0.5 구간. 실기 튜닝 대상.
+    cross_track_gain: 0.4
+
     # 경로추종 중 컨트롤러에게 요구할 모드 — 'velocity'(정본) 또는 'cascade'.
     # 종료 시 'position' 전환은 이 값과 무관하게 고정.
     # 2026-08-23: 이 값이 없던 시절 'cascade'가 하드코딩돼 있었으나 발행 QoS가

@@ -160,11 +160,15 @@ def test_right_offset_heading_is_pure_path_tangent(load_module):
         'S3[축소]: heading must be pure path tangent χ_p=0 (no cross-track arctan)'
 
 
-def test_right_offset_cte_computed_but_sway_zero(load_module):
-    """[축소] 차량이 오른쪽 1m: CTE=+1.0은 여전히 계산, sway 출력은 0.
+def test_right_offset_cte_computed_and_sway_corrects(load_module):
+    """차량이 오른쪽 1m: CTE=+1.0 계산 + sway가 좌현으로 보정한다.
 
-    설계 SSOT §4: cross-track의 sway 채널(PID) 제거. desired_velocity[1]=0.0.
-    cascade outer e_pos_body[1]이 sway를 전담(이중보정 제거).
+    이력: P5 설계 SSOT §4가 cross-track sway 채널을 제거하고 "cascade outer가
+    전담"으로 넘겨, 이 테스트는 원래 `vel[1] == 0`을 고정했다. 그러나 정본
+    모드가 velocity라 cascade outer는 실행되지 않고 e_y 피드백이 루프에서
+    사라져 있었다(2026-08-23 실측: 직진 leg e_y 0.28 m에 sway 힘 0.0 N).
+    B3에서 guidance 층으로 되돌렸으므로 단언을 뒤집는다 — 이중보정이 아니다:
+    heading의 arctan 항은 여전히 제거된 상태다.
     """
     mod = load_module(_ILOS_PATH, 'char_ilos')
     PathFollowingMode = mod.PathFollowingMode
@@ -180,9 +184,13 @@ def test_right_offset_cte_computed_but_sway_zero(load_module):
     pos, yaw, vel = g.compute_guidance(dt=0.1)
 
     assert g._cross_track_error == pytest.approx(1.0, abs=1e-9), \
-        'S3[축소]: CTE must still be computed (+1.0) for logging/diagnostics'
-    assert vel[1] == pytest.approx(0.0, abs=1e-9), \
-        'S3[축소]: sway must be 0 (cross-track sway channel removed)'
+        'S3: CTE must still be computed (+1.0) for logging/diagnostics'
+    # 직선이라 κ=0 → ff 항 0. fb = -gain·e_y = -0.4, 단 이 인스턴스의
+    # max_lateral_velocity 기본값 0.3에서 잘린다.
+    expected = max(-g._cross_track_gain * 1.0, -g._max_lateral_velocity)
+    assert vel[1] == pytest.approx(expected, abs=1e-9), \
+        'S3[B3]: e_y=+1.0(우현 이탈) → sway = clip(-gain·e_y) (좌현 복귀)'
+    assert vel[1] < 0.0, 'S3[B3]: 부호가 뒤집히면 경로에서 발산한다'
 
 
 # ── S4: L자형 경로, 커브 전 속도 프로파일링 ─────────────────────────────────
@@ -526,3 +534,78 @@ def test_reset_clears_curvature_state(load_module):
         'reset()이 _signed_curvature_filtered를 안 지움 — stale r_d FF'
     assert g._current_curvature == 0.0, \
         'reset()이 _current_curvature를 안 지움 — stale 속도 프로파일'
+
+
+# ── S8b: cross-track sway feedback (2026-08-23, B3) ───────────────────────────
+
+def test_cross_track_gain_param_stored(load_module):
+    """cross_track_gain 생성자 파라미터가 저장된다 (기본 0.4)."""
+    mod = load_module(_ILOS_PATH, 'char_ilos')
+    assert mod.ILOSGuidance(cross_track_gain=0.25)._cross_track_gain == 0.25
+    assert mod.ILOSGuidance()._cross_track_gain == 0.4
+
+
+def test_cross_track_fb_sign_is_toward_path(load_module):
+    """e_y>0(경로 우현 이탈) → 음의 sway(좌현)로 되돌린다.
+
+    부호 유도: e_y = -e_vec[0]·sin(χ_p) + e_vec[1]·cos(χ_p), e_vec = 차량-경로점.
+    NED에서 (-sinχ, cosχ)는 우현 방향(χ=0(북)일 때 (0,1)=동=우현)이므로
+    e_y>0 = 경로 오른쪽에 있음. body FRD sway +y = 우현이므로 보정은 -y.
+    이 부호가 뒤집히면 차량이 경로에서 발산한다 — 게이트 대상.
+    """
+    mod = load_module(_ILOS_PATH, 'char_ilos')
+    g = mod.ILOSGuidance(sway_ff_gain=0.0, cross_track_gain=0.4)
+    g._mode = mod.PathFollowingMode.FOLLOW
+    g._signed_curvature_filtered = 0.0
+    g._vehicle_pos = np.array([0.0, 0.0, 0.0])
+    g._prev_ez = 0.0
+    g._integral_ez = 0.0
+    g._de_z_filtered = 0.0
+    kw = dict(tangent=np.array([1.0, 0.0, 0.0]),
+              p_lookahead=np.array([1.0, 0.0, 0.0]), desired_speed=1.0, dt=0.1)
+
+    v_stbd, _, _ = g._compute_body_velocities(e_y=+0.5, **kw)
+    assert v_stbd == pytest.approx(-0.2, abs=1e-9), \
+        'e_y=+0.5(우현 이탈) → sway=-0.4·0.5=-0.2 (좌현으로 복귀)'
+
+    v_port, _, _ = g._compute_body_velocities(e_y=-0.5, **kw)
+    assert v_port == pytest.approx(+0.2, abs=1e-9), '좌현 이탈 → 우현 복귀'
+
+    v_zero, _, _ = g._compute_body_velocities(e_y=0.0, **kw)
+    assert v_zero == pytest.approx(0.0, abs=1e-9), 'e_y=0 → sway 0'
+
+
+def test_cross_track_fb_clipped_to_max_lateral(load_module):
+    """곡률 ff와 합산한 sway가 max_lateral_velocity로 제한된다."""
+    mod = load_module(_ILOS_PATH, 'char_ilos')
+    g = mod.ILOSGuidance(sway_ff_gain=0.0, cross_track_gain=0.4,
+                         max_lateral_velocity=0.5)
+    g._mode = mod.PathFollowingMode.FOLLOW
+    g._signed_curvature_filtered = 0.0
+    g._vehicle_pos = np.array([0.0, 0.0, 0.0])
+    g._prev_ez = 0.0
+    g._integral_ez = 0.0
+    g._de_z_filtered = 0.0
+    v, _, _ = g._compute_body_velocities(
+        e_y=+10.0, tangent=np.array([1.0, 0.0, 0.0]),
+        p_lookahead=np.array([1.0, 0.0, 0.0]), desired_speed=1.0, dt=0.1)
+    assert v == pytest.approx(-0.5, abs=1e-9), '−0.4·10=−4 → −0.5로 clip'
+
+
+def test_cross_track_fb_inactive_outside_follow(load_module):
+    """ALIGN 등 FOLLOW 밖에서는 cross-track 보정이 작동하지 않는다.
+
+    기존 곡률 ff와 같은 가드 — 정렬 단계에서 옆으로 미는 것을 막는다.
+    """
+    mod = load_module(_ILOS_PATH, 'char_ilos')
+    g = mod.ILOSGuidance(sway_ff_gain=0.0, cross_track_gain=0.4)
+    g._mode = mod.PathFollowingMode.ALIGN
+    g._signed_curvature_filtered = 0.0
+    g._vehicle_pos = np.array([0.0, 0.0, 0.0])
+    g._prev_ez = 0.0
+    g._integral_ez = 0.0
+    g._de_z_filtered = 0.0
+    v, _, _ = g._compute_body_velocities(
+        e_y=+0.5, tangent=np.array([1.0, 0.0, 0.0]),
+        p_lookahead=np.array([1.0, 0.0, 0.0]), desired_speed=1.0, dt=0.1)
+    assert v == pytest.approx(0.0, abs=1e-9), 'ALIGN에서는 sway 보정 없음'

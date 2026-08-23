@@ -74,6 +74,8 @@ class PathFollowing4DOFNode(Node):
 
         # [P6] Sway feedforward gain for curvature compensation
         self.declare_parameter('sway_ff_gain', 0.1)
+        # [2026-08-23 B3] cross-track sway feedback P-gain [1/s]. 0이면 비활성.
+        self.declare_parameter('cross_track_gain', 0.4)
         # 경로추종 중 컨트롤러에게 요구할 모드. 'velocity'(정본) 또는 'cascade'.
         # 종료 시 'position'으로 전환하는 것은 이 값과 무관하게 고정.
         # 하드코딩하지 않는 이유: 두 모드의 실측 성능이 상보적이라
@@ -102,6 +104,7 @@ class PathFollowing4DOFNode(Node):
         use_alos = self.get_parameter('use_alos').value
         adaptive_lookahead = self.get_parameter('adaptive_lookahead').value
         sway_ff_gain = self.get_parameter('sway_ff_gain').value
+        cross_track_gain = self.get_parameter('cross_track_gain').value
         self.path_following_mode = self.get_parameter('path_following_mode').value
         if self.path_following_mode not in ('velocity', 'cascade'):
             raise ValueError(
@@ -137,6 +140,7 @@ class PathFollowing4DOFNode(Node):
             # Let auto-calculation handle the rest (or override if specified)
             heading_align_threshold=heading_align_threshold,
             sway_ff_gain=sway_ff_gain,  # [P6] curvature sway feedforward — shared by ALOS and ILOS
+            cross_track_gain=cross_track_gain,  # [B3] cross-track sway feedback — shared
         )
 
         if use_alos:

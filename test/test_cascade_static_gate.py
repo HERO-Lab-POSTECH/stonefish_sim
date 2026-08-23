@@ -301,3 +301,37 @@ def test_path_following_mode_yaml_matches_node_default():
         f"drift: node 기본값 {node_m.group(1)!r} != yaml {yaml_m.group(1)!r}")
     assert yaml_m.group(1) in ('velocity', 'cascade'), \
         f"허용되지 않는 모드: {yaml_m.group(1)!r}"
+
+
+def test_cross_track_gain_yaml_matches_node_default():
+    """cross_track_gain의 yaml 값과 declare_parameter 기본값이 일치해야 한다.
+
+    B3에서 되살린 cross-track 피드백의 유일한 튜닝 손잡이 — drift하면 실기와
+    테스트가 다른 게인을 보게 된다.
+    """
+    import re
+    node_m = re.search(r"declare_parameter\('cross_track_gain',\s*([\d.]+)\)",
+                       _PF_NODE.read_text())
+    assert node_m, "declare_parameter('cross_track_gain', ...) 파싱 실패"
+    yaml_m = re.search(r"^\s*cross_track_gain:\s*([\d.]+)\s*$",
+                       _PF_YAML.read_text(), re.MULTILINE)
+    assert yaml_m, "path_following.yaml에 cross_track_gain 없음"
+    assert float(node_m.group(1)) == float(yaml_m.group(1)), (
+        f"drift: node {node_m.group(1)} != yaml {yaml_m.group(1)}")
+
+
+def test_cross_track_feedback_consumed_in_body_velocities():
+    """_compute_body_velocities가 _cross_track_gain을 실제로 소비해야 한다 (AST).
+
+    P5에서 이 채널이 통째로 사라져 있던 회귀를 다시 허용하지 않는다.
+    """
+    tree = ast.parse(_ILOS.read_text())
+    func = next((n for n in ast.walk(tree)
+                 if isinstance(n, ast.FunctionDef)
+                 and n.name == '_compute_body_velocities'), None)
+    assert func is not None, '_compute_body_velocities 사라짐'
+    consumed = any(isinstance(n, ast.Attribute) and n.attr == '_cross_track_gain'
+                   and isinstance(n.value, ast.Name) and n.value.id == 'self'
+                   for n in ast.walk(func))
+    assert consumed, \
+        '_compute_body_velocities가 _cross_track_gain을 소비하지 않음 — B3 회귀'
