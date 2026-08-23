@@ -141,9 +141,7 @@ class ILOSGuidance:
         self._curvature_preview_samples = curvature_preview_samples
         self._curvature_ff_gain = curvature_ff_gain  # Heading feedforward from curvature
 
-        # [P6] 곡률 sway feedforward 게인 = M_sway/Kp_inner [s] (원심력
-        # M·v²·κ를 inner P가 공급하도록 환산). ctor 기본 0.1은 가정 강체질량
-        # (20.131/200) 기준 — 운용값은 YAML이 실측 질량으로 재산정(P2: 62.0/124≈0.5).
+        # [P6] 곡률 sway feedforward 게인 (≈m/Kp_inner=20.131/200≈0.1 s).
         # v_sway_ff = +sway_ff_gain · v² · κ_signed 로 코너 원심력 선제 상쇄.
         # (구현 부호: _estimate_signed_curvature는 우회전→κ>0 → +sway=오른쪽=안쪽.)
         self._sway_ff_gain = sway_ff_gain
