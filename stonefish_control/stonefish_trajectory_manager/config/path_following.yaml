@@ -57,3 +57,12 @@
     # [P6] 곡률 sway feedforward 게인 (≈m/Kp_inner≈0.1 s). 코너 원심력 선제 상쇄.
     # 0이면 비활성(직선만). 실기 튜닝 대상.
     sway_ff_gain: 0.1
+
+    # 경로추종 중 컨트롤러에게 요구할 모드 — 'velocity'(정본) 또는 'cascade'.
+    # 종료 시 'position' 전환은 이 값과 무관하게 고정.
+    # 2026-08-23: 이 값이 없던 시절 'cascade'가 하드코딩돼 있었으나 발행 QoS가
+    # volatile이라 late-joiner에게 유실되어 런마다 모드가 갈렸다(레이스).
+    # 실측 성능은 상보적 — velocity: 코너 RMS 0.217 / leg 0.263,
+    #                    cascade : 코너 RMS 0.537 / leg 0.057.
+    # velocity를 정본으로 두고 leg 오차는 cross-track 피드백 복원으로 해결한다.
+    path_following_mode: velocity

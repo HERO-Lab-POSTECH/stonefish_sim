@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import rclpy
 from rclpy.node import Node
-from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
+from rclpy.qos import QoSProfile, DurabilityPolicy, ReliabilityPolicy, HistoryPolicy
 import numpy as np
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import WrenchStamped
@@ -54,7 +54,14 @@ class HybridController4DOFNode(Node):
         qos = QoSProfile(reliability=ReliabilityPolicy.BEST_EFFORT, history=HistoryPolicy.KEEP_LAST, depth=1)
         self.odom_sub = self.create_subscription(Odometry, 'odometry', self.odom_callback, qos)
         self.cmd_sub = self.create_subscription(TrajectoryPoint, 'cmd_pose', self.cmd_callback, 10)
-        self.mode_sub = self.create_subscription(String, 'control_mode', self.mode_callback, 10)
+        # control_mode는 latched state topic — 발행측(path_following_node)이
+        # TRANSIENT_LOCAL로 내보내므로 구독측도 맞춰야 늦게 붙어도 마지막
+        # 모드를 받는다. VOLATILE로 두면 생성자 1회 발행을 놓치고 initial_mode에
+        # 눌러앉는다(런마다 제어기가 갈리는 레이스, 2026-08-23 실측).
+        mode_qos = QoSProfile(durability=DurabilityPolicy.TRANSIENT_LOCAL,
+                              reliability=ReliabilityPolicy.RELIABLE,
+                              history=HistoryPolicy.KEEP_LAST, depth=1)
+        self.mode_sub = self.create_subscription(String, 'control_mode', self.mode_callback, mode_qos)
         self.wrench_pub = self.create_publisher(WrenchStamped, 'thruster_manager/input_stamped', 10)
         self.control_timer = self.create_timer(self.control_dt, self.control_loop)
         self.log_timer = self.create_timer(2.0, self.log_status)

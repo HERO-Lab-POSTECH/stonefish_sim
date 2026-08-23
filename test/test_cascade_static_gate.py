@@ -206,3 +206,98 @@ def test_cascade_outer_sway_yaw_gated():
                     has_cos_eyaw = True
     assert has_cos_eyaw, \
         'compute_control에 np.cos(e_yaw) 게이트 없음 — 결함 C 회귀'
+
+
+def _qos_transient_local_calls(tree):
+    """QoSProfile(durability=DurabilityPolicy.TRANSIENT_LOCAL, ...) 호출 수집."""
+    out = []
+    for n in ast.walk(tree):
+        if (isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+                and n.func.id == 'QoSProfile'):
+            for kw in n.keywords:
+                if kw.arg == 'durability' and 'TRANSIENT_LOCAL' in ast.unparse(kw.value):
+                    out.append(n)
+    return out
+
+
+def _control_mode_endpoint_qos_arg(tree, method):
+    """create_publisher/create_subscription 중 control_mode 대상의 QoS 인자 소스.
+
+    토픽 인자는 f-string('/{vehicle}/control_mode')이거나 리마핑용 상대
+    이름('control_mode')이라 unparse 문자열로 판별한다.
+    """
+    for n in ast.walk(tree):
+        if not (isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+                and n.func.attr == method):
+            continue
+        srcs = [ast.unparse(a) for a in n.args]
+        if any('control_mode' in s for s in srcs):
+            return srcs[-1]
+    return None
+
+
+def test_control_mode_publisher_is_latched():
+    """control_mode 발행이 TRANSIENT_LOCAL이어야 한다 (모드 레이스 회귀 방지).
+
+    초기 'cascade'는 생성자에서 1회만 나가고 이후 변경 시에만 재발행된다.
+    VOLATILE이면 아직 매칭 안 된 late-joiner가 그 1회를 놓쳐 컨트롤러가
+    initial_mode에 눌러앉는다 — 런마다 제어기가 갈리는 레이스(2026-08-23 실측).
+    """
+    tree = ast.parse(_PF_NODE.read_text())
+    qos_src = _control_mode_endpoint_qos_arg(tree, 'create_publisher')
+    assert qos_src is not None, 'control_mode publisher 사라짐'
+    assert 'QoSProfile' in qos_src, \
+        f'control_mode publisher가 QoSProfile을 안 씀 (현재: {qos_src}) — 레이스 회귀'
+    assert _qos_transient_local_calls(tree), \
+        'path_following_node에 TRANSIENT_LOCAL QoSProfile 없음 — 레이스 회귀'
+
+
+def test_control_mode_subscription_is_latched():
+    """control_mode 구독도 TRANSIENT_LOCAL이어야 한다.
+
+    발행측만 latched면 전달되지 않는다 — durability는 양쪽이 맞아야 한다.
+    """
+    tree = ast.parse(_HYBRID_NODE.read_text())
+    qos_src = _control_mode_endpoint_qos_arg(tree, 'create_subscription')
+    assert qos_src is not None, 'control_mode subscription 사라짐'
+    assert qos_src.strip().isdigit() is False, \
+        f'control_mode 구독이 기본 depth QoS로 회귀 (현재: {qos_src})'
+    assert _qos_transient_local_calls(tree), \
+        'hybrid_controller_node에 TRANSIENT_LOCAL QoSProfile 없음 — 레이스 회귀'
+
+
+_PF_YAML = REPO_ROOT / ('stonefish_control/stonefish_trajectory_manager/'
+                        'config/path_following.yaml')
+
+
+def test_path_following_mode_is_explicit_and_not_hardcoded():
+    """경로추종 모드가 파라미터로 결정되어야 한다 (상수 회귀 방지).
+
+    'cascade'가 상수로 박혀 있던 것이 QoS 유실과 겹쳐 런마다 모드가 갈리는
+    레이스를 만들었다. 모드는 yaml에서 고정하고 코드는 그 값을 따른다.
+    """
+    tree = ast.parse(_PF_NODE.read_text())
+    names = {ast.unparse(n.args[0]) for n in ast.walk(tree)
+             if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+             and n.func.attr == 'declare_parameter' and n.args}
+    assert "'path_following_mode'" in names, \
+        "path_following_mode 파라미터 없음 — 모드가 다시 하드코딩됨"
+
+    src = _PF_NODE.read_text()
+    assert "else 'cascade'" not in src, \
+        "경로추종 모드가 'cascade' 상수로 회귀 — 파라미터를 따라야 함"
+
+
+def test_path_following_mode_yaml_matches_node_default():
+    """yaml 값과 declare_parameter 기본값이 어긋나면 안 된다 (drift 게이트)."""
+    import re
+    node_m = re.search(r"declare_parameter\('path_following_mode',\s*'([a-z]+)'\)",
+                       _PF_NODE.read_text())
+    assert node_m, "declare_parameter('path_following_mode', ...) 파싱 실패"
+    yaml_m = re.search(r"^\s*path_following_mode:\s*([a-z]+)\s*$",
+                       _PF_YAML.read_text(), re.MULTILINE)
+    assert yaml_m, "path_following.yaml에 path_following_mode 없음"
+    assert node_m.group(1) == yaml_m.group(1), (
+        f"drift: node 기본값 {node_m.group(1)!r} != yaml {yaml_m.group(1)!r}")
+    assert yaml_m.group(1) in ('velocity', 'cascade'), \
+        f"허용되지 않는 모드: {yaml_m.group(1)!r}"
