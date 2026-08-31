@@ -1,8 +1,13 @@
 # stonefish_sim — 아키텍처 그래프 맵
 
-> code-review-graph 측정 스냅샷. **커밋 `95fee95` (브랜치 `exp/albc-72d-bias-ema`)** 기준이며
-> `head_matches_build: true` 상태에서 조회했다. main 기준이 아니므로 main과 비교할 때는
-> `code-review-graph build`로 재측정할 것.
+> **아래 본문의 수치는 은퇴한 도구(code-review-graph)의 스냅샷이다 — 재측정 전까지
+> 참고용.** 커밋 `95fee95` (브랜치 `exp/albc-72d-bias-ema`) 기준으로 떴다. CRG는
+> 2026-08-29에 제거됐고(구속하는 훅이 없었다) 이 repo의 코드 그래프는 이제 graphify
+> 하나다. 커뮤니티·허브·흐름 절은 graphify로 다시 떠야 하며, 그 작업은 아직 안 했다.
+>
+> 현재 graphify 그래프 규모(2026-08-31 실측): **2,353노드 · 3,116링크**. CRG와 달리
+> 산문도 들어 있다 — `.md` 노드 765개라 CHANGELOG·docs의 서술이 코드 심볼과 같은
+> 그래프에 있다. 즉 아래 §1의 노드 수와는 세는 대상 자체가 다르다.
 >
 > 크로스 repo 관찰(sim↔slam 비교, 토픽 경계)은 워크스페이스
 > `.omp/wiki/architecture-2026-08-21-graph-map.md`에 있다. 이 문서는 sim 내부만 다룬다.
@@ -141,9 +146,13 @@ sim은 진입점마다 개별 검증이 필요하고, 한 flow를 덮었다고 �
 
 ## 6. 조회
 
-```
-repo_root: /workspace/src/stonefish_sim
+```bash
+cd /workspace/src/stonefish_sim
+graphify query "ILOSGuidance"    # 심볼·개념에서 BFS
+graphify god-nodes               # 가장 많이 연결된 허브
+graphify update .                # 편집 후 갱신 (AST 패스는 무료·오프라인)
 ```
 
-생략하면 오류가 아니라 `status: "ok"`에 0건이 돌아온다. 신뢰 규칙 정본은 워크스페이스
-`.claude/rules/code-review-graph.md`.
+**루트(`/workspace`)에서 물으면 안 된다** — meta-repo가 `src/`를 gitignore하므로 루트엔
+그래프가 없다. 여러 단어로 물으면 매칭이 안 되니 식별자 하나로 좁힐 것. 신뢰 규칙 정본은
+워크스페이스 `.claude/rules/code-graph.md`.
