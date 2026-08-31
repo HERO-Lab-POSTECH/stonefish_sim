@@ -39,5 +39,3 @@ docs/site/site/
 
 # knowledge-graph build artifacts (indexes are local; ignore rules are tracked)
 .graphify/
-.code-review-graph/
-.tokensave/
