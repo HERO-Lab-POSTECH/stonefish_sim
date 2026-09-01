@@ -71,5 +71,3 @@ def load_waypoints(logger, filename: str, use_clock=None):
 
     logger.info(f'✓ Loaded {wp_set.num_waypoints} waypoints ({total_distance:.2f}m)')
     return wp_set
-
-

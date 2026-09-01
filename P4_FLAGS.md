@@ -43,6 +43,24 @@
 참조가 전부 그 안에 있었고, 그 블록만 빼면 `velocity_profiler_params`라는 이름의
 인자가 radius만 나르는 반쪽짜리 dead 함수가 남기 때문이다. 삭제 후 코드에 남은
 `velocity_profiler`/`VelocityProfiler` 참조 0건, 테스트 224 passed 불변.
+
+**아래 이력의 "repo 전체에 부재"는 과했다(적대 검증 지적, codex).** 정확히는
+**추적된 `.py` 소스가 없고 어느 모듈도 이 이름을 import·bind 하지 않았다**이다.
+`__pycache__/velocity_profiler.cpython-310.pyc` 한 개가 커밋 `516d81a`까지
+추적돼 있었고, `SourcelessFileLoader` 로 로드하면 클래스가 실제로 나온다
+(`compute_safe_speed`·`generate_velocity_profile` 등 7개 공개 메서드). 재현:
+
+```bash
+git show 516d81a:stonefish_control/stonefish_trajectory_manager/\
+stonefish_trajectory_manager/path_generator/__pycache__/velocity_profiler.cpython-310.pyc > /tmp/vp.pyc
+python3 -c "import importlib.machinery as m; \
+print(m.SourcelessFileLoader('vp','/tmp/vp.pyc').load_module().VelocityProfiler)"
+```
+
+런타임 판정은 바뀌지 않는다 — 어느 모듈도 그 이름을 bind 하지 않으므로 분기 도달
+시 여전히 `NameError` 다. 바뀌는 것은 **이 기능이 한때 구현돼 있었다**는 사실이며,
+누군가 되살리려 한다면 이 `.pyc` 가 출발점이라는 점이다.
+
 아래는 결정 당시 기록(보존).
 
 ### (이력) VelocityProfiler 잔재 (T2.2 부분 — interpolator 내부 분기는 Phase 3로)

@@ -263,4 +263,3 @@ class CSInterpolator(PathGenerator):
         # Adding the heading offset to the rotation quaternion
         rotq = qmult(rotq, q_step)
         return rotq
-

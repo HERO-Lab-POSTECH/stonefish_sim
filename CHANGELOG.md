@@ -117,9 +117,14 @@ All notable changes to this project will be documented in this file.
 ### Removed
 
 - **VelocityProfiler와 `velocity_damped` 궤적 전진 모드 — 한 번도 동작한 적 없는
-  두 경로**: `class VelocityProfiler`는 이 repo에 존재한 적이 없는데 두
-  interpolator가 `if self._use_velocity_profiler:` 안에서 그것을 인스턴스화한다.
-  즉 이 기능은 켜는 순간 `NameError`로 죽는다. config·launch 어디에도
+  두 경로**: `class VelocityProfiler`는 **추적된 Python 소스도 import 바인딩도
+  없는데** 두 interpolator가 `if self._use_velocity_profiler:` 안에서 그것을
+  인스턴스화한다. 즉 이 기능은 켜는 순간 `NameError`로 죽는다.
+  (이력에 `__pycache__/velocity_profiler.cpython-310.pyc` 한 개가 커밋
+  `516d81a`까지 추적돼 있었고 `SourcelessFileLoader`로 로드하면 클래스가 실제로
+  나온다 — 그러나 `.py` 소스가 추적된 적이 없고 어느 모듈도 이 이름을
+  import·bind 하지 않으므로 런타임 판정은 그대로 `NameError`다.)
+  config·launch 어디에도
   `use_velocity_profiler` 키가 없어 지금까지 도달 불가였을 뿐이다. 같은 이유로
   `advancement_mode='velocity_damped'` 경로 전체가 죽어 있다 — 진입 조건이
   profiler의 존재를 요구하고, 모드를 켜는 유일한 통로 `set_advancement_mode()`는

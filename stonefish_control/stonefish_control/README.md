@@ -112,9 +112,12 @@ Combines velocity and position controllers with mode switching.
 ### 3. Cascade Controller
 
 Two nested loops — an outer position P loop producing a body velocity setpoint,
-and the inner velocity PI loop producing force and torque. Selected as the third
-value of `control_mode` (`"cascade"`), it is owned by the hybrid controller
-rather than exposed as a separate node.
+and an inner velocity loop producing force and torque. The inner loop is PI plus
+a derivative term taken on the **measurement** (`Kd · (−v_body)`, not on the
+error), so the default `Kd: [0, 20, 20, 1]` damps sway, heave, and yaw while
+leaving surge on pure PI. Selected as the third value of `control_mode`
+(`"cascade"`), it is owned by the hybrid controller rather than exposed as a
+separate node.
 
 **Why it exists**: before this mode, cross-track error was corrected twice — once
 by ILOS steering the heading and once by a non-standard sway PID. Cascade removes
@@ -122,7 +125,7 @@ that duplication by giving cross-track a single channel: the outer loop's sway
 position error. ILOS keeps depth and heading.
 
 ```
-pose error (world NED) --R^T--> body error --Kp_outer--> v_sp --clip--> inner PI --> tau
+pose error (world NED) --R^T--> body error --Kp_outer--> v_sp --clip--> inner PI+D --> tau
 ```
 
 **Notable behaviour**:

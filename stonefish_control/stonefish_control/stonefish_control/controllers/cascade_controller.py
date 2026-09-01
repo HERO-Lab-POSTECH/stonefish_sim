@@ -209,7 +209,9 @@ class CascadeController:
         e_inner = v_sp - v_body
 
         p_in = self.Kp_inner * e_inner
-        d_in = self.Kd_inner * (-v_body)                  # 기본 Kd_inner=0
+        # 미분은 오차가 아니라 측정에 건다(setpoint 계단에서 킥이 없다).
+        # 기본 Kd_inner=[0,20,20,1] — surge 만 0이고 sway·heave·yaw 는 감쇠가 걸린다.
+        d_in = self.Kd_inner * (-v_body)
         self.integral_inner += 0.5 * (e_inner + self.prev_e_inner) * dt  # 사다리꼴(F3 동일)
         self.integral_inner = np.clip(self.integral_inner,
                                       -self.integral_limit, self.integral_limit)

@@ -148,10 +148,7 @@ class LIPBInterpolator(PathGenerator):
         self._total_path_length = np.sum(lengths)
 
     def _compute_duration(self):
-        """Compute trajectory duration/start time from the mean speed.
-
-        Returns the mean forward speed used by the velocity profiler stage.
-        """
+        """Compute trajectory duration/start time from the mean speed."""
         mean_vel = np.mean(
             [self._waypoints.get_waypoint(k).max_forward_speed for k in range(self._waypoints.num_waypoints)])
         if self._duration is None:
@@ -392,4 +389,3 @@ class LIPBInterpolator(PathGenerator):
             rotq = self._last_rot
 
         return rotq
-
