@@ -8,7 +8,7 @@ This package provides 4DOF (X, Y, Z, Yaw) controllers for underactuated marine v
 
 **Key Features**:
 - **Position Controller**: Precise position hold with anti-windup PID
-- **Hybrid Controller**: Switches between velocity and position modes
+- **Hybrid Controller**: Switches between velocity, position, and cascade modes
 - **Feedforward support**: Optional acceleration feedforward from path planners
 - **Anti-windup**: Back-calculation method prevents integral windup
 
@@ -91,6 +91,7 @@ Combines velocity and position controllers with mode switching.
 **Modes**:
 - **Velocity Mode**: Fast path following (accepts drift, high responsiveness)
 - **Position Mode**: Precise position hold (zero drift, high stability)
+- **Cascade Mode**: Path following that closes cross-track through position, not heading (see below)
 
 **Mode Switching**:
 - Controlled by the `control_mode` (`std_msgs/String`) topic, or `initial_mode` parameter at startup
@@ -105,6 +106,40 @@ Combines velocity and position controllers with mode switching.
 **Use Cases**:
 - Path following missions (switch at waypoints)
 - Dynamic tasks requiring both speed and precision
+
+---
+
+### 3. Cascade Controller
+
+Two nested loops — an outer position P loop producing a body velocity setpoint,
+and the inner velocity PI loop producing force and torque. Selected as the third
+value of `control_mode` (`"cascade"`), it is owned by the hybrid controller
+rather than exposed as a separate node.
+
+**Why it exists**: before this mode, cross-track error was corrected twice — once
+by ILOS steering the heading and once by a non-standard sway PID. Cascade removes
+that duplication by giving cross-track a single channel: the outer loop's sway
+position error. ILOS keeps depth and heading.
+
+```
+pose error (world NED) --R^T--> body error --Kp_outer--> v_sp --clip--> inner PI --> tau
+```
+
+**Notable behaviour**:
+- The outer loop is **P-only** (`Ki: [0,0,0,0]`) — integration lives in the inner
+  loop alone so the two loops cannot wind up against each other.
+- The sway channel is gated by `max(cos(e_yaw), 0)`, so a vehicle whose heading is
+  more than 90° off commands no sway at all. Without the gate, sway pushes the
+  vehicle outward through a corner.
+- Inner gains are derived from the **measured** effective mass
+  (`M_eff = [70.2, 62.0, 63.9] kg`, added mass included — 3.1~3.5× the dry mass),
+  not the dry mass. See the derivation comment in `hybrid_controller.yaml`.
+- Acceleration feedforward is **off by default** (`accel_ff_cutoff_hz: 0.0`); its
+  benefit is not yet demonstrated on a closed loop.
+
+**Verification status**: unit tests cover the arithmetic only. Closed-loop
+settling time, overshoot, and thruster saturation need a GPU run — see
+`P4_FLAGS.md` for the open sign-off items.
 
 ---
 
@@ -172,7 +207,7 @@ ros2 launch stonefish_control control.launch.py \
 |-------|------|-------------|
 | `/{vehicle_name}/odometry` | `nav_msgs/Odometry` | Current vehicle state |
 | `/{vehicle_name}/cmd_pose` | `stonefish_control_msgs/TrajectoryPoint` | Desired pose + velocity (position and velocity fields) |
-| `/{vehicle_name}/control_mode` | `std_msgs/String` | Mode switch command: `"velocity"` or `"position"` |
+| `/{vehicle_name}/control_mode` | `std_msgs/String` | Mode switch command: `"velocity"`, `"position"`, or `"cascade"` |
 
 #### Published
 
@@ -208,7 +243,7 @@ ros2 launch stonefish_control control.launch.py \
 |-----------|------|---------|-------------|
 | `vehicle_name` | string | `bluerov2` | Vehicle namespace |
 | `control_rate` | float | `50.0` | Control loop rate (Hz) |
-| `initial_mode` | string | `velocity` | Starting mode: `velocity` or `position` |
+| `initial_mode` | string | `velocity` | Starting mode: `velocity`, `position`, or `cascade` |
 | **Velocity Mode** | | | |
 | `velocity_mode.Kp` | float[4] | `[40, 40, 50, 4]` | Velocity mode proportional gains |
 | `velocity_mode.Kd` | float[4] | `[0, 20, 20, 1]` | Velocity mode derivative gains |
@@ -225,6 +260,19 @@ ros2 launch stonefish_control control.launch.py \
 | `position_mode.max_force` | float | `55.0` | Position mode force limit (N) |
 | `position_mode.max_torque` | float | `13.7` | Position mode torque limit (Nm) |
 | `position_mode.integral_safety_factor` | float | `2.0` | Position mode integral safety |
+| **Cascade Mode** | | | |
+| `cascade.outer_loop.Kp` | float[4] | `[0.4, 0.5, 0.3, 0.8]` | Position error → velocity setpoint |
+| `cascade.outer_loop.Ki` | float[4] | `[0, 0, 0, 0]` | Kept at zero — integration is the inner loop's job |
+| `cascade.inner_loop.Kp` | float[4] | `[140, 124, 128, 4]` | `M_eff · ω_c` with ω_c = 2 rad/s |
+| `cascade.inner_loop.Ki` | float[4] | `[70, 62, 64, 2]` | `Kp/2` (integral time constant `4/ω_c`) |
+| `cascade.inner_loop.Kd` | float[4] | `[0, 20, 20, 1]` | Carried over from P0, not measurement-derived |
+| `cascade.inner_loop.Kb` | float[4] | `[0.8, 0.8, 0.8, 0.8]` | Inner anti-windup gains |
+| `cascade.inner_loop.integral_safety_factor` | float | `0.5` | Inner integral limit factor |
+| `cascade.v_sp_limit` | float[4] | `[0.7, 0.5, 0.25, 0.6]` | Velocity setpoint clamp, applied after feedforward |
+| `cascade.accel_ff_cutoff_hz` | float | `0.0` | Acceleration feedforward low-pass; `0.0` disables it |
+| `cascade.guidance_speed_margin` | float | `0.1` | Surge setpoint cap above the commanded speed (m/s) |
+| `cascade.max_force` | float | `55.0` | Cascade force limit (N) |
+| `cascade.max_torque` | float | `13.7` | Cascade torque limit (Nm) |
 
 ---
 

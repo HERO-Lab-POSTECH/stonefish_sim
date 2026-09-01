@@ -147,6 +147,10 @@ class CascadeController:
             vel_ff: [u,v,w,r] (FRD body) path-tangent feedforward, 또는 None
         Returns:
             (tau_6dof [Fx,Fy,Fz,0,0,Mz], debug_info)
+            debug_info['e_outer']는 [surge, sway, heave, yaw] body 오차인데
+            **sway 슬롯만 raw 값이 아니다** — 결함 C의 yaw 게이트를 곱한 뒤의
+            값이라 e_yaw>90°에서 0이 된다. 원 오차가 필요하면 게이트를 나누지
+            말고 pose로 다시 계산할 것(게이트가 0이면 복원 불가).
 
         accel ff는 인자가 아니라 내부에서 clip 후 v_sp를 미분해 생성한다
         (모듈 docstring 참조).
@@ -160,7 +164,10 @@ class CascadeController:
         e_yaw = angle_wrap(pose_des[3] - yaw)
 
         # [결함 C] yaw 정렬 전 sway 위치명령 차단 (cos 게이트, sway 채널만).
-        # body sway가 world cross-track으로 기여하는 성분이 정확히 cos(e_yaw).
+        # cos(e_yaw)는 기하 투영 계수가 아니라 **제어 의도의 스케일링**이다 —
+        # body sway가 world 축에 기여하는 실제 투영은 cos(yaw_curr)이고 e_yaw와
+        # 무관하다. 여기서 재려는 것은 "지금 낼 sway가 목표 자세 기준으로 얼마나
+        # 옳은 방향인가"이고, 그 정렬도가 cos(e_yaw)다.
         # yaw가 90°↑ 틀린 채 sway를 내면 차량을 코너 바깥으로 밀어 동그란
         # overshoot가 생긴다. max(.,0)으로 e_yaw>90°의 역방향 명령을 막는다.
         # surge·heave·yaw·vel_ff는 무관 — sway 채널에만 작용.
