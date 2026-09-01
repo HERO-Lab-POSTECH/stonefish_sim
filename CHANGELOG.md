@@ -102,10 +102,10 @@ All notable changes to this project will be documented in this file.
   passed)으로 갱신, 잔여 `--symlink-install`/`/workspace/colcon_ws` 서술 제거
 - **`stonefish_control` README에 cascade 모드 편입** — 코드는
   `hybrid_controller_node.py:135`가 `control_mode`의 세 번째 유효값으로 받고
-  파라미터 13개를 선언하는데 README는 모드 2개만 안내하고 파라미터 표에
+  파라미터 12개를 선언하는데 README는 모드 2개만 안내하고 파라미터 표에
   `cascade.*`가 한 줄도 없었다. `### 3. Cascade Controller` 절(이중보정 제거라는
   존재 이유·outer P-only·yaw 게이트·실측 M_eff 유도·acc_ff 기본 off·닫힌루프
-  미검증 상태)과 파라미터 13행을 추가하고 `control_mode`·`initial_mode`의 유효값을
+  미검증 상태)과 파라미터 12행을 추가하고 `control_mode`·`initial_mode`의 유효값을
   정정했다
 - **`cascade_controller.py` 주석 2건 정정(P7 이월)** — `compute_control`의 Returns가
   `debug_info['e_outer']`를 raw body 오차로 설명했으나 sway 슬롯은 yaw 게이트를
