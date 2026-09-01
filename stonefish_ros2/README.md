@@ -158,17 +158,6 @@ ros2 launch stonefish_ros2 simulator.launch.py gpu:=false \
     simulation_rate:=500.0
 ```
 
-### blueboat.launch.py
-
-Surface vehicle (BlueBoat) simulation.
-
-**Arguments**: Similar to `bluerov2.launch.py`
-
-**Example**:
-```bash
-ros2 launch stonefish_ros2 blueboat.launch.py scenario:=blueboat_sea
-```
-
 ## Topics
 
 ### Published Topics (Example: BlueROV2)
@@ -501,7 +490,6 @@ stonefish_ros2/
 ├── launch/                        # Launch files
 │   ├── bringup.launch.py          # Top-level: simulator + control
 │   ├── bluerov2.launch.py         # Vehicle wrapper (BlueROV2)
-│   ├── blueboat.launch.py         # Vehicle wrapper (BlueBoat)
 │   ├── vehicle.launch.py          # Parameterized vehicle bringup
 │   └── simulator.launch.py        # Simulator leaf (gpu:=true|false)
 ├── CMakeLists.txt
