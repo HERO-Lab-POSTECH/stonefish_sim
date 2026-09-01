@@ -100,8 +100,38 @@ All notable changes to this project will be documented in this file.
 - 문서 drift 정리 — docs 사이트·`CONVENTIONS.md`·`P4_FLAGS.md`·`stonefish_control` README를
   0.4.0 동결 상태(버전·패키지 수·pytest 통과 수)에서 실측 현재값(0.5.0·8개 패키지·139
   passed)으로 갱신, 잔여 `--symlink-install`/`/workspace/colcon_ws` 서술 제거
+- **`stonefish_control` README에 cascade 모드 편입** — 코드는
+  `hybrid_controller_node.py:135`가 `control_mode`의 세 번째 유효값으로 받고
+  파라미터 13개를 선언하는데 README는 모드 2개만 안내하고 파라미터 표에
+  `cascade.*`가 한 줄도 없었다. `### 3. Cascade Controller` 절(이중보정 제거라는
+  존재 이유·outer P-only·yaw 게이트·실측 M_eff 유도·acc_ff 기본 off·닫힌루프
+  미검증 상태)과 파라미터 13행을 추가하고 `control_mode`·`initial_mode`의 유효값을
+  정정했다
+- **`cascade_controller.py` 주석 2건 정정(P7 이월)** — `compute_control`의 Returns가
+  `debug_info['e_outer']`를 raw body 오차로 설명했으나 sway 슬롯은 yaw 게이트를
+  곱한 값이다(게이트 0이면 복원 불가). 게이트 주석의 "world cross-track 기여가
+  정확히 cos(e_yaw)"는 기하학적으로 틀렸다 — 그 투영은 cos(yaw_curr)이고,
+  cos(e_yaw)는 목표 자세 기준 정렬도를 재는 제어 의도의 스케일링이다. 코드는 옳고
+  주석만 틀렸다
 
 ### Removed
+
+- **VelocityProfiler와 `velocity_damped` 궤적 전진 모드 — 한 번도 동작한 적 없는
+  두 경로**: `class VelocityProfiler`는 이 repo에 존재한 적이 없는데 두
+  interpolator가 `if self._use_velocity_profiler:` 안에서 그것을 인스턴스화한다.
+  즉 이 기능은 켜는 순간 `NameError`로 죽는다. config·launch 어디에도
+  `use_velocity_profiler` 키가 없어 지금까지 도달 불가였을 뿐이다. 같은 이유로
+  `advancement_mode='velocity_damped'` 경로 전체가 죽어 있다 — 진입 조건이
+  profiler의 존재를 요구하고, 모드를 켜는 유일한 통로 `set_advancement_mode()`는
+  repo 전체(문서 포함)에서 호출자가 0이다. 삭제 범위는 interpolator의 profiler
+  상태·전용 메서드 5개, `trajectory_generator`의 속도적분 분기(121줄)·목표속도
+  스케일링·종료판정 분기·상태 5개·setter 2개, 그리고 호출자가 없던
+  `nodes/utils.py::create_trajectory_generator`. 그 안에 살던 `[MODE_CHECK]`·
+  `[DAMPING]`·`[DEBUG]`·`[TERM]`·`[NO_DAMPING]`·`[VP]` 디버그 print 6종도 함께
+  사라졌다 — 로그 오염이 아니라 도달 불가능한 코드였다. 패키지 README의
+  "Velocity Profiler (Optional)" 절(존재하지 않는 파라미터로 켜는 법을 안내),
+  ARCHITECTURE의 `velocity_profiler.py` 트리 항목·기능 절·데이터 흐름 노드를
+  함께 정리했다. 동작하던 경로가 아니므로 기능 손실은 없다(224 passed 불변).
 
 - **`scenarios/blueboat_sea.scn`과 `blueboat.launch.py` — 한 번도 로드된 적 없는
   BlueBoat 런치 레인**: 시나리오 4행이 `data/worlds/sea.scn`을 include하는데 이

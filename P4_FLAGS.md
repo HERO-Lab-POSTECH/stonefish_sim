@@ -34,7 +34,18 @@
    `servoSetpoints_`·`subs_`/`pubs_`/`srvs_` 등 공유 상태 전체에 동기화(mutex) 추가가
    필요한 비자명한 재설계 — 별도 사이클로 처리.
 
-## VelocityProfiler 잔재 (T2.2 부분 — interpolator 내부 분기는 Phase 3로)
+## ✅ VelocityProfiler 잔재 — 해소 완료(Phase 3 `chore/dead-code-cleanup`)
+
+`velocity_damped` 전진 모드까지 함께 걷어냈다. 진입 조건이 profiler의 존재를
+요구하므로 둘은 같은 죽은 경로였고, 모드를 켜는 유일한 통로
+`set_advancement_mode()`는 repo 전체에서 호출자가 0이었다. 호출자가 없던
+`nodes/utils.py::create_trajectory_generator`도 함께 삭제했다 — 남은 profiler
+참조가 전부 그 안에 있었고, 그 블록만 빼면 `velocity_profiler_params`라는 이름의
+인자가 radius만 나르는 반쪽짜리 dead 함수가 남기 때문이다. 삭제 후 코드에 남은
+`velocity_profiler`/`VelocityProfiler` 참조 0건, 테스트 224 passed 불변.
+아래는 결정 당시 기록(보존).
+
+### (이력) VelocityProfiler 잔재 (T2.2 부분 — interpolator 내부 분기는 Phase 3로)
 - **dangling `__all__` 엔트리 제거 완료(T2.2)**: `path_generator/__init__.py:49`의 `'VelocityProfiler'`는 import되지 않는데 `__all__`에 등재돼 `from path_generator import *` 시 AttributeError를 내는 버그였다(class VelocityProfiler가 repo 전체에 부재). 제거함.
 - **[2026-09-01 재측정]** **계수 규칙**: `_velocity_profiler`·`_use_velocity_profiler`·`VelocityProfiler`
   중 하나 이상을 참조하는 **줄 수**(docstring 줄 포함). 이 규칙으로 `cs_interpolator.py` **14줄** ·
@@ -180,14 +191,18 @@ P5에서 ILOS의 cross-track 이중보정(heading arctan + 비표준 sway PID)�
   명시되어 있으나, 함수 docstring 자체는 여전히 거짓이라 후행 개발자가 이 함수를
   먼저 보면 잘못된 부호를 내재화한다. 구현이 SSOT이고 주석이 맞음.
   **fix=docstring L504-506을 "Positive = right turn / Negative = left turn"으로 정정**(별도 작업 — 동작 무관).
-- **[cascade docstring] `compute_control` Returns 절 불완전**: `cascade_controller.py`의
-  Returns 절이 `debug_info['e_outer']`를 raw body 오차로만 설명하나, 결함 C 수정 후
-  sway 슬롯은 cos(e_yaw) 게이트된 값이다. Task 2 리뷰 발견(LOW).
-  **fix=Returns 절에 "sway 슬롯은 게이트 후 값" 한 줄 추가**(별도 작업).
-- **[cascade 주석] 기하학적 부정확성**: `cascade_controller.py` 게이트 주석 "body sway가
-  world cross-track으로 기여하는 성분이 정확히 cos(e_yaw)"는 기하학적으로 부정확
-  (실제는 cos(yaw_curr); cos(e_yaw)는 제어 의도 스케일링). Task 2 리뷰 발견(Nit).
-  동작 무관이지만 후행 개발자 혼동 위험.
+- **✅ ~~[cascade docstring] `compute_control` Returns 절 불완전~~ — 수정 완료(Phase 3)**:
+  Returns 절이 `debug_info['e_outer']`의 sway 슬롯이 게이트 후 값임을 명시하고,
+  게이트가 0일 때는 나눗셈으로 원 오차를 복원할 수 없다는 점까지 적었다.
+  아래는 발견 당시 기록(보존). Returns 절이 `debug_info['e_outer']`를 raw body
+  오차로만 설명하나, 결함 C 수정 후 sway 슬롯은 cos(e_yaw) 게이트된 값이다.
+  Task 2 리뷰 발견(LOW).
+- **✅ ~~[cascade 주석] 기하학적 부정확성~~ — 수정 완료(Phase 3)**: 주석이 이제
+  cos(e_yaw)를 투영 계수가 아닌 제어 의도의 스케일링으로 설명하고, 실제 투영이
+  cos(yaw_curr)이며 e_yaw와 무관하다는 사실을 함께 적는다. 아래는 발견 당시
+  기록(보존). 게이트 주석 "body sway가 world cross-track으로 기여하는 성분이
+  정확히 cos(e_yaw)"는 기하학적으로 부정확(실제는 cos(yaw_curr); cos(e_yaw)는
+  제어 의도 스케일링). Task 2 리뷰 발견(Nit).
 
 ## 감사 확정 버그 4건 수정 이월 (2026-08-21, fix/audit-bugs)
 
@@ -260,3 +275,18 @@ opus 적대검증 CONFIRMED 4건을 수정했다. 컨테이너는 GPU 없어 닫
   경로가 드러나도록 고쳤지만, **성공 경로는 여전히 이 컨테이너에서 실행된 적이 없다**.
   `stonefish_yolo_sofa.pt` 수령 후 (a) 정상 로드, (b) 없는 경로를 줬을 때 새 메시지가
   실제로 나오는지 두 방향을 함께 확인한다.
+
+## Phase 3 `chore/dead-code-cleanup` 의 의도적 미포함
+
+- **`docs/LIVENESS_AUDIT.md`·`docs/STRUCTURE_AUDIT.md`의 VelocityProfiler 서술은
+  그대로 둔다.** 둘은 특정 시점의 감사 산출물이라 "그때 이렇게 관측됐다"가 내용
+  자체다. 지금 상태로 고쳐 쓰면 감사 기록이 아니라 현재 문서가 되고, 그러면 왜
+  이 정리가 필요했는지의 근거가 사라진다. 해소 사실은 이 파일과 `CHANGELOG.md`,
+  `docs/site/docs/status.md` 6번 행이 진다.
+- **`cs_interpolator.set_parameters(params)`의 `params` 인자는 미사용으로 남는다.**
+  cubic 은 이제 설정할 파라미터가 없지만 `WPTrajectoryGenerator` 가 모든
+  interpolator 에 이 메서드를 균일하게 호출하므로 시그니처는 유지해야 한다.
+  docstring 에 그 이유를 적었다.
+- **§4.4 god-method 분해(`path_following_node.__init__` 199줄 ·
+  `_guidance_update_callback` 145줄)는 이번 범위 밖**이다. 특성화 테스트 선작성이
+  전제이고 그 자체로 한 사이클 분량이다.
