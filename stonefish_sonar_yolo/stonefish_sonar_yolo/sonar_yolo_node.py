@@ -3,6 +3,8 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 import json
+import os
+
 import numpy as np
 import cv2
 
@@ -75,7 +77,21 @@ class SonarYoloNode(Node):
         self.publish_annotated = bool(self.get_parameter("publish_annotated").value)
 
         # ---- load model ----
-        self.model = YOLO(self.model_path)
+        # A bare filename that is not one of ultralytics' stock assets is treated as
+        # something to download from GitHub releases, so a missing custom weight file
+        # surfaces as a download error naming a URL rather than the path we asked for.
+        if not os.path.isfile(self.model_path):
+            self.get_logger().warning(
+                f"model file not on disk: {self.model_path!r} -- ultralytics will try to"
+                " fetch it as a stock asset, which does not exist for custom weights."
+                " Pass -p model:=/absolute/path/to/weights.pt."
+            )
+        try:
+            self.model = YOLO(self.model_path)
+        except Exception as e:
+            raise RuntimeError(
+                f"failed to load YOLO weights {self.model_path!r}: {e}"
+            ) from e
         self.bridge = CvBridge()
         self.busy = False  # 프레임 드랍(실시간성)용
 
