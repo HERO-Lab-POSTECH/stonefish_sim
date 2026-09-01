@@ -69,7 +69,7 @@ P4 작업 중 식별되었으나 0.4.0 시점에 해결되지 않고 기록만 �
 | 3 | 로봇 이름 중복 시 silent overwrite | 동일 이름 로봇 등록 시 경고 없이 덮어씀 | 미해결 |
 | 4 | 단일 스레드 spin 블로킹 | 콜백이 단일 스레드에서 블로킹될 수 있음 | 미해결 |
 | 5 | wall-clock 타임스탬프 + `/clock` 부재 | EKF/TF 시간 동기에 위험(시뮬 시간과 불일치 가능) | 미해결 |
-| 6 | `VelocityProfiler` dead 분기 | 도달 불가능한 코드 경로 존재 | 미해결 |
+| 6 | `VelocityProfiler` dead 분기 | 도달 불가능한 코드 경로 존재 | 해결 (Phase 3 — 분기·전용 메서드 삭제) |
 | 7 | 가속도 feedforward end-to-end 미연결 | position 모드 feedforward가 사실상 0으로 동작 | 미해결 |
 | 8 | `Waypoint`에 `__hash__` 없음 | latent(현재는 표면화되지 않은 잠재 결함) | 미해결 |
 | 9 | 곡률 추정 방식 4종 다양성 | 곡률 추정 구현이 여러 갈래로 존재 | 미해결 |

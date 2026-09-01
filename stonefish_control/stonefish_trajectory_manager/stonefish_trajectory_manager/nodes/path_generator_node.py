@@ -32,7 +32,7 @@ from tf2_ros import Buffer, TransformListener
 from rclpy.duration import Duration
 
 from ..common import WaypointSet, WPTrajectoryGenerator
-from .utils import load_waypoints, create_trajectory_generator
+from .utils import load_waypoints
 from stonefish_control_msgs.srv import ResetTrajectory
 
 

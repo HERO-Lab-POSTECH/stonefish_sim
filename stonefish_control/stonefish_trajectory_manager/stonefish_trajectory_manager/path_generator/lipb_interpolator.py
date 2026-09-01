@@ -42,9 +42,6 @@ class LIPBInterpolator(PathGenerator):
                                  heading=None)
         self._heading_spline = None
 
-        # Velocity profiler for curvature-based speed control
-        self._velocity_profiler = None
-        self._use_velocity_profiler = False
         self._total_path_length = 0.0
 
     def init_interpolator(self):
@@ -65,11 +62,9 @@ class LIPBInterpolator(PathGenerator):
         if heading is None:
             return False
 
-        lengths = self._reparametrize_curves()
+        self._reparametrize_curves()
 
-        mean_vel = self._compute_duration()
-
-        self._apply_velocity_profile(lengths, mean_vel)
+        self._compute_duration()
 
         self._build_heading_interpolator(heading)
         return True
@@ -145,68 +140,21 @@ class LIPBInterpolator(PathGenerator):
         return heading
 
     def _reparametrize_curves(self):
-        """Reparametrize the generated segments and record path length.
-
-        Returns the per-segment lengths list (with the leading 0) used by the
-        velocity profiler stage.
-        """
+        """Reparametrize the generated segments and record path length."""
         # Reparametrizing the curves
         lengths = [seg.get_length() for seg in self._interp_fcns['pos']]
         lengths = [0] + lengths
         self._s = np.cumsum(lengths) / np.sum(lengths)
         self._total_path_length = np.sum(lengths)
 
-        return lengths
-
     def _compute_duration(self):
-        """Compute trajectory duration/start time from the mean speed.
-
-        Returns the mean forward speed used by the velocity profiler stage.
-        """
+        """Compute trajectory duration/start time from the mean speed."""
         mean_vel = np.mean(
             [self._waypoints.get_waypoint(k).max_forward_speed for k in range(self._waypoints.num_waypoints)])
         if self._duration is None:
             self._duration = self._total_path_length / mean_vel
         if self._start_time is None:
             self._start_time = 0.0
-
-        return mean_vel
-
-    def _apply_velocity_profile(self, lengths, mean_vel):
-        """Generate the velocity profile and adjust duration when enabled."""
-        # Generate velocity profile if enabled
-        if self._use_velocity_profiler and self._velocity_profiler is not None:
-            velocity_profile, curvature_profile = self._velocity_profiler.generate_velocity_profile(
-                self._interp_fcns['pos'],
-                self._waypoints,
-                self._s,
-                self._total_path_length
-            )
-
-            # CRITICAL: Recalculate duration based on actual velocity profile!
-            # Original duration was based on mean_vel, but actual speeds vary
-            estimated_duration = self._estimate_duration_from_velocity_profile(
-                velocity_profile, self._s, lengths[1:])
-
-            # Add safety buffer (20%) for velocity profiler overhead
-            self._duration = estimated_duration * 1.2
-
-            # Log profile statistics
-            stats = self._velocity_profiler.get_profile_statistics()
-            if stats:
-                import sys
-                # Force print to stdout AND stderr for visibility
-                msg = '╔═══════════════════════════════════════════════════════════╗\n'
-                msg += '║  VELOCITY PROFILER ACTIVATED                              ║\n'
-                msg += '╠═══════════════════════════════════════════════════════════╣\n'
-                msg += f'║  Speed range: {stats["v_min"]:.2f} - {stats["v_max"]:.2f} m/s                            ║\n'
-                msg += f'║  Max curvature: {stats["k_max"]:.4f} (1/m)                      ║\n'
-                msg += f'║  Mean curvature: {stats["k_mean"]:.4f} (1/m)                     ║\n'
-                msg += f'║  Samples: {stats["num_samples"]}                                        ║\n'
-                msg += f'║  Original duration: {self._total_path_length / mean_vel:.1f}s → Adjusted: {self._duration:.1f}s       ║\n'
-                msg += '╚═══════════════════════════════════════════════════════════╝'
-                print(msg, file=sys.stderr, flush=True)
-                print(msg, file=sys.stdout, flush=True)
 
     def _build_heading_interpolator(self, heading):
         """Build the heading offset interpolation function from per-segment headings."""
@@ -248,25 +196,12 @@ class LIPBInterpolator(PathGenerator):
 
         ```python
         params=dict(
-            radius=0.0,
-            use_velocity_profiler=False,
-            max_lateral_accel=0.2,
-            speed_reduction_factor=0.3,
-            min_speed_factor=0.2
+            radius=0.0
             )
         ```
 
         * `radius` (*type:* `float`): Radius of the corners modeled
-        as fifth-order Bezier curves. Also determines transition distance
-        for velocity changes (transition = 2 × radius).
-        * `use_velocity_profiler` (*type:* `bool`): Enable curvature-based
-        velocity profiling for smooth cornering
-        * `max_lateral_accel` (*type:* `float`): Maximum lateral acceleration
-        for ROV (m/s²), typical: 0.2-0.5
-        * `speed_reduction_factor` (*type:* `float`): Speed reduction factor
-        for corners (0-1), lower = more deceleration
-        * `min_speed_factor` (*type:* `float`): Minimum speed as fraction of
-        max speed (0-1), default: 0.2
+        as fifth-order Bezier curves.
 
         > *Input arguments*
 
@@ -276,21 +211,6 @@ class LIPBInterpolator(PathGenerator):
         if 'radius' in params:
             assert params['radius'] > 0, 'Radius must be greater than zero'
             self._radius = params['radius']
-
-        if 'use_velocity_profiler' in params:
-            self._use_velocity_profiler = bool(params['use_velocity_profiler'])
-
-            # Initialize velocity profiler if enabled
-            if self._use_velocity_profiler:
-                max_lateral_accel = params.get('max_lateral_accel', 0.2)
-                speed_reduction_factor = params.get('speed_reduction_factor', 0.3)
-                min_speed_factor = params.get('min_speed_factor', 0.2)
-
-                self._velocity_profiler = VelocityProfiler(
-                    max_lateral_accel=max_lateral_accel,
-                    speed_reduction_factor=speed_reduction_factor,
-                    min_speed_factor=min_speed_factor
-                )
 
         return True
 
@@ -469,77 +389,3 @@ class LIPBInterpolator(PathGenerator):
             rotq = self._last_rot
 
         return rotq
-
-    def get_velocity_at_s(self, s):
-        """Get the velocity at parameter s from the velocity profiler.
-
-        > *Input arguments*
-
-        * `s` (*type:* `float`): Curve's parametric input expressed in the
-        interval of [0, 1]
-
-        > *Returns*
-
-        Velocity at s (m/s) as `float`. If velocity profiler is not enabled,
-        returns None.
-        """
-        if self._use_velocity_profiler and self._velocity_profiler is not None:
-            return self._velocity_profiler.get_velocity_at_s(s)
-        return None
-
-    def get_curvature_at_s(self, s):
-        """Get the curvature at parameter s from the velocity profiler.
-
-        > *Input arguments*
-
-        * `s` (*type:* `float`): Curve's parametric input expressed in the
-        interval of [0, 1]
-
-        > *Returns*
-
-        Curvature at s (1/m) as `float`. If velocity profiler is not enabled,
-        returns None.
-        """
-        if self._use_velocity_profiler and self._velocity_profiler is not None:
-            return self._velocity_profiler.get_curvature_at_s(s)
-        return None
-
-    def _estimate_duration_from_velocity_profile(self, velocity_profile, s_values, segment_lengths):
-        """Estimate trajectory duration from velocity profile.
-
-        This calculates the actual time needed to traverse the path
-        given the varying velocities from the velocity profiler.
-
-        > *Input arguments*
-
-        * `velocity_profile` (*type:* `list`): List of (s, velocity) tuples
-        * `s_values` (*type:* `numpy.array`): Normalized path parameters
-        * `segment_lengths` (*type:* `list`): Physical lengths of segments (m)
-
-        > *Returns*
-
-        Estimated duration in seconds as `float`.
-        """
-        if not velocity_profile or len(velocity_profile) < 2:
-            return self._duration
-
-        total_time = 0.0
-
-        # Integrate time = distance / velocity over the profile
-        for i in range(len(velocity_profile) - 1):
-            s1, v1 = velocity_profile[i]
-            s2, v2 = velocity_profile[i + 1]
-
-            # Distance in this segment (parametric → physical)
-            ds = s2 - s1
-            distance = ds * self._total_path_length
-
-            # Average velocity in this segment
-            v_avg = (v1 + v2) / 2.0
-
-            # Time = distance / velocity
-            if v_avg > 1e-6:
-                dt = distance / v_avg
-                total_time += dt
-
-        return total_time

@@ -59,20 +59,6 @@ class WPTrajectoryGenerator(object):
         self._last_pnt = None
         self._this_pnt = None
 
-        # Velocity profiler integration
-        self._integrated_s = 0.0  # Actual s based on velocity integration
-        self._last_integration_time = None
-
-        # Trajectory advancement mode
-        # 'time': Time-based (original)
-        # 'velocity_damped': Velocity integration with error-based damping (Option 3)
-        # 'pure_pursuit': Pure pursuit controller (Option 4, future)
-        self._advancement_mode = 'time'
-
-        # Error-based damping parameters (for velocity_damped mode)
-        self._error_threshold = 0.5  # meters (error at which damping = 0.5, increased for more tolerance)
-        self._min_damping = 0.15  # minimum damping factor (maintain at least 15% speed, prevents complete stop)
-
         # Distance-based termination
         self._final_waypoint_pos = None  # Set when trajectory starts
         self._completion_threshold = 0.5  # meters (distance to final waypoint)
@@ -201,46 +187,6 @@ class WPTrajectoryGenerator(object):
             self._logger.info('Invalid max. time, time=%.2f s' % t)
             return False
 
-    def set_advancement_mode(self, mode):
-        """Set trajectory advancement mode.
-
-        Args:
-            mode: 'time', 'velocity_damped', or 'pure_pursuit'
-        """
-        valid_modes = ['time', 'velocity_damped', 'pure_pursuit']
-        if mode in valid_modes:
-            self._advancement_mode = mode
-            self._logger.info(f'Trajectory advancement mode: {mode}')
-            return True
-        else:
-            self._logger.error(f'Invalid advancement mode: {mode}. Valid: {valid_modes}')
-            return False
-
-    def set_damping_parameters(self, error_threshold=None, min_damping=None):
-        """Set error-based damping parameters.
-
-        Args:
-            error_threshold: Error (m) at which damping = 0.5
-            min_damping: Minimum damping factor (0-1)
-        """
-        if error_threshold is not None:
-            if error_threshold > 0:
-                self._error_threshold = error_threshold
-                self._logger.info(f'Error threshold: {error_threshold:.2f}m')
-            else:
-                self._logger.error('Error threshold must be positive')
-                return False
-
-        if min_damping is not None:
-            if 0 < min_damping <= 1.0:
-                self._min_damping = min_damping
-                self._logger.info(f'Min damping: {min_damping:.2f}')
-            else:
-                self._logger.error('Min damping must be in (0, 1]')
-                return False
-
-        return True
-
     def has_finished(self):
         """Return true if the trajectory has finished."""
         return self._has_ended
@@ -256,8 +202,6 @@ class WPTrajectoryGenerator(object):
         self._has_started = False
         self._has_ended = False
         self._cur_s = 0
-        self._integrated_s = 0.0
-        self._last_integration_time = None
 
     def init_waypoints(self, waypoint_set, init_rot=(1, 0, 0, 0)):
         """Initialize the waypoint set."""
@@ -384,128 +328,7 @@ class WPTrajectoryGenerator(object):
 
     def generate_pnt(self, t, pos, rot):
         """Return trajectory sample for the current parameter s."""
-        # Check if velocity profiler is active
-        use_velocity_integration = (hasattr(self.interpolator, 'get_velocity_at_s') and
-                                     hasattr(self.interpolator, '_use_velocity_profiler') and
-                                     self.interpolator._use_velocity_profiler)
-
-        if use_velocity_integration:
-            # CRITICAL FIX: Integrate velocity to get actual s
-            # This ensures position reference matches actual velocity!
-            if self._last_integration_time is None:
-                self._last_integration_time = t
-                self._integrated_s = 0.0
-
-            # Time step
-            dt = t - self._last_integration_time
-            self._last_integration_time = t
-
-            # Get current velocity from profile
-            current_velocity = self.interpolator.get_velocity_at_s(self._integrated_s)
-            if current_velocity is None:
-                current_velocity = 1.0  # Fallback
-
-            # Calculate distance traveled: ds = v * dt / total_length
-            total_length = getattr(self.interpolator, '_total_path_length', 1.0)
-            if total_length > 0 and dt > 0:
-                # Base ds calculation
-                ds = (current_velocity * dt) / total_length
-
-                # Apply error-based damping if in velocity_damped mode
-                damping = 1.0
-
-                # DEBUG: Log advancement mode check (once)
-                if not hasattr(self, '_mode_logged'):
-                    import sys
-                    print(f'[MODE_CHECK] advancement_mode={self._advancement_mode}, last_pnt={self._last_pnt is not None}',
-                          file=sys.stderr, flush=True)
-                    self._mode_logged = True
-
-                if self._advancement_mode == 'velocity_damped' and self._last_pnt is not None:
-                    # REFACTOR GUARD: cross_track_error (computed below) and damping are read
-                    # by the [DAMPING] debug print at the end of this block. If this block is
-                    # ever extracted into a helper (e.g. _compute_velocity_damping), the helper
-                    # MUST return both `damping` and `cross_track_error` (or keep the print
-                    # inside the helper) — otherwise the print raises NameError on the first
-                    # damped step. A prior decomposition attempt was reverted for exactly this.
-                    # CRITICAL FIX: Use cross-track error, NOT total position error!
-                    # Total position error causes vicious cycle:
-                    #   Robot behind → high error → strong damping → slower → falls further behind
-                    #
-                    # Cross-track error is correct:
-                    #   Robot off-path → slow down to converge
-                    #   Robot on-path but behind → maintain speed to catch up
-
-                    robot_pos = np.array(pos[:3])
-                    ref_pos = np.array(self._last_pnt.pos[:3])
-
-                    # Calculate path tangent (direction of motion)
-                    if hasattr(self.interpolator, 'generate_pos'):
-                        # Get tangent from interpolator
-                        s_curr = self._integrated_s
-                        s_next = min(s_curr + 0.01, 1.0)
-                        if s_curr < 0.99:
-                            pos_curr = self.interpolator.generate_pos(s_curr)
-                            pos_next = self.interpolator.generate_pos(s_next)
-                            path_tangent = pos_next - pos_curr
-                            tangent_norm = np.linalg.norm(path_tangent)
-                            if tangent_norm > 1e-6:
-                                path_tangent = path_tangent / tangent_norm
-                            else:
-                                path_tangent = np.array([1.0, 0.0, 0.0])  # Fallback
-                        else:
-                            path_tangent = np.array([1.0, 0.0, 0.0])  # End of path
-                    else:
-                        path_tangent = np.array([1.0, 0.0, 0.0])  # Fallback
-
-                    # Calculate cross-track error (perpendicular to path)
-                    error_vector = robot_pos - ref_pos
-                    along_track_component = np.dot(error_vector, path_tangent) * path_tangent
-                    cross_track_vector = error_vector - along_track_component
-                    cross_track_error = np.linalg.norm(cross_track_vector)
-
-                    # Smooth damping based on cross-track error only
-                    # cross_track=0 → damping=1.0 (full speed, robot on path)
-                    # cross_track=threshold → damping ≈ 0.52
-                    # cross_track=∞ → damping=min_damping (maintains minimum 15% speed)
-                    k = 1.5
-                    damping = self._min_damping + (1.0 - self._min_damping) * np.exp(-k * cross_track_error / self._error_threshold)
-
-                    # Apply damping
-                    ds = ds * damping
-
-                    # DEBUG: Log damping (very throttled)
-                    if not hasattr(self, '_damping_log_count'):
-                        self._damping_log_count = 0
-                    if self._damping_log_count % 200 == 0:  # Log every 200 calls
-                        import sys
-                        print(f'[DAMPING] cross_track_error={cross_track_error:.3f}m, damping={damping:.3f}, ds={ds:.6f}',
-                              file=sys.stderr, flush=True)
-                    self._damping_log_count += 1
-                else:
-                    # DEBUG: Log why damping is NOT applied
-                    if not hasattr(self, '_no_damping_logged'):
-                        import sys
-                        print(f'[NO_DAMPING] mode={self._advancement_mode}, last_pnt_exists={self._last_pnt is not None}',
-                              file=sys.stderr, flush=True)
-                        self._no_damping_logged = True
-
-                self._integrated_s += ds
-
-                # DEBUG: Log integration (throttled)
-                if not hasattr(self, '_debug_log_count'):
-                    self._debug_log_count = 0
-                if self._debug_log_count % 100 == 0:  # Log every 100 calls
-                    import sys
-                    print(f'[DEBUG] t={t:.2f}s, s={self._integrated_s:.4f}, v={current_velocity:.3f}m/s, dt={dt:.4f}s, ds={ds:.6f}, L={total_length:.2f}m',
-                          file=sys.stderr, flush=True)
-                self._debug_log_count += 1
-
-            # Clamp to [0, 1]
-            cur_s = max(0.0, min(1.0, self._integrated_s))
-        else:
-            # Original time-based calculation
-            cur_s = (t - self.interpolator.start_time) / (self.interpolator.max_time - self.interpolator.start_time)
+        cur_s = (t - self.interpolator.start_time) / (self.interpolator.max_time - self.interpolator.start_time)
 
         last_s = cur_s - self.interpolator.s_step
         # Generate position and rotation quaternion for the current path
@@ -577,22 +400,6 @@ class WPTrajectoryGenerator(object):
             (cur_pos[2] - last_pos[2]) / self._t_step
         ])
 
-        # Apply velocity profiler if available
-        if hasattr(self.interpolator, 'get_velocity_at_s'):
-            target_speed = self.interpolator.get_velocity_at_s(cur_s)
-            if target_speed is not None:
-                # Scale linear velocity to match target speed
-                current_speed = np.linalg.norm(lin_vel)
-                if current_speed > 1e-6:
-                    # Log velocity profiler application (very throttled - only once)
-                    if not hasattr(self, '_vp_logged'):
-                        import sys
-                        print(f'[VP] Velocity profiler active (s={cur_s:.2f}, target={target_speed:.2f} m/s)',
-                              file=sys.stderr, flush=True)
-                        self._vp_logged = True
-
-                    lin_vel = lin_vel * (target_speed / current_speed)
-
         vel = [lin_vel[0], lin_vel[1], lin_vel[2],
                ang_vel[0], ang_vel[1], ang_vel[2]]
         return np.array(vel)
@@ -616,8 +423,6 @@ class WPTrajectoryGenerator(object):
             self.update_dt(t)
             # Generate first point
             self._cur_s = 0
-            self._integrated_s = 0.0
-            self._last_integration_time = t
             self._has_started = True
             self._has_ended = False
 
@@ -631,36 +436,12 @@ class WPTrajectoryGenerator(object):
                     self._logger.info(f'Final waypoint: [{last_wp.x:.2f}, {last_wp.y:.2f}, {last_wp.z:.2f}]')
                     self._logger.info(f'Completion threshold: {self._completion_threshold:.2f}m')
 
-        # Check termination conditions
-        use_velocity_integration = (hasattr(self.interpolator, 'get_velocity_at_s') and
-                                     hasattr(self.interpolator, '_use_velocity_profiler') and
-                                     self.interpolator._use_velocity_profiler)
-
-        # Path parameter-based termination: check if we've completed the path
-        # This is robust to different interpolation methods and radius values
-        trajectory_finished = False
-        if use_velocity_integration:
-            # Trajectory finished when path parameter s >= 0.99
-            # This works for all interpolation methods (LIPB, cubic, linear)
-            trajectory_finished = self._integrated_s >= 0.99
-
-            # Debug log (throttled)
-            if not hasattr(self, '_termination_log_count'):
-                self._termination_log_count = 0
-            if self._termination_log_count % 200 == 0:
-                import sys
-                print(f'[TERM] s={self._integrated_s:.4f}, threshold=0.99, finished={trajectory_finished}',
-                      file=sys.stderr, flush=True)
-            self._termination_log_count += 1
-        else:
-            # Original time-based termination
-            trajectory_finished = self.interpolator.has_finished(t)
+        trajectory_finished = self.interpolator.has_finished(t)
 
         if trajectory_finished or not self.interpolator.has_started(t):
             if trajectory_finished:
                 self._has_ended = True
                 self._cur_s = 1
-                self._integrated_s = 1.0
                 # Continue publishing final waypoint position
                 self._this_pnt = self.generate_pnt(t, *args)
                 self._this_pnt.t = t
@@ -674,19 +455,8 @@ class WPTrajectoryGenerator(object):
             self._has_ended = False
 
             # Retrieving current position and heading
-            # Use integrated_s if velocity profiler is active, otherwise use time-based
-            use_velocity_integration = (hasattr(self.interpolator, 'get_velocity_at_s') and
-                                         hasattr(self.interpolator, '_use_velocity_profiler') and
-                                         self.interpolator._use_velocity_profiler)
-
-            if use_velocity_integration:
-                # Use velocity-integrated s (calculated in generate_pnt)
-                self._this_pnt = self.generate_pnt(t, *args)
-                self._cur_s = self._integrated_s  # Use the integrated value!
-            else:
-                # Original time-based calculation
-                self._cur_s = (t - self.interpolator.start_time) / (self.interpolator.max_time - self.interpolator.start_time)
-                self._this_pnt = self.generate_pnt(t, *args)
+            self._cur_s = (t - self.interpolator.start_time) / (self.interpolator.max_time - self.interpolator.start_time)
+            self._this_pnt = self.generate_pnt(t, *args)
 
             self._this_pnt.t = t
 
