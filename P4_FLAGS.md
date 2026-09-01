@@ -36,8 +36,16 @@
 
 ## VelocityProfiler 잔재 (T2.2 부분 — interpolator 내부 분기는 Phase 3로)
 - **dangling `__all__` 엔트리 제거 완료(T2.2)**: `path_generator/__init__.py:49`의 `'VelocityProfiler'`는 import되지 않는데 `__all__`에 등재돼 `from path_generator import *` 시 AttributeError를 내는 버그였다(class VelocityProfiler가 repo 전체에 부재). 제거함.
-- **[2026-09-01 재측정]** 실측 분포는 `cs_interpolator.py` **7곳**·`lipb_interpolator.py` **7곳**·
-  `common/trajectory_generator.py` **6곳**(총 20)으로, 아래 "14곳/15곳" 서술은 부정확하다. 또한 이연 근거였던
+- **[2026-09-01 재측정]** **계수 규칙**: `_velocity_profiler`·`_use_velocity_profiler`·`VelocityProfiler`
+  중 하나 이상을 참조하는 **줄 수**(docstring 줄 포함). 이 규칙으로 `cs_interpolator.py` **14줄** ·
+  `lipb_interpolator.py` **14줄** · `common/trajectory_generator.py` **6줄**, 합 **34줄**이다.
+  즉 아래 "14곳"은 맞고 "15곳"은 1 많으며, 진짜 누락은 `trajectory_generator.py` **6줄**이 목록에
+  아예 없었다는 것이다(`if` 문만 세면 5·5·3으로 또 달라지므로 규칙 없는 숫자는 쓰지 않는다).
+  실질 판정은 종전대로 dead다 — `class VelocityProfiler`는 **repo 전체에 부재**하고 두 interpolator
+  어디서도 import되지 않으므로 `VelocityProfiler(...)`(cs:148·lipb:289) 도달 시 `NameError`이며,
+  그 분기를 켤 수 있는 유일한 경로 `nodes/utils.py::create_trajectory_generator`는
+  `path_generator_node.py:35`가 **import만 하고 호출하지 않는다**(`docs/LIVENESS_AUDIT.md`와 일치).
+  또한 이연 근거였던
   `lipb_interpolator.init_interpolator` god-method는 이미 분해됐다(152→**26줄**, L50-75) — 따라서 이 정리는
   더 이상 god-method 작업에 묶여 있지 않고 독립 삭제 가능하다. 잔존 함정: `trajectory_generator.py`가
   이 목록에 없었는데 실제로는 6곳을 갖고 있다(`[DAMPING]` print 포함).
