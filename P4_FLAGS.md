@@ -229,3 +229,34 @@ opus 적대검증 CONFIRMED 4건을 수정했다. 컨테이너는 GPU 없어 닫
   Position/Hybrid(velocity·position)만 서술하고 P5의 cascade 모드·CascadeController를
   다루지 않는다(mode 목록도 두 개뿐). P5 이전부터의 공백으로 P2 범위 밖 — README
   정비 시 cascade 절(아키텍처·게인·v_sp_limit·ff 정책) 추가 필요.
+
+## Phase 3 `fix/scenario-and-guards` sign-off 이월 (2026-09-01)
+
+계획 §7.2의 sim 브랜치(P0-2 + P1-15·16·19·20·21). 컨테이너에 GPU가 없어 닫힌루프
+검증이 불가하고, 아래 3건은 **정적 게이트가 원리적으로 못 덮는 런타임 의미**다
+(`ros2 topic info -v` 층위 — 프로세스 경계를 넘는 결합은 어떤 코드 그래프·AST에도
+엣지로 안 잡힌다). 정적 게이트는 GREEN(224 passed, 베이스라인 179).
+
+### 실기 sign-off 필요
+- **[thruster_manager] no-op remapping 삭제가 실제 배선을 안 건드렸는지** — 가장
+  실질적 위험 항목. `thruster_manager.launch.py`에서 `('~/input_stamped',
+  'thruster_manager/input_stamped')`를 지웠다. 노드는 상대 이름
+  `thruster_manager/input_stamped`를 열고 remapping의 좌변은 private 이름
+  (`/{ns}/thruster_allocator/input_stamped`)이라 **정적으로는 no-op**이지만, 이
+  판정은 AST 판독이지 rclpy 이름해석 실측이 아니다. 실기에서
+  `ros2 topic info -v /{vehicle}/thruster_manager/input_stamped`로 구독자가 여전히
+  1개인지, `/{vehicle}/setpoint/pwm`이 계속 나오는지 확인한다.
+- **[ROS2Interface] multibeam `angle_increment` 0-가드** — `angSteps<=1`에서 0을
+  내도록 바꿨다. 현재 활성 `.scn` 중 트리거하는 구성이 없어 **경로가 한 번도 안 밟힌
+  변경**이다. 실기에서 multibeam을 쓰는 시나리오의 `LaserScan`이 종전과 동일한
+  `angle_increment`를 내는지(즉 `angSteps>1` 경로가 안 바뀌었는지) 1회 확인.
+- **[ROS2SimulationManager] `ThrusterState` 배열 길이** — publish 직전
+  `resize(thID)`로 실제 채운 개수까지 줄인다. bluerov2는 PUSH가 없어 8→8로 불변이어야
+  한다. 실기에서 `ros2 topic echo /{vehicle}/thrusters --once`의 네 배열이 모두
+  8인지 확인. PUSH 병용 로봇이 생기면 그때가 첫 실검증이다.
+
+### 열린 전제 (이 브랜치 밖)
+- **[sonar_yolo] 가중치 파일 미수령** — `sonar_yolo_node.py`의 로드 실패 메시지를
+  경로가 드러나도록 고쳤지만, **성공 경로는 여전히 이 컨테이너에서 실행된 적이 없다**.
+  `stonefish_yolo_sofa.pt` 수령 후 (a) 정상 로드, (b) 없는 경로를 줬을 때 새 메시지가
+  실제로 나오는지 두 방향을 함께 확인한다.
