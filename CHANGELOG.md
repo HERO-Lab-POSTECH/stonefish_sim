@@ -101,7 +101,45 @@ All notable changes to this project will be documented in this file.
   0.4.0 동결 상태(버전·패키지 수·pytest 통과 수)에서 실측 현재값(0.5.0·8개 패키지·139
   passed)으로 갱신, 잔여 `--symlink-install`/`/workspace/colcon_ws` 서술 제거
 
+### Removed
+
+- **`scenarios/blueboat_sea.scn`과 `blueboat.launch.py` — 한 번도 로드된 적 없는
+  BlueBoat 런치 레인**: 시나리오 4행이 `data/worlds/sea.scn`을 include하는데 이
+  경로는 이 repo 이력에 **존재한 적이 없다**(`git log --all` 전수). Stonefish
+  파서가 파싱 단계에서 실패하므로 시나리오는 로드 자체가 불가능했고, `.scn`은
+  코드가 아니라 데이터라 import·빌드·테스트 어디에도 안 걸려 조용히 남아 있었다.
+  이 시나리오를 하드코딩한 유일 소비자 `blueboat.launch.py`와
+  `bringup.launch.py`의 `vehicle:=blueboat` 선택지·README 3곳·문서 사이트 2곳을
+  함께 정리했다. **로봇 자산 `data/robots/blueboat/`는 남긴다** — 자체 include는
+  전부 resolve되며 다른 시나리오가 재사용할 수 있다. 동작하던 경로가 아니므로
+  기능 손실은 없다.
+
 ### Fixed
+
+- **`ThrusterState` 배열이 PUSH 액추에이터 몫만큼 팬텀 0을 실었다**:
+  `thrusterSetpoints_`는 THRUSTER + PUSH 합계로 크기가 잡히는데
+  (`ROS2ScenarioParser.cpp:263`) publish 루프는 THRUSTER만 순회한다. Push는
+  force 하나만 노출해 setpoint/rpm/torque가 없으므로 보고 대상이 아니고, 따라서
+  실제 채운 개수로 배열을 줄인다. 현재 두 타입을 섞어 쓰는 로봇이 없어 관측된
+  적은 없다.
+
+- **`LaserScan.angle_increment`의 0-division**: `angRange/(angSteps-1)`이
+  `angSteps==1`에서 0으로 나누고 `angSteps==0`에서는 `size_t`가 언더플로해
+  거대한 값이 된다. 단일 스텝 multibeam은 보고할 간격 자체가 없으므로 0을 낸다.
+
+- **YOLO 가중치 부재가 URL을 가리키는 불투명 에러로 나오던 문제**: ultralytics는
+  stock asset 목록에 없는 파일명을 GitHub 릴리스에서 내려받으려 하므로, 커스텀
+  가중치가 없을 때 우리가 요청한 **경로**가 메시지에 안 나온다. 로드 전에 파일
+  존재를 확인해 경고하고, 실패는 경로를 담아 다시 던진다.
+
+- **`thruster_manager.launch.py`의 no-op remapping 제거**: `~/input_stamped`는
+  private 이름(`/{ns}/thruster_allocator/input_stamped`)인데 노드는 상대 이름
+  `thruster_manager/input_stamped`를 연다. 아무것도 안 하면서 배선처럼 읽혔다.
+
+- **`ThrusterAllocatorNode` docstring이 없는 토픽을 광고했다**: `~/input`(Wrench)·
+  `~/thruster_forces`는 존재하지 않는다. 실제는 구독 1개
+  (`thruster_manager/input_stamped`)와 발행 1개(`/{vehicle_name}/setpoint/pwm`,
+  force가 아니라 `force_to_pwm()` 적용 후의 PWM)뿐이다.
 
 - **`control_mode` 발행을 latched QoS로 — 런마다 제어기가 갈리던 레이스 차단**:
   `path_following_node`가 초기 모드를 생성자에서 1회만 발행하고 이후

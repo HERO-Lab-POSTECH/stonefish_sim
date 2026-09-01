@@ -6,11 +6,10 @@
 #
 # Composes the Stonefish simulator with a vehicle scenario plus an optional
 # thruster manager, and an optional base_link->base_link_frd static TF (needed
-# by the BlueROV2). This factors out the block that blueboat.launch.py and
-# bluerov2.launch.py used to duplicate verbatim; those files are now thin
-# wrappers that forward per-vehicle defaults to this file.
+# by the BlueROV2). Per-vehicle wrappers (bluerov2.launch.py) forward their
+# defaults here instead of duplicating this block verbatim.
 #
-# Usage (normally invoked via blueboat.launch.py / bluerov2.launch.py):
+# Usage (normally invoked via bluerov2.launch.py):
 #   ros2 launch stonefish_ros2 vehicle.launch.py \
 #       vehicle_name:=bluerov2 scenario:=bluerov2_infrastructure \
 #       window_res_y:=1080 enable_base_link_frd:=true

@@ -78,7 +78,7 @@ ros2 launch stonefish_ros2 bringup.launch.py vehicle:=bluerov2 use_sim_time:=tru
 ```
 
 !!! note "`bluerov2.launch.py`는 얇은 래퍼다"
-    `bluerov2.launch.py`/`blueboat.launch.py`는 `vehicle.launch.py`에 차량별 기본값(`scenario`, `window_res_y`, `enable_base_link_frd` 등)을 고정해 넘기는 얇은 래퍼라, 자체적으로 노출하는 오버라이드 인자가 사실상 없다. 렌더링 품질·해상도·gpu 같은 시뮬 인자를 바꾸려면 `vehicle.launch.py`(또는 `simulator.launch.py`)를 직접 호출한다.
+    `bluerov2.launch.py`는 `vehicle.launch.py`에 차량별 기본값(`scenario`, `window_res_y`, `enable_base_link_frd` 등)을 고정해 넘기는 얇은 래퍼라, 자체적으로 노출하는 오버라이드 인자가 사실상 없다. 렌더링 품질·해상도·gpu 같은 시뮬 인자를 바꾸려면 `vehicle.launch.py`(또는 `simulator.launch.py`)를 직접 호출한다.
 
 근거: launch 인자는 sim_analysis 5.2 + 각 launch 파일의 `DeclareLaunchArgument`.
 

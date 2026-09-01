@@ -380,6 +380,14 @@ void ROS2SimulationManager::SimulationStepCompleted(Scalar timeStep)
                         break;
                 }
             }
+            // thrusterSetpoints_ is sized THRUSTER + PUSH (ROS2ScenarioParser.cpp:263)
+            // but only THRUSTER actuators are reportable here -- Push exposes a force
+            // and nothing else. Trim so a robot mixing the two does not publish
+            // phantom zero entries for its pushes.
+            msg.setpoint.resize(thID);
+            msg.rpm.resize(thID);
+            msg.thrust.resize(thID);
+            msg.torque.resize(thID);
             std::static_pointer_cast<rclcpp::Publisher<stonefish_msgs::msg::ThrusterState>>(
                     pubs_.at(rosRobots_[i]->robot_->getName() + "/thrusters")
                 )->publish(msg);

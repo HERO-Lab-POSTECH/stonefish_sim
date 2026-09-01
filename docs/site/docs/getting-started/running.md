@@ -122,7 +122,7 @@ ros2 launch stonefish_ros2 bringup.launch.py vehicle:=bluerov2
 
 | 인자 | 기본값 | 의미 |
 |------|--------|------|
-| `vehicle` | `bluerov2` | 기동할 차량(`bluerov2` / `blueboat`) |
+| `vehicle` | `bluerov2` | 기동할 차량. `<vehicle>.launch.py`를 이름으로 include하며 현재 `bluerov2` 하나 |
 | `use_sim_time` | `true` | 시뮬레이터 `/clock`을 시간원으로 사용 |
 | `start_control` | `true` | 제어 스택(control.launch.py) 기동 여부 |
 | `start_path` | `true` | 경로 스택(path.launch.py) 기동 여부 |

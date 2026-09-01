@@ -381,7 +381,9 @@ void ROS2Interface::PublishMultibeam(rclcpp::PublisherBase::SharedPtr pub, Multi
     
     msg.angle_min = -angRange/sf::Scalar(2); // start angle of the scan [rad]
     msg.angle_max = angRange/sf::Scalar(2); // end angle of the scan [rad]
-    msg.angle_increment = angRange/sf::Scalar(angSteps-1); // angular distance between measurements [rad]
+    // A single-step multibeam has no spacing to report; angSteps-1 would divide by
+    // zero here and underflow size_t at angSteps==0.
+    msg.angle_increment = angSteps > 1 ? angRange/sf::Scalar(angSteps-1) : sf::Scalar(0);
     msg.range_min = channel.rangeMin; // minimum range value [m]
     msg.range_max = channel.rangeMax; // maximum range value [m]
     msg.time_increment = 0.; // time between measurements [seconds] - if your scanner is moving, this will be used in interpolating position of 3d points

@@ -66,9 +66,10 @@ def generate_launch_description():
             'max_thrust': LaunchConfiguration('max_thrust'),
             'use_sim_time': LaunchConfiguration('use_sim_time'),
         }],
-        remappings=[
-            ('~/input_stamped', 'thruster_manager/input_stamped'),
-        ]
+        # No remapping: the node subscribes to the relative name
+        # 'thruster_manager/input_stamped', which already resolves under the
+        # vehicle namespace. Remapping '~/input_stamped' renamed a private topic
+        # nothing subscribes to.
     )
 
     return LaunchDescription([

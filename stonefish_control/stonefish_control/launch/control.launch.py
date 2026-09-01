@@ -15,7 +15,7 @@ stonefish_ros2/bringup.launch.py wires all three together.
 Usage:
     # control only (sim + path started separately)
     ros2 launch stonefish_control control.launch.py
-    ros2 launch stonefish_control control.launch.py vehicle_name:=blueboat use_sim_time:=true
+    ros2 launch stonefish_control control.launch.py vehicle_name:=bluerov2 use_sim_time:=true
 """
 
 from launch import LaunchDescription

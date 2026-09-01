@@ -26,12 +26,16 @@ class ThrusterAllocatorNode(Node):
     """
     Thruster allocator node for Stonefish simulator.
 
+    Both names below are resolved by the node itself, not by a launch remapping.
+
     Subscribes to:
-        - ~/input (geometry_msgs/Wrench): 6DOF wrench command
-        - ~/input_stamped (geometry_msgs/WrenchStamped): Stamped wrench command
+        - thruster_manager/input_stamped (geometry_msgs/WrenchStamped): 6DOF wrench
+          command. Relative name -> /{vehicle_name}/thruster_manager/input_stamped.
+          Unstamped Wrench is deliberately not accepted (type conflict on one topic).
 
     Publishes:
-        - ~/thruster_forces (std_msgs/Float64MultiArray): Individual thruster forces
+        - /{vehicle_name}/setpoint/pwm (std_msgs/Float64MultiArray): per-thruster
+          PWM, not force -- force_to_pwm() is applied before publishing.
     """
 
     def __init__(self):

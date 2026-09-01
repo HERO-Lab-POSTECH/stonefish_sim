@@ -42,7 +42,8 @@ def generate_launch_description():
                         'for unusual offline setups.'),
         DeclareLaunchArgument(
             'vehicle', default_value='bluerov2',
-            description='Vehicle to bring up: bluerov2 | blueboat.'),
+            description='Vehicle to bring up. Names a <vehicle>.launch.py in this '
+                        'package; bluerov2 is the only one that ships today.'),
         DeclareLaunchArgument(
             'start_control', default_value='true',
             description='Start the control stack (control.launch.py — the controller).'),
@@ -55,7 +56,7 @@ def generate_launch_description():
     ]
 
     # The vehicle simulation (simulator + optional thruster manager + FRD TF).
-    # Selected by name so vehicle:=blueboat picks blueboat.launch.py.
+    # Selected by name: vehicle:=<name> includes <name>.launch.py from this package.
     vehicle_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             PathJoinSubstitution([

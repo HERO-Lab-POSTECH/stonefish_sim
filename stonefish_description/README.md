@@ -51,8 +51,7 @@ stonefish_description/
 ├── scenarios/                 # Ready-to-run scenarios
 │   ├── bluerov2_empty.scn     # BlueROV2 in empty ocean
 │   ├── bluerov2_seabed.scn    # BlueROV2 over seabed
-│   ├── bluerov2_infrastructure.scn
-│   └── blueboat_sea.scn       # BlueBoat surface vehicle
+│   └── bluerov2_infrastructure.scn
 │
 ├── CMakeLists.txt
 ├── package.xml
