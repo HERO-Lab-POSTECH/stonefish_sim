@@ -38,9 +38,6 @@ class CSInterpolator(PathGenerator):
                                  heading=None)
         self._heading_spline = None
 
-        # Velocity profiler for curvature-based speed control
-        self._velocity_profiler = None
-        self._use_velocity_profiler = False
         self._total_path_length = 0.0
 
     def init_interpolator(self):
@@ -84,38 +81,6 @@ class CSInterpolator(PathGenerator):
         if self._start_time is None:
             self._start_time = 0.0
 
-        # Generate velocity profile if enabled
-        if self._use_velocity_profiler and self._velocity_profiler is not None:
-            velocity_profile, curvature_profile = self._velocity_profiler.generate_velocity_profile(
-                self._interp_fcns['pos'],
-                self._waypoints,
-                self._s,
-                self._total_path_length
-            )
-
-            # CRITICAL: Recalculate duration based on actual velocity profile!
-            estimated_duration = self._estimate_duration_from_velocity_profile(
-                velocity_profile, self._s, lengths[1:])
-
-            # Add safety buffer (20%)
-            self._duration = estimated_duration * 1.2
-
-            # Log profile statistics
-            stats = self._velocity_profiler.get_profile_statistics()
-            if stats:
-                import sys
-                msg = '╔═══════════════════════════════════════════════════════════╗\n'
-                msg += '║  VELOCITY PROFILER ACTIVATED (CUBIC)                      ║\n'
-                msg += '╠═══════════════════════════════════════════════════════════╣\n'
-                msg += f'║  Speed range: {stats["v_min"]:.2f} - {stats["v_max"]:.2f} m/s                            ║\n'
-                msg += f'║  Max curvature: {stats["k_max"]:.4f} (1/m)                      ║\n'
-                msg += f'║  Mean curvature: {stats["k_mean"]:.4f} (1/m)                     ║\n'
-                msg += f'║  Samples: {stats["num_samples"]}                                        ║\n'
-                msg += f'║  Original duration: {self._total_path_length / mean_vel:.1f}s → Adjusted: {self._duration:.1f}s       ║\n'
-                msg += '╚═══════════════════════════════════════════════════════════╝'
-                print(msg, file=sys.stderr, flush=True)
-                print(msg, file=sys.stdout, flush=True)
-
         if self._waypoints.num_waypoints == 2:
             head_offset_line = deepcopy(self._waypoints.get_waypoint(1).heading_offset)
             self._interp_fcns['heading'] = lambda x: head_offset_line
@@ -130,27 +95,10 @@ class CSInterpolator(PathGenerator):
     def set_parameters(self, params):
         """Set interpolator's parameters.
 
-        Velocity profiler parameters:
-        * `use_velocity_profiler` (*type:* `bool`): Enable curvature-based velocity profiling
-        * `max_lateral_accel` (*type:* `float`): Maximum lateral acceleration for ROV (m/s²)
-        * `speed_reduction_factor` (*type:* `float`): Speed reduction factor (0-1), lower = more deceleration
-        * `min_speed_factor` (*type:* `float`): Minimum speed factor (0-1)
+        The cubic interpolator takes no configurable parameters today; the
+        method exists because `WPTrajectoryGenerator` calls it on every
+        interpolator uniformly.
         """
-        if 'use_velocity_profiler' in params:
-            self._use_velocity_profiler = bool(params['use_velocity_profiler'])
-
-            # Initialize velocity profiler if enabled
-            if self._use_velocity_profiler:
-                max_lateral_accel = params.get('max_lateral_accel', 0.2)
-                speed_reduction_factor = params.get('speed_reduction_factor', 0.3)
-                min_speed_factor = params.get('min_speed_factor', 0.2)
-
-                self._velocity_profiler = VelocityProfiler(
-                    max_lateral_accel=max_lateral_accel,
-                    speed_reduction_factor=speed_reduction_factor,
-                    min_speed_factor=min_speed_factor
-                )
-
         return True
 
     def get_samples(self, max_time, step=0.001):
@@ -316,68 +264,3 @@ class CSInterpolator(PathGenerator):
         rotq = qmult(rotq, q_step)
         return rotq
 
-    def get_velocity_at_s(self, s):
-        """Get the velocity at parameter s from the velocity profiler.
-
-        > *Input arguments*
-
-        * `s` (*type:* `float`): Curve's parametric input expressed in the
-        interval of [0, 1]
-
-        > *Returns*
-
-        Velocity at s (m/s) as `float`. If velocity profiler is not enabled,
-        returns None.
-        """
-        if self._use_velocity_profiler and self._velocity_profiler is not None:
-            return self._velocity_profiler.get_velocity_at_s(s)
-        return None
-
-    def get_curvature_at_s(self, s):
-        """Get the curvature at parameter s from the velocity profiler.
-
-        > *Input arguments*
-
-        * `s` (*type:* `float`): Curve's parametric input expressed in the
-        interval of [0, 1]
-
-        > *Returns*
-
-        Curvature at s (1/m) as `float`. If velocity profiler is not enabled,
-        returns None.
-        """
-        if self._use_velocity_profiler and self._velocity_profiler is not None:
-            return self._velocity_profiler.get_curvature_at_s(s)
-        return None
-
-    def _estimate_duration_from_velocity_profile(self, velocity_profile, s_values, segment_lengths):
-        """Estimate trajectory duration from velocity profile.
-
-        > *Input arguments*
-
-        * `velocity_profile` (*type:* `list`): List of (s, velocity) tuples
-        * `s_values` (*type:* `numpy.array`): Normalized path parameters
-        * `segment_lengths` (*type:* `list`): Physical lengths of segments (m)
-
-        > *Returns*
-
-        Estimated duration in seconds as `float`.
-        """
-        if not velocity_profile or len(velocity_profile) < 2:
-            return self._duration
-
-        total_time = 0.0
-
-        for i in range(len(velocity_profile) - 1):
-            s1, v1 = velocity_profile[i]
-            s2, v2 = velocity_profile[i + 1]
-
-            ds = s2 - s1
-            distance = ds * self._total_path_length
-            v_avg = (v1 + v2) / 2.0
-
-            if v_avg > 1e-6:
-                dt = distance / v_avg
-                total_time += dt
-
-        return total_time

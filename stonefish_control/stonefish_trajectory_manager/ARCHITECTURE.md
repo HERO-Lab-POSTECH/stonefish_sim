@@ -82,8 +82,7 @@ path_generator/
 ├── lipb_interpolator.py    # LIPB interpolation (LABEL='lipb') ⭐
 ├── cs_interpolator.py      # Cubic spline (LABEL='cubic')
 ├── bezier_curve.py         # Bezier curve utilities
-├── line_segment.py         # Line segment representation
-└── velocity_profiler.py    # Curvature-based speed adjustment
+└── line_segment.py         # Line segment representation
 ```
 
 **Interpolation Methods**:
@@ -93,12 +92,6 @@ path_generator/
 | `linear` | Yes | No | Fast | Simple paths, debugging |
 | `lipb` | No | Yes (corners) | Medium | **General use** ⭐ |
 | `cubic` | No | Yes (entire path) | Medium | Complex smooth paths |
-
-**Velocity Profiler** (Optional):
-- Adjusts speed based on path curvature
-- Reduces speed in sharp corners
-- Maintains stability during turns
-- Enable with `use_velocity_profiler: true`
 
 ### 3. path_following/
 
@@ -232,8 +225,6 @@ WaypointSet.read_from_file()
 WPTrajectoryGenerator
     ↓
 Interpolator (linear/lipb/cubic)
-    ↓
-[Optional] VelocityProfiler
     ↓
 List[TrajectoryPoint]
     ↓

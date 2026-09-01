@@ -467,19 +467,6 @@ Based on UUV Simulator (Copyright 2016 The UUV Simulator Authors)
 - **Path following (LOS) ignores orientation** and calculates heading independently
 - This separation follows the "Separation of Concerns" principle
 
-### Velocity Profiler (Optional)
-
-Automatically reduces speed in sharp corners based on path curvature.
-
-**Enable**:
-```bash
-ros2 launch ... --ros-args -p use_velocity_profiler:=true
-```
-
-**Parameters**:
-- `max_lateral_accel`: Maximum lateral acceleration (m/s²)
-- `speed_reduction_factor`: Corner speed reduction (0-1)
-
 ---
 
 ## Troubleshooting
