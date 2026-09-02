@@ -140,6 +140,7 @@ FLS가 `/{vehicle}/fls/segmentation`(mono16, beam×bin polar)에 찍는 라벨�
 - **id는 `look`이 아니라 물체 단위다.** `turbine1.scn`은 `turbine_base`·`turbine_main` 두 look을 쓰는 `<static>` 두 개지만 둘 다 class 6이다 — 한 물체는 한 라벨이다.
 - **id를 재배치하지 않는다.** 이미 녹화한 bag에서 뽑은 GT 마스크가 조용히 오라벨이 된다. 클래스를 없앨 때도 번호를 비워두고 뒤를 당기지 않는다.
 - 새 클래스는 표 끝에 추가하고 같은 커밋에서 이 표와 `.scn`을 함께 고친다.
+- **태그는 `<static>`·`<dynamic>`·`<animated>`의 직계 자식일 때만 읽힌다.** `<robot>`의 `<link>`나 compound의 `<part>`에 두면 파서가 **경고 없이 무시**하고 그 물체는 0(배경)으로 찍힌다 — `ParseSegmentationClass`는 `ParseStatic`·`ParseDynamic`·`ParseAnimated`의 성공 경로에서만 불린다. compound는 감싸는 `<dynamic>`의 클래스를 모든 part가 물려받는다.
 
 ### 2.9 테스트 (P2에서 정립)
 - 테스트는 패키지별 `test/`에 `test_*.py`, 함수는 `test_*`.

@@ -196,6 +196,7 @@ ros2 launch stonefish_ros2 simulator.launch.py gpu:=false \
 |-------|------|------|-------------|
 | `/bluerov2/fls/image` | `sensor_msgs/Image` | 10 Hz | Forward-looking sonar raw data |
 | `/bluerov2/fls/display` | `sensor_msgs/Image` | 10 Hz | FLS processed display image |
+| `/bluerov2/fls/segmentation` | `sensor_msgs/Image` | 10 Hz | FLS semantic class labels (mono16, beam x bin, pixel-aligned with `/fls/image`; subscribe raw, not compressed) |
 | `/bluerov2/sss` | `sensor_msgs/PointCloud2` | 5 Hz | Side-scan sonar point cloud |
 | `/bluerov2/multibeam` | `sensor_msgs/LaserScan` | 10 Hz | Multibeam sonar scan |
 | `/bluerov2/multibeam/pcl` | `sensor_msgs/PointCloud2` | 10 Hz | Multibeam point cloud |
