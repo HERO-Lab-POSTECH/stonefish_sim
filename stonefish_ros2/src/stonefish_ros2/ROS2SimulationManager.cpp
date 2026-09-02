@@ -126,6 +126,11 @@ std::map<std::string, std::pair<sensor_msgs::msg::Image::SharedPtr, sensor_msgs:
     return sonarMsgPrototypes_;
 }
 
+std::map<std::string, sensor_msgs::msg::Image::SharedPtr>& ROS2SimulationManager::getFLSSegmentationMsgPrototypes()
+{
+    return flsSegMsgPrototypes_;
+}
+
 void ROS2SimulationManager::AddROS2Robot(const std::shared_ptr<ROS2Robot>& robot)
 {
     rosRobots_.push_back(robot);
@@ -170,6 +175,7 @@ void ROS2SimulationManager::DestroyScenario()
     srvs_.clear();
     cameraMsgPrototypes_.clear();
     sonarMsgPrototypes_.clear();
+    flsSegMsgPrototypes_.clear();
     rosRobots_.clear();
 
     SimulationManager::DestroyScenario();
@@ -550,9 +556,15 @@ void ROS2SimulationManager::FLSScanReady(FLS* fls)
     disp->header.stamp = img->header.stamp;
     memcpy(disp->data.data(), (uint8_t*)fls->getDisplayDataPointer(), disp->step * disp->height);
 
+    //Fill in the segmentation message
+    sensor_msgs::msg::Image::SharedPtr seg = flsSegMsgPrototypes_[fls->getName()];
+    seg->header.stamp = img->header.stamp;
+    memcpy(seg->data.data(), (uint8_t*)fls->getSegmentationDataPointer(), seg->step * seg->height);
+
     //Publish messages
     imgPubs_.at(fls->getName()).publish(img);
     imgPubs_.at(fls->getName() + "/display").publish(disp);
+    imgPubs_.at(fls->getName() + "/segmentation").publish(seg);
 
 }
 

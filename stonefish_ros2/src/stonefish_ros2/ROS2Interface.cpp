@@ -750,6 +750,20 @@ std::pair<sensor_msgs::msg::Image::SharedPtr, sensor_msgs::msg::Image::SharedPtr
     return std::make_pair(img, disp);
 }
 
+sensor_msgs::msg::Image::SharedPtr ROS2Interface::GenerateFLSSegmentationMsgPrototype(FLS* fls)
+{
+    //Same beam x bin grid as the intensity image, one class id per bin
+    sensor_msgs::msg::Image::SharedPtr img = std::make_shared<sensor_msgs::msg::Image>();
+    img->header.frame_id = fls->getName();
+    fls->getResolution(img->width, img->height);
+    img->encoding = "mono16";
+    img->is_bigendian = 0;
+    img->step = img->width * 2;
+    img->data.resize(img->step * img->height);
+
+    return img;
+}
+
 std::pair<sensor_msgs::msg::Image::SharedPtr, sensor_msgs::msg::Image::SharedPtr> ROS2Interface::GenerateSSSMsgPrototypes(SSS* sss)
 {
     //Image message
