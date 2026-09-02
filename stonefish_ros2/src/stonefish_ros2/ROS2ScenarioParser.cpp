@@ -580,6 +580,7 @@ Sensor* ROS2ScenarioParser::ParseSensor(XMLElement* element, const std::string& 
         std::map<std::string, image_transport::Publisher>& img_pubs = sim->getImagePublishers();
         std::map<std::string, std::pair<sensor_msgs::msg::Image::SharedPtr, sensor_msgs::msg::CameraInfo::SharedPtr>>& camMsgProto = sim->getCameraMsgPrototypes();
         std::map<std::string, std::pair<sensor_msgs::msg::Image::SharedPtr, sensor_msgs::msg::Image::SharedPtr>>& sonarMsgProto = sim->getSonarMsgPrototypes();
+        std::map<std::string, sensor_msgs::msg::Image::SharedPtr>& flsSegMsgProto = sim->getFLSSegmentationMsgPrototypes();
         
         //Publishing info
         std::string sensorName = sens->getName();
@@ -745,12 +746,14 @@ Sensor* ROS2ScenarioParser::ParseSensor(XMLElement* element, const std::string& 
                         FLS* fls = (FLS*)sens;
                         fls->InstallNewDataHandler(std::bind(&ROS2SimulationManager::FLSScanReady, sim, _1));
                         sonarMsgProto[sensorName] = ROS2Interface::GenerateFLSMsgPrototypes(fls);
+                        flsSegMsgProto[sensorName] = ROS2Interface::GenerateFLSSegmentationMsgPrototype(fls);
                         std::function<void(const stonefish_msgs::srv::SonarSettings::Request::SharedPtr req, 
                             stonefish_msgs::srv::SonarSettings::Response::SharedPtr res)> callbackFunc =
                         std::bind(&ROS2SimulationManager::FLSService, sim, _1, _2, fls);
                         srvs[sensorName] = nh_->create_service<stonefish_msgs::srv::SonarSettings>(topicStr + "/settings", callbackFunc);
                         img_pubs[sensorName] = it->advertise(topicStr + "/image", queueSize);
                         img_pubs[sensorName + "/display"] = it->advertise(topicStr + "/display", queueSize);
+                        img_pubs[sensorName + "/segmentation"] = it->advertise(topicStr + "/segmentation", queueSize);
                     }
                         break;
 

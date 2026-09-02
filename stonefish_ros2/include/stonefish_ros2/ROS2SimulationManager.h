@@ -107,6 +107,7 @@ namespace sf
         std::shared_ptr<image_transport::ImageTransport> getImageTransportHandle();
         std::map<std::string, std::pair<sensor_msgs::msg::Image::SharedPtr, sensor_msgs::msg::CameraInfo::SharedPtr>>& getCameraMsgPrototypes();
 		std::map<std::string, std::pair<sensor_msgs::msg::Image::SharedPtr, sensor_msgs::msg::Image::SharedPtr>>& getSonarMsgPrototypes();        
+        std::map<std::string, sensor_msgs::msg::Image::SharedPtr>& getFLSSegmentationMsgPrototypes();
 
         void EnableCurrentsService(const std_srvs::srv::Trigger::Request::SharedPtr req, 
                             std_srvs::srv::Trigger::Response::SharedPtr res);
@@ -159,6 +160,8 @@ namespace sf
             sensor_msgs::msg::CameraInfo::SharedPtr>> cameraMsgPrototypes_;
 		std::map<std::string, std::pair<sensor_msgs::msg::Image::SharedPtr, 
             sensor_msgs::msg::Image::SharedPtr>> sonarMsgPrototypes_;
+        //FLS only - kept apart from sonarMsgPrototypes_ so SSS and MSIS are untouched
+        std::map<std::string, sensor_msgs::msg::Image::SharedPtr> flsSegMsgPrototypes_;
     };
 }
 
