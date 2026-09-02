@@ -6,6 +6,19 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- **FLS segmentation 토픽 `/{vehicle}/fls/segmentation`** (mono16, beam x bin polar):
+  강도 이미지와 같은 타임스탬프·같은 격자로 semantic 클래스 라벨을 낸다. 소나
+  이미지에서 바로 ground truth 마스크를 얻기 위한 것으로, YOLO 등 검출·분할 학습의
+  라벨로 쓴다. 라벨 정본은 이 polar 원본이다 — `/fls/display` 부채꼴은 극좌표에서
+  직교로 리샘플링한 것이라 GT로 쓸 수 없다. 클래스는 `.scn`의
+  `<segmentation class="N"/>`로 명시하며 표 정본은 `docs/CONVENTIONS.md` §2.8
+  (0=배경 … 9=infrastructure). 클래스는 look이 아니라 물체 단위 — turbine은
+  base/main 두 look을 써도 class 6 하나다. **id를 재배치하지 않는다**: 이미 녹화한
+  bag에서 뽑은 마스크가 에러 없이 오라벨이 되기 때문. 코어 대응 변경은
+  `stonefish` repo PR 참조. ⚠️ 알려진 천장 — 강도는 5×5 Gaussian을 타고 라벨은 안
+  타므로 물체 경계가 ±2 px 어긋나고, 수직 부채꼴 가장자리에 스친 물체는 라벨만 붙고
+  강도가 0에 가깝다(lobe 보정)
+
 - **P2 — ILOS cross-track 위치 피드백 (`cross_track_gain`, 기본 0.4 1/s)**:
   velocity 모드는 위치 피드백이 heading(ILOS 조향각)뿐이라 직진 구간에
   정적 cross-track 오프셋이 남는다 — 차량이 4-DOF로 sway를 낼 수 있는데도
