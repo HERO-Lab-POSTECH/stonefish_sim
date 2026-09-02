@@ -141,8 +141,10 @@ class SonarYoloNode(Node):
 
             # 3) detections -> Detection2DArray publish
             #    header 를 이미지에서 그대로 복사한다 — 소비자(SLAM)가 어느 소나
-            #    프레임의 탐지인지 stamp 로 매칭한다. 탐지가 0건이어도 발행해야
-            #    "이 프레임은 아무것도 없었다"와 "추론이 드랍됐다"가 갈린다.
+            #    프레임의 탐지인지 stamp 로 매칭한다. 탐지가 0건이어도 발행해서
+            #    "추론이 돌았고 아무것도 없었다"를 명시한다.
+            #    `Detection2D.id` 는 비워 둔다 — 프레임 사이에서 같은 물체를 잇는
+            #    tracking identity 이고(msg 주석) 이 노드는 추적을 하지 않는다.
             det_array = Detection2DArray()
             det_array.header = msg.header
             if r.boxes is not None and len(r.boxes) > 0:
@@ -150,11 +152,9 @@ class SonarYoloNode(Node):
                     r.boxes.xyxy.cpu().numpy(),
                     r.boxes.conf.cpu().numpy(),
                     r.boxes.cls.cpu().numpy().astype(int),
-                    self.model.names,
                 ):
                     det = Detection2D()
                     det.header = msg.header
-                    det.id = d.class_name
                     hyp = ObjectHypothesisWithPose()
                     hyp.hypothesis.class_id = d.class_id
                     hyp.hypothesis.score = d.score

@@ -19,9 +19,11 @@ class Detection(NamedTuple):
     Attributes:
         class_id (str): 클래스 인덱스의 십진 문자열. `vision_msgs` 4.1.1 의
             `ObjectHypothesis.class_id` 는 문자열이라 정수를 그대로 못 싣는다.
-            소비자(stonefish_slam)는 라벨을 정수 인덱스로 쓰므로 이름이 아니라
-            인덱스를 싣고, 사람이 읽는 이름은 `Detection2D.id` 로 따로 보낸다.
-        class_name (str): YOLO 클래스 이름.
+            소비자(stonefish_slam)는 라벨을 정수 인덱스로 쓰므로 인덱스를 싣는다.
+            사람이 읽는 이름은 **어느 필드에도 싣지 않는다** — `Detection2D.id`
+            는 메시지 사이에서 같은 물체를 잇는 tracking identity 이지 클래스
+            이름이 아니고(msg 주석), 거기에 이름을 넣으면 한 프레임에 같은
+            클래스가 둘일 때 소비자가 둘을 한 물체로 병합한다.
         score (float): 신뢰도.
         center_x (float): bbox 중심 x(픽셀, col = bearing 축).
         center_y (float): bbox 중심 y(픽셀, row = range bin 축).
@@ -30,7 +32,6 @@ class Detection(NamedTuple):
     """
 
     class_id: str
-    class_name: str
     score: float
     center_x: float
     center_y: float
@@ -42,7 +43,6 @@ def boxes_to_detections(
     xyxy: np.ndarray,
     confs: Sequence[float],
     clss: Sequence[int],
-    names,
 ) -> "list[Detection]":
     """ultralytics 의 xyxy 박스를 중심+크기 표현으로 바꾼다.
 
@@ -50,18 +50,15 @@ def boxes_to_detections(
         xyxy (np.ndarray): (K, 4) `[x1, y1, x2, y2]` 픽셀 좌표.
         confs (Sequence[float]): (K,) 신뢰도.
         clss (Sequence[int]): (K,) 클래스 인덱스.
-        names: 인덱스로 색인 가능한 클래스 이름 표(ultralytics `model.names`).
 
     Returns:
         list[Detection]: 입력 순서를 보존한 탐지 목록. 입력이 비면 빈 목록.
     """
     out = []
     for (x1, y1, x2, y2), conf, cls in zip(xyxy, confs, clss):
-        cid = int(cls)
         out.append(
             Detection(
-                class_id=str(cid),
-                class_name=str(names[cid]),
+                class_id=str(int(cls)),
                 score=float(conf),
                 center_x=0.5 * (float(x1) + float(x2)),
                 center_y=0.5 * (float(y1) + float(y2)),

@@ -21,7 +21,7 @@ def det(load_module):
 
 def test_center_and_size_from_corners(det):
     out = det.boxes_to_detections(
-        np.array([[10.0, 20.0, 30.0, 50.0]]), [0.9], [1], {1: "sofa"}
+        np.array([[10.0, 20.0, 30.0, 50.0]]), [0.9], [1]
     )
     assert len(out) == 1
     d = out[0]
@@ -36,20 +36,19 @@ def test_class_id_is_decimal_string_of_the_index(det):
     싣는다 — 이름은 `Detection2D.id` 로 따로 간다.
     """
     d = det.boxes_to_detections(
-        np.array([[0.0, 0.0, 1.0, 1.0]]), [0.5], [7], {7: "sofa"}
+        np.array([[0.0, 0.0, 1.0, 1.0]]), [0.5], [7]
     )[0]
     assert d.class_id == "7"
-    assert d.class_name == "sofa"
     assert isinstance(d.score, float) and d.score == pytest.approx(0.5)
 
 
 def test_empty_input_gives_empty_list(det):
-    assert det.boxes_to_detections(np.zeros((0, 4)), [], [], {}) == []
+    assert det.boxes_to_detections(np.zeros((0, 4)), [], []) == []
 
 
 def test_size_stays_positive_when_corners_are_reversed(det):
     d = det.boxes_to_detections(
-        np.array([[30.0, 50.0, 10.0, 20.0]]), [0.1], [0], {0: "x"}
+        np.array([[30.0, 50.0, 10.0, 20.0]]), [0.1], [0]
     )[0]
     assert d.size_x == 20.0 and d.size_y == 30.0
     assert (d.center_x, d.center_y) == (20.0, 35.0)
@@ -60,7 +59,6 @@ def test_order_is_preserved(det):
         np.array([[0.0, 0.0, 2.0, 2.0], [10.0, 10.0, 14.0, 14.0]]),
         [0.3, 0.8],
         [0, 1],
-        {0: "a", 1: "b"},
     )
-    assert [d.class_name for d in out] == ["a", "b"]
+    assert [d.class_id for d in out] == ["0", "1"]
     assert [d.center_x for d in out] == [1.0, 12.0]
