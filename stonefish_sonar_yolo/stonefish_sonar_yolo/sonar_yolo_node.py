@@ -2,7 +2,6 @@
 # SPDX-FileCopyrightText: 2025 Minjong Kim
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
-import json
 import os
 
 import numpy as np
@@ -13,10 +12,12 @@ from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
 
 from sensor_msgs.msg import Image
-from std_msgs.msg import String
+from vision_msgs.msg import Detection2D, Detection2DArray, ObjectHypothesisWithPose
 from cv_bridge import CvBridge
 
 from ultralytics import YOLO
+
+from stonefish_sonar_yolo.detections import boxes_to_detections
 
 # ros2 run stonefish_sonar_yolo sonar_yolo_node \
 #   --ros-args \
@@ -96,7 +97,9 @@ class SonarYoloNode(Node):
         self.busy = False  # 프레임 드랍(실시간성)용
 
         # ---- pubs ----
-        self.pub_det = self.create_publisher(String, "sonar_yolo/detections", 10)
+        self.pub_det = self.create_publisher(
+            Detection2DArray, "sonar_yolo/detections", 10
+        )
         self.pub_ann = self.create_publisher(Image, "sonar_yolo/annotated", 10)
 
         # ---- sub ----
@@ -110,7 +113,8 @@ class SonarYoloNode(Node):
         self.get_logger().info(
             f"Loaded model: {self.model_path}\n"
             f"Sub: {self.image_topic}\n"
-            f"Pub: sonar_yolo/detections, sonar_yolo/annotated\n"
+            f"Pub: sonar_yolo/detections (vision_msgs/Detection2DArray),"
+            f" sonar_yolo/annotated\n"
             f"device={self.device}, conf={self.conf}, iou={self.iou}, imgsz={self.imgsz}"
         )
 
@@ -135,22 +139,33 @@ class SonarYoloNode(Node):
                 verbose=False
             )[0]
 
-            # 3) detections -> JSON publish
-            dets = []
+            # 3) detections -> Detection2DArray publish
+            #    header 를 이미지에서 그대로 복사한다 — 소비자(SLAM)가 어느 소나
+            #    프레임의 탐지인지 stamp 로 매칭한다. 탐지가 0건이어도 발행해서
+            #    "추론이 돌았고 아무것도 없었다"를 명시한다.
+            #    `Detection2D.id` 는 비워 둔다 — 프레임 사이에서 같은 물체를 잇는
+            #    tracking identity 이고(msg 주석) 이 노드는 추적을 하지 않는다.
+            det_array = Detection2DArray()
+            det_array.header = msg.header
             if r.boxes is not None and len(r.boxes) > 0:
-                xyxy = r.boxes.xyxy.cpu().numpy()
-                confs = r.boxes.conf.cpu().numpy()
-                clss = r.boxes.cls.cpu().numpy().astype(int)
-                names = self.model.names
-                for (x1, y1, x2, y2), cf, c in zip(xyxy, confs, clss):
-                    dets.append({
-                        "class_id": int(c),
-                        "class_name": str(names[int(c)]),
-                        "conf": float(cf),
-                        "xyxy": [float(x1), float(y1), float(x2), float(y2)],
-                    })
+                for d in boxes_to_detections(
+                    r.boxes.xyxy.cpu().numpy(),
+                    r.boxes.conf.cpu().numpy(),
+                    r.boxes.cls.cpu().numpy().astype(int),
+                ):
+                    det = Detection2D()
+                    det.header = msg.header
+                    hyp = ObjectHypothesisWithPose()
+                    hyp.hypothesis.class_id = d.class_id
+                    hyp.hypothesis.score = d.score
+                    det.results = [hyp]
+                    det.bbox.center.position.x = d.center_x
+                    det.bbox.center.position.y = d.center_y
+                    det.bbox.size_x = d.size_x
+                    det.bbox.size_y = d.size_y
+                    det_array.detections.append(det)
 
-            self.pub_det.publish(String(data=json.dumps(dets, ensure_ascii=False)))
+            self.pub_det.publish(det_array)
 
             # 4) annotated image publish
             if self.publish_annotated and self.pub_ann.get_subscription_count() > 0:

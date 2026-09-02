@@ -39,6 +39,7 @@ sudo apt install \
   ros-humble-nav-msgs \
   ros-humble-sensor-msgs \
   ros-humble-visualization-msgs \
+  ros-humble-vision-msgs \
   ros-humble-builtin-interfaces \
   ros-humble-image-transport \
   ros-humble-tf2 \
@@ -52,8 +53,10 @@ sudo apt install \
 
 > `ros-humble-desktop` already provides most of these (rclcpp, rclpy, the
 > standard message packages, tf2, image_transport, PCL conversions). They are
-> listed explicitly so the dependency set is unambiguous; installing
-> `ros-humble-desktop` alone is sufficient on a typical workstation.
+> listed explicitly so the dependency set is unambiguous. **`vision_msgs` is the
+> exception — it is not in `ros-humble-desktop`**, and `stonefish_sonar_yolo`
+> fails at import without it, so install it explicitly (or let
+> `rosdep install --from-paths src` do it).
 
 #### Python packages (pip)
 
@@ -166,6 +169,7 @@ ros2 launch stonefish_control control.launch.py
 | stonefish_thruster_manager | TAM-based thrust allocation |
 | stonefish_trajectory_manager | Path generation and following |
 | stonefish_albc_bridge | RL policy bridge (obs→policy→action loop, numpy inference) |
+| stonefish_sonar_yolo | YOLO detection on FLS sonar images (`vision_msgs/Detection2DArray`) |
 
 ## ROS2 Topics
 

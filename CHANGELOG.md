@@ -69,6 +69,44 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- **`stonefish_sonar_yolo` 탐지 출력을 `std_msgs/String` JSON →
+  `vision_msgs/Detection2DArray` 로 교체**: 기존 JSON 에는 **타임스탬프·header 가
+  없어** 어느 소나 프레임의 탐지인지 소비자가 알 수 없었다(annotated Image 만
+  header 를 복사했다). 표준 메시지로 바꾸면서 `Detection2DArray.header` 와 각
+  `Detection2D.header` 에 입력 이미지 header 를 복사하고, 탐지 0건 프레임도 빈
+  배열로 발행한다("없었다" vs "`busy` 드랍"의 구분). `bbox` 는 중심+크기,
+  `results[0].hypothesis.class_id` 는 클래스 인덱스의 십진 문자열
+  (`vision_msgs` 4.1.1 의 `class_id` 는 string), 사람이 읽는 이름은
+  `Detection2D.id`. 변환 로직은 ROS 를 import 하지 않는
+  `stonefish_sonar_yolo/detections.py` 로 분리했다 — 노드 모듈은 상단에서
+  `rclpy`·`cv_bridge`·`ultralytics` 를 끌어와 ROS 없는 CI 러너에서 열 수 없다
+  (`test/test_sonar_yolo_detections.py`, 5 케이스). `package.xml` 의
+  `std_msgs` → `vision_msgs`(apt `ros-humble-vision-msgs` 4.1.1).
+  **JSON 토픽은 제거**했다 — 세 repo 통틀어 구독자가 0이었다.
+  소비자는 `stonefish_slam` 의 semantic 라벨 경로(`feat/semantic-labels`,
+  상대 PR 은 본 PR 본문에 상호 링크 — `CONTRIBUTING.md` §5)이며, 그 PR 이
+  머지되기 전까지 이 토픽의 구독자는 0이다.
+  `Detection2D.id` 는 **비운다** — 프레임 사이에서 같은 물체를 잇는 tracking
+  identity 이지 클래스 이름 칸이 아니다(msg 주석). 이름을 넣으면 한 프레임에
+  같은 클래스가 둘일 때 소비자가 둘을 한 물체로 병합한다. 클래스 이름은 어느
+  필드에도 싣지 않고 가중치 파일을 정본으로 둔다.
+  발행 경로 자체(header 복사·bbox 조립·0건 발행·`busy` 분기·예외 후 복구)는
+  `test/test_sonar_yolo_node_publish.py` 가 `__slots__` 메시지 stub 으로
+  콜백을 직접 돌려 고정한다 — 순수 변환 함수만 보는 테스트는 조립 단계의
+  오타를 못 잡고, 그 오타는 콜백의 `except` 에 삼켜져 조용한 무발행이 된다.
+
+- **`ros-humble-vision-msgs` 를 설치 문서에 반영**: `ros-humble-desktop` 에
+  들어 있지 않아 루트 README 의 "desktop 하나면 충분하다" 서술이 이 패키지에
+  대해서는 거짓이 됐다. 루트 README apt 목록·주석과 `docs/site` 설치
+  페이지(2단계)에 추가하고, 루트 README 패키지 표에 빠져 있던
+  `stonefish_sonar_yolo` 행도 채웠다.
+  ⚠️ **`stonefish_bringup` 런타임 이미지는 아직 미반영**(다른 repo): builder 는
+  `rosdep` 으로 `vision_msgs` 를 받지만 runtime stage 는 `ros:humble-ros-base`
+  에서 새로 시작해 `/ws/install` 만 COPY 하므로 `/opt/ros/humble` 의 메시지
+  모듈이 넘어가지 않는다 → 그 이미지에서 노드 기동 시
+  `ModuleNotFoundError: vision_msgs`. bringup 의 runtime apt 목록에
+  `ros-humble-vision-msgs` 를 추가하는 별도 PR 이 필요하다.
+
 - **P2 — cascade 게인 실측 재산정·속도 상한 실측 정합**: inner
   Kp=M_eff·ω_c=[70,62,64], Ki=Kp/2 (yaw는 I_zz 실측 불확실로
   P1 검증값 유지, ω_c=2 rad/s — 단일 스택 폐루프 runF에서 무포화·청정
