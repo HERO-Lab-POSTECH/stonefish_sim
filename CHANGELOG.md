@@ -69,6 +69,22 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- **`stonefish_sonar_yolo` 탐지 출력을 `std_msgs/String` JSON →
+  `vision_msgs/Detection2DArray` 로 교체**: 기존 JSON 에는 **타임스탬프·header 가
+  없어** 어느 소나 프레임의 탐지인지 소비자가 알 수 없었다(annotated Image 만
+  header 를 복사했다). 표준 메시지로 바꾸면서 `Detection2DArray.header` 와 각
+  `Detection2D.header` 에 입력 이미지 header 를 복사하고, 탐지 0건 프레임도 빈
+  배열로 발행한다("없었다" vs "`busy` 드랍"의 구분). `bbox` 는 중심+크기,
+  `results[0].hypothesis.class_id` 는 클래스 인덱스의 십진 문자열
+  (`vision_msgs` 4.1.1 의 `class_id` 는 string), 사람이 읽는 이름은
+  `Detection2D.id`. 변환 로직은 ROS 를 import 하지 않는
+  `stonefish_sonar_yolo/detections.py` 로 분리했다 — 노드 모듈은 상단에서
+  `rclpy`·`cv_bridge`·`ultralytics` 를 끌어와 ROS 없는 CI 러너에서 열 수 없다
+  (`test/test_sonar_yolo_detections.py`, 5 케이스). `package.xml` 의
+  `std_msgs` → `vision_msgs`(apt `ros-humble-vision-msgs` 4.1.1).
+  **JSON 토픽은 제거**했다 — 세 repo 통틀어 구독자가 0이었다.
+  소비자는 `stonefish_slam` 의 semantic 라벨 경로(상대 PR 참조)
+
 - **P2 — cascade 게인 실측 재산정·속도 상한 실측 정합**: inner
   Kp=M_eff·ω_c=[70,62,64], Ki=Kp/2 (yaw는 I_zz 실측 불확실로
   P1 검증값 유지, ω_c=2 rad/s — 단일 스택 폐루프 runF에서 무포화·청정
