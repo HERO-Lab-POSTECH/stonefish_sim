@@ -12,6 +12,7 @@
 		</physical>
 		<material name="Aluminium"/>
 		<look name="gas_canister"/>
+		<segmentation class="3"/>
 		<world_transform rpy="$(arg rpy)" xyz="$(arg xyz)"/>
 	</static>
 </scenario>

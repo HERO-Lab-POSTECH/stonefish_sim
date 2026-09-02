@@ -9,6 +9,7 @@
 		<dimensions scalex="1.0" scaley="1.0" height="50.0"/>
 		<material name="Rock"/>
 		<look name="seabed"/>
+		<segmentation class="1"/>
 		<world_transform rpy="$(arg rpy)" xyz="$(arg xyz)"/>
 	</static>
 </scenario>

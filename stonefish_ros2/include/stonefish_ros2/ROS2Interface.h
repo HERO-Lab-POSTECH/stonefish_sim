@@ -83,6 +83,7 @@ namespace sf
 
         static std::pair<sensor_msgs::msg::Image::SharedPtr, sensor_msgs::msg::CameraInfo::SharedPtr> GenerateCameraMsgPrototypes(Camera* cam, bool depth);
         static std::pair<sensor_msgs::msg::Image::SharedPtr, sensor_msgs::msg::Image::SharedPtr> GenerateFLSMsgPrototypes(FLS* fls);
+        static sensor_msgs::msg::Image::SharedPtr GenerateFLSSegmentationMsgPrototype(FLS* fls);
         static std::pair<sensor_msgs::msg::Image::SharedPtr, sensor_msgs::msg::Image::SharedPtr> GenerateSSSMsgPrototypes(SSS* sss);
         static std::pair<sensor_msgs::msg::Image::SharedPtr, sensor_msgs::msg::Image::SharedPtr> GenerateMSISMsgPrototypes(MSIS* msis);
 

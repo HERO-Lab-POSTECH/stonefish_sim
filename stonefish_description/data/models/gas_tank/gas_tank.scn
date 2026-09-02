@@ -11,6 +11,7 @@
 		</physical>
 		<material name="Rock"/>
 		<look name="gas_tank"/>
+		<segmentation class="4"/>
 		<world_transform rpy="$(arg rpy)" xyz="$(arg xyz)"/>
 	</static>
 </scenario>
