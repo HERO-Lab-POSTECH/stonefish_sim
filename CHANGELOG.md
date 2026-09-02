@@ -151,6 +151,14 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **BlueROV2 FLS 장착각을 수평면 아래 30°로 복원** (`bluerov2.scn`, roll 1.39626→1.0472):
+  `54636c6`("pitch 60°→80° 하향")은 `<origin rpy>`의 roll을 하향각으로 읽었지만
+  Stonefish는 rpy를 Rz·Ry·Rx로 합성하고 카메라형 센서(FLS)의 시선을 센서 +Z로 잡으므로
+  roll은 연직 기준이다(roll 0 = 바로 아래, 90 = 수평). 하향각 = 90° − roll 이라 그
+  커밋은 실제 하향각을 30°→**10°로 줄였고**, stonefish_slam `sonar_tilt_deg: 30.0`
+  (수평면 기준)과 어긋났다. 수직 FOV 20°에서 10°는 팬이 수평~아래 20°만 덮어 항해
+  고도의 해저가 팬 가장자리에 걸린다. 회귀 가드는 slam 쪽
+  `test_sonar_tilt_matches_sim_scenario.py`(두 repo 값을 회전 전체로 비교)
 - **`ThrusterState` 배열이 PUSH 액추에이터 몫만큼 팬텀 0을 실었다**:
   `thrusterSetpoints_`는 THRUSTER + PUSH 합계로 크기가 잡히는데
   (`ROS2ScenarioParser.cpp:263`) publish 루프는 THRUSTER만 순회한다. Push는
