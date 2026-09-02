@@ -120,7 +120,28 @@ P1·P2에서 테스트·CI 안전망을 깔았지만 본 코드는 거의 손대
 - **NED 좌표계**: `frame_id='world_ned'`로 통일. SI 단위(m, rad, rad/s, N, Nm, kg, kg·m²), YAML 주석·docstring으로 단위 명시.
 - 쿼터니언 규약: **내부 `[w, x, y, z]` vs ROS `[x, y, z, w]`** — 변환 지점에 주석으로 명시(`path_generator_node.py:286-287`). 회전은 `transforms3d`(euler2quat/quat2euler).
 
-### 2.8 테스트 (P2에서 정립)
+### 2.8 segmentation 클래스 id (`.scn` `<segmentation class="N"/>`)
+
+FLS가 `/{vehicle}/fls/segmentation`(mono16, beam×bin polar)에 찍는 라벨의 **정본 표**다. 학습 config의 `names:`와 1:1로 맞춘다.
+
+| id | 클래스 | 부여 위치 |
+|:--|:--|:--|
+| 0 | background / unclassified | 기본값 — `<segmentation>`이 없는 모든 엔티티 |
+| 1 | seabed·terrain | `worlds/world_seabed.scn`, `models/terrain/terrain.scn` |
+| 2 | oil_drum | `models/oil_drum/oil_drum.scn` |
+| 3 | gas_canister | `models/gas_canister/gas_canister.scn` |
+| 4 | gas_tank | `models/gas_tank/gas_tank.scn` |
+| 5 | rust_pipe | `models/rust_pipe/rust_pipe.scn` |
+| 6 | turbine | `models/turbines/turbines.scn`, `turbine1.scn`, `turbine2.scn` |
+| 7 | shipwreck | `models/shipwreck/shipwreck.scn` |
+| 8 | caighouse | `models/caighouse/caighouse.scn` |
+| 9 | infrastructure | `models/infrastructure/infrastructure.scn` |
+
+- **id는 `look`이 아니라 물체 단위다.** `turbine1.scn`은 `turbine_base`·`turbine_main` 두 look을 쓰는 `<static>` 두 개지만 둘 다 class 6이다 — 한 물체는 한 라벨이다.
+- **id를 재배치하지 않는다.** 이미 녹화한 bag에서 뽑은 GT 마스크가 조용히 오라벨이 된다. 클래스를 없앨 때도 번호를 비워두고 뒤를 당기지 않는다.
+- 새 클래스는 표 끝에 추가하고 같은 커밋에서 이 표와 `.scn`을 함께 고친다.
+
+### 2.9 테스트 (P2에서 정립)
 - 테스트는 패키지별 `test/`에 `test_*.py`, 함수는 `test_*`.
 - **import-time 오염(ROS/gtsam)을 피하려고 루트 `conftest.py`의 `load_module` fixture**(`importlib.util.spec_from_file_location`)로 모듈 파일을 직접 로드한다. 패키지 경로 import 금지. 근거: `conftest.py:8-23`.
 - `pytest.ini`의 `testpaths = stonefish_control test`로 discovery를 제한(시뮬레이터 래퍼 `stonefish_ros2` 제외, 루트 `test/`의 characterization은 포함).

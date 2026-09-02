@@ -13,6 +13,7 @@
 		</physical>
 		<material name="Rock"/>
 		<look name="shipwreck"/>
+		<segmentation class="7"/>
 		<world_transform rpy="$(arg rpy)" xyz="$(arg xyz)"/>
 	</static>
 </scenario>

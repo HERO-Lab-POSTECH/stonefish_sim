@@ -9,6 +9,7 @@
 	<static name="SeaBed" type="plane">
 		<material name="Seabed"/>
 		<look name="seabed"/>
+		<segmentation class="1"/>
 		<world_transform rpy="0.0 0.0 0.0" xyz="0.0 0.0 5.0"/>
 	</static>
 
