@@ -244,19 +244,40 @@
 			<ros_publisher topic="/bluerov2/camera_right"/>
 		</sensor> -->
 
-		<!-- <sensor name="camera_left" rate="30.0" type="camera">
+		<!-- 스테레오 쌍. FLS 와 같은 방향을 본다 — rpy 가 위 fls 센서와 같은 값이고,
+		     FLS 와 ColorCamera 는 모두 Camera 를 상속하므로(Camera.cpp:76-77) 시선이
+		     +Z, 위가 -Y 로 동일하다. 그 rpy 에서 R = Rz(pi/2)*Rx(tau) 라 카메라 로컬 X
+		     (영상 가로축)가 body +Y 로 가므로, 베이스라인은 y 오프셋으로 준다.
+		     베이스라인 0.12 m = 0.06 * 2 — 상용 스테레오 규격대로다(RealSense D435 50 mm,
+		     D455 95 mm, ZED 2i / Bumblebee2 120 mm). 더 넓히면 원거리 깊이가 좋아지지만
+		     그건 커스텀 리그이지 제품이 아니다. 이 폭에서 fx=417.03(640 px, hfov 75deg)
+		     이므로 디스패리티는 d = 50.04 / Z px — 고도 6.4 m 정하방에서 7.8 px,
+		     하향 30deg 사거리 12.8 m 에서 3.9 px 다. 깊이는 근거리에서만 믿을 값이고,
+		     스테레오가 위치인식에 주는 주된 값은 깊이가 아니라 특징점 방위다(방위
+		     정확도는 베이스라인과 무관하다). 소나가 거리, 카메라가 방위를 맡는 조합.
+		     ⚠️ 예전 주석에 있던 specs 의 baseline 속성은 지웠다 — 코어 파서가
+		     baseline 을 읽는 곳은 USBLReal 뿐이고(ScenarioParser.cpp:3871-3894),
+		     카메라 specs 는 resolution_x/resolution_y/horizontal_fov 셋만 읽는다
+		     (3356-3361). 남겨두면 CameraInfo 에 Tx 가 채워질 것처럼 읽혀 깊이 변환이
+		     조용히 틀어진다. 베이스라인은 이 origin 의 대칭 오프셋이 정본이다.
+		     ⚠️ 카메라는 그래픽 모드 전용이다(3350) — headless 로는 뜨지 않는다.
+		     ⚠️ rpy 의 1.0472(연직 기준 60deg = 하향 30deg)는 소나 정본과 같은 값이다.
+		     이 파일의 fls 는 아직 1.39626(하향 10deg)인데, 30deg 복원은 PR #28
+		     (fix/fls-tilt-30deg)에 있고 main 에 미머지다. 그 PR 이 머지되면 둘이 맞는다 —
+		     그 전에 이 브랜치로 새로 녹화하면 카메라 30deg / 소나 10deg 로 어긋난다. -->
+		<sensor name="camera_left" rate="10.0" type="camera">
 			<specs resolution_x="640" resolution_y="480" horizontal_fov="75.0"/>
-			<origin xyz="0.16 -0.0725 0.15" rpy="1.571 0.0 1.571"/>
+			<origin xyz="0.30 -0.06 0.0" rpy="1.0472 0.0 1.571"/>
 			<link name="base_link"/>
-			<ros_publisher topic="/$(arg vehicle_name)/left"/>
+			<ros_publisher topic="/$(arg vehicle_name)/stereo/left"/>
 		</sensor>
 
-		<sensor name="camera_right" rate="30.0" type="camera">
-			<specs resolution_x="640" resolution_y="480" horizontal_fov="75.0" baseline="-60.5"/>
-			<origin xyz="0.16 0.0725 0.15" rpy="1.571 0.0 1.571"/>
+		<sensor name="camera_right" rate="10.0" type="camera">
+			<specs resolution_x="640" resolution_y="480" horizontal_fov="75.0"/>
+			<origin xyz="0.30 0.06 0.0" rpy="1.0472 0.0 1.571"/>
 			<link name="base_link"/>
-			<ros_publisher topic="/$(arg vehicle_name)/right"/>
-		</sensor> -->
+			<ros_publisher topic="/$(arg vehicle_name)/stereo/right"/>
+		</sensor>
 
 		<!-- <sensor name="multibeam" rate="10.0" type="multibeam">
 			<specs fov="90.0" steps="128"/>
