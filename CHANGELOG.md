@@ -6,6 +6,25 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- **BlueROV2 스테레오 카메라 쌍 `/{vehicle}/stereo/{left,right}`** (640x480 rgb8,
+  10 Hz, 수평 FOV 75deg): FLS 와 **같은 방향**을 본다 — `rpy` 가 fls 센서와 같은
+  값이고 `FLS`·`ColorCamera` 가 모두 `Camera` 를 상속하므로(`Camera.cpp:76-77`)
+  시선이 +Z, 위가 -Y 로 동일하다. 그 `rpy` 에서 `R = Rz(pi/2)·Rx(tau)` 라 카메라
+  로컬 X(영상 가로축)가 body +Y 로 가므로 베이스라인은 y 오프셋(`±0.06`, 총
+  0.12 m)으로 준다. 폭 0.12 m 는 상용 스테레오 규격대로다(RealSense D435 50 mm,
+  D455 95 mm, ZED 2i / Bumblebee2 120 mm). 실측 `fx = fy = 417.03`(= 320/tan 37.5deg).
+  ⚠️ **`specs` 의 `baseline` 속성은 코어 파서가 안 읽는다** — `baseline` 을 읽는
+  곳은 `USBLReal` 뿐이고(`ScenarioParser.cpp:3871-3894`) 카메라 `specs` 는
+  `resolution_x`/`resolution_y`/`horizontal_fov` 셋만 본다(`3356-3361`). 옛 주석에
+  남아 있던 `baseline="-60.5"` 를 지운 것은 그래서다 — 남겨두면 `CameraInfo` 에
+  `Tx` 가 채워질 것처럼 읽혀 깊이 변환이 조용히 틀어진다(측정: `P[3] = 0.0`).
+  베이스라인 정본은 `origin` 의 대칭 오프셋이다. ⚠️ 카메라는 **그래픽 모드
+  전용**이다(`3350`) — headless 로는 뜨지 않으므로 스테레오 bag 은 GPU 머신에서만
+  녹화된다. ⚠️ 마운트 x 는 `0.30` 이다 — `0.16` 에서는 두 카메라가 선체 안에 있어
+  각자 차체 중심 쪽을 보고 **좌우 영상이 서로 수평 거울상**이 된다(측정:
+  `corr(L,R) = -0.109`, `corr(L, fliplr(R)) = +0.848`). 0.30 으로 빼면
+  `corr(L,R) = +0.819`
+
 - **FLS segmentation 토픽 `/{vehicle}/fls/segmentation`** (mono16, beam x bin polar):
   강도 이미지와 같은 타임스탬프·같은 격자로 semantic 클래스 라벨을 낸다. 소나
   이미지에서 바로 ground truth 마스크를 얻기 위한 것으로, YOLO 등 검출·분할 학습의
