@@ -11,6 +11,7 @@
 		</physical>
 		<material name="Aluminium"/>
 		<look name="oil_drum"/>
+		<segmentation class="2"/>
 		<world_transform rpy="$(arg rpy)" xyz="$(arg xyz)"/>
 	</static>
 </scenario>

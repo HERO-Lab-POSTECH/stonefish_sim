@@ -11,6 +11,7 @@
 		</physical>
 		<material name="Aluminium"/>
 		<look name="rust_pipe"/>
+		<segmentation class="5"/>
 		<world_transform rpy="$(arg rpy)" xyz="$(arg xyz)"/>
 	</static>
 </scenario>

@@ -11,6 +11,7 @@
 		</physical>
 		<material name="Neutral"/>
 		<look name="turbine_metal"/>
+		<segmentation class="6"/>
 		<world_transform rpy="$(arg rpy)" xyz="$(arg xyz)"/>
 	</static>
 </scenario>
