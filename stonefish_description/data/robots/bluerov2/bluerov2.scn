@@ -273,9 +273,15 @@
 			<settings range_min="0.5" range_max="40.0" gain="1.1"/>
 			<noise multiplicative="0.01" additive="0.02"/>
 			<display colormap="hot"/>
-			<!-- FLS tilt 80 deg down (was 60): keeps the seabed inside the fan at
-			     survey altitude so SLAM feature extraction sees terrain returns -->
-			<origin xyz="0.0 0.0 0.0" rpy="1.39626 0.0 1.571"/>
+			<!-- FLS depression 30 deg below the horizontal plane (fan spans 20..40 deg
+			     down with the 20 deg vertical FOV). Stonefish composes rpy as
+			     Rz(yaw)*Ry(pitch)*Rx(roll) and a camera-type sensor looks along its +Z,
+			     so roll is measured from nadir (roll 0 = straight down, 90 = level):
+			     down-tilt = 90 - roll -> roll 60 deg. The earlier "80 deg down" edit set
+			     roll 80, i.e. only 10 deg down. Must equal stonefish_slam
+			     sonar.sonar_tilt_deg (30.0); test_sonar_tilt_matches_sim_scenario.py
+			     in that repo checks both. -->
+			<origin xyz="0.0 0.0 0.0" rpy="1.0472 0.0 1.571"/>
 			<link name="base_link"/>
 			<ros_publisher topic="/$(arg vehicle_name)/fls"/>
 		</sensor>
