@@ -48,10 +48,12 @@ sudo apt install ros-humble-desktop
 
 ### 2. ROS2 의존성 설치
 
-`tf2-ros`와 `image-transport`를 설치한다.
+`tf2-ros`, `image-transport`, `vision-msgs`를 설치한다. `vision-msgs`는
+`ros-humble-desktop`에 들어 있지 않은데 `stonefish_sonar_yolo`가 이것 없이는
+import 단계에서 죽는다.
 
 ```bash
-sudo apt install ros-humble-tf2-ros ros-humble-image-transport
+sudo apt install ros-humble-tf2-ros ros-humble-image-transport ros-humble-vision-msgs
 ```
 
 ### 3. Python 패키지 설치
