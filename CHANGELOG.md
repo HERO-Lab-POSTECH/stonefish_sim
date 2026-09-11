@@ -76,8 +76,9 @@ All notable changes to this project will be documented in this file.
   `Detection2D.header` 에 입력 이미지 header 를 복사하고, 탐지 0건 프레임도 빈
   배열로 발행한다("없었다" vs "`busy` 드랍"의 구분). `bbox` 는 중심+크기,
   `results[0].hypothesis.class_id` 는 클래스 인덱스의 십진 문자열
-  (`vision_msgs` 4.1.1 의 `class_id` 는 string), 사람이 읽는 이름은
-  `Detection2D.id`. 변환 로직은 ROS 를 import 하지 않는
+  (`vision_msgs` 4.1.1 의 `class_id` 는 string)이고, 사람이 읽는 이름은
+  어느 필드에도 싣지 않는다(아래 `Detection2D.id` 항 참조). 변환 로직은
+  ROS 를 import 하지 않는
   `stonefish_sonar_yolo/detections.py` 로 분리했다 — 노드 모듈은 상단에서
   `rclpy`·`cv_bridge`·`ultralytics` 를 끌어와 ROS 없는 CI 러너에서 열 수 없다
   (`test/test_sonar_yolo_detections.py`, 5 케이스). `package.xml` 의
